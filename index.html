@@ -652,6 +652,35 @@
 }
 
 function ProductList() {
+
+    const [timeLeft, setTimeLeft] = useState("");
+
+  // Thiết lập thời gian kết thúc khuyến mãi (ví dụ: sau 3 ngày)
+  const deadline = new Date();
+  deadline.setDate(deadline.getDate() + 13); // +3 ngày
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      const distance = deadline - now;
+
+      if (distance <= 0) {
+        setTimeLeft("Đã hết khuyến mãi");
+        clearInterval(interval);
+        return;
+      }
+
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((distance / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((distance / (1000 * 60)) % 60);
+      const seconds = Math.floor((distance / 1000) % 60);
+
+      setTimeLeft(`⏰ Còn lại ${days} ngày ${hours} giờ ${minutes} phút ${seconds} giây`);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
     const products = [
         {
             image: "51.jpg",
@@ -694,6 +723,7 @@ function ProductList() {
                                         <span className="text-muted text-decoration-line-through me-2">{item.originalPrice}</span>
                                         <span className="text-danger fw-bold fs-5">{item.salePrice}</span>
                                     </p>
+                                    <p className="text-warning small">{timeLeft}</p>
                                 </div>
                             </div>
                         </div>
