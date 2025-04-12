@@ -319,11 +319,14 @@
                 <>
                     <Header />
                     <HeroSection />
-                    <div className="product-slider">
+                    {/*<div className="product-slider">
                         <ProductShowcase imageSrc="2.jpg" specs={productSpecs} title="xy lanh giữa (1.950.000đ)" />
                         <ProductShowcase imageSrc="3.jpg" specs={productSpecsNghieng} title="xy lanh ngiêng (1.950.000đ)" />
                         <ProductShowcase imageSrc="4.jpg" specs={productSpecsUi} title="xy lanh ủi(2.200.000đ)" />
-                    </div>
+
+                    </div>*/}
+                    <ProductShowcaseTabs />
+
                     <ProductList />
                     <ProductVanTay />
                     <CustomerReviews />
@@ -603,50 +606,161 @@
         ReactDOM.render(<App />, document.getElementById('root'));
 
         function ProductShowcase({ imageSrc, specs, title }) {
-    return (
-        <div>
-            <section className="py-5 bg-light">
-                <div className="container">
-                    <div className="text-center mb-4 fade-up">
-                        <h2 className="fw-bold">Khám phá chi tiết sản phẩm</h2>
-                        <h3 className="text-muted">{title}</h3>
+        return (
+            <div>
+                <section className="py-5 bg-light">
+                    <div className="container">
+                        <div className="text-center mb-4 fade-up">
+                            <h2 className="fw-bold">Khám phá chi tiết sản phẩm</h2>
+                            <h3 className="text-muted">{title}</h3>
+                        </div>
+                        <div className="product-image-container fade-up">
+                            <img src={imageSrc} alt="Chi tiết sản phẩm" className="product-image" />
+                        </div>
                     </div>
-                    <div className="product-image-container fade-up">
-                        <img src={imageSrc} alt="Chi tiết sản phẩm" className="product-image" />
-                    </div>
-                </div>
-            </section>
+                </section>
 
-            <section className="pb-5">
-                <div className="container">
-                    <div className="text-center mb-4 fade-up">
-                        <h2 className="fw-bold">Thông số kỹ thuật</h2>
-                        <p className="text-muted">Các thông số chi tiết của sản phẩm</p>
-                    </div>
-                    <div className="row justify-content-center fade-up">
-                        <div className="col-md-8">
-                            <div className="table-responsive">
-                                <table className="table table-striped spec-table">
-                                    <thead>
-                                        <tr className="bg-primary text-white">
-                                            <th scope="col">Thông số</th>
-                                            <th scope="col" className="text-end">Giá trị</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {specs.map((spec, idx) => (
-                                            <tr key={idx}>
-                                                <td><strong>{spec.name}</strong></td>
-                                                <td className="text-end">{spec.value}</td>
+                <section className="pb-5">
+                    <div className="container">
+                        <div className="text-center mb-4 fade-up">
+                            <h2 className="fw-bold">Thông số kỹ thuật</h2>
+                            <p className="text-muted">Các thông số chi tiết của sản phẩm</p>
+                        </div>
+                        <div className="row justify-content-center fade-up">
+                            <div className="col-md-8">
+                                <div className="table-responsive">
+                                    <table className="table table-striped spec-table">
+                                        <thead>
+                                            <tr className="bg-primary text-white">
+                                                <th scope="col">Thông số</th>
+                                                <th scope="col" className="text-end">Giá trị</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {specs.map((spec, idx) => (
+                                                <tr key={idx}>
+                                                    <td><strong>{spec.name}</strong></td>
+                                                    <td className="text-end">{spec.value}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
+                </section>
+            </div>
+        );
+}
+
+// New version of ProductShowcaseTabs
+function ProductShowcaseTabs() {
+    const [activeTab, setActiveTab] = useState(0);
+
+    const products = [
+        {
+            title: "Xy lanh giữa (1.950.000đ)",
+            imageSrc: "2.jpg",
+            specs: [
+            { name: "Lực đẩy", value: "4.200kg" },
+                { name: "Lực kéo", value: "3.400kg" },
+                { name: "Ty cứng", value: "Ø28mm" },
+                { name: "Vỏ", value: "Ø70mm" },
+                { name: "Ren", value: "1/4 lỗm" },
+                { name: "Đầu táo", value: "Ø20mm" },
+                { name: "Hành trình", value: "110mm" },
+                { name: "Trọng lượng", value: "7kg" },
+                { name: "Bảo hành", value: "1 năm" }
+            ]
+        },
+        {
+            title: "Xy lanh nghiêng (1.950.000đ)",
+            imageSrc: "3.jpg",
+            specs: [
+            { name: "Lực đẩy", value: "4.200kg" },
+                { name: "Lực kéo", value: "3.400kg" },
+                { name: "Đầu táo", value: "Ø20mm" },
+                { name: "Ty cứng", value: "Ø28mm" },
+                { name: "Vỏ xy lanh", value: "Ø70mm" },
+                { name: "Ren", value: "1/4 lỗm" },
+                { name: "Kết nối", value: "lỗ 3/8, đầu đực 1/4 lỗm" },
+                { name: "Khoảng cách tâm lỗ", value: "35mm" },
+                { name: "Khoảng cách lỗ cuối", value: "368mm" },
+                { name: "Hành trình ty", value: "110mm" },
+                { name: "Tổng chiều dài rút", value: "438mm" },
+                { name: "Tổng chiều dài kéo", value: "548mm" },
+                { name: "Trọng lượng", value: "7kg" },
+                { name: "Bảo hành", value: "1 năm" }
+            ]
+        },
+        {
+            title: "Xy lanh ủi (2.200.000đ)",
+            imageSrc: "4.jpg",
+            specs: [
+            { name: "Vỏ xy lanh", value: "Ø60mm" },
+                { name: "Ty cứng", value: "Ø32mm" },
+                { name: "Đầu táo", value: "Ø25mm" },
+                { name: "Ren", value: "1/4 lỗm" },
+                { name: "Van chống tụt", value: "Có" },
+                { name: "Chiều dài rút", value: "730mm" },
+                { name: "Chiều dài kéo", value: "1240mm" },
+                { name: "Hành trình", value: "600mm" }
+            ]
+        }
+    ];
+
+    return (
+        <div className="bg-light py-5">
+            <div className="container">
+                <div className="text-center mb-4">
+                    <h2 className="fw-bold">Khám phá chi tiết các dòng xy lanh</h2>
+                    <div className="btn-group mt-3" role="group">
+                        {products.map((prod, idx) => (
+                            <button
+                                key={idx}
+                                className={`btn btn-outline-primary ${activeTab === idx ? "active" : ""}`}
+                                onClick={() => setActiveTab(idx)}
+                            >
+                                {prod.title}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </section>
+
+                {/* Hình ảnh */}
+                <div className="product-image-container text-center fade-up">
+                    <img src={products[activeTab].imageSrc} alt="Chi tiết" className="img-fluid rounded shadow-sm" style={{ maxHeight: '400px' }} />
+                </div>
+
+                {/* Bảng thông số */}
+                <div className="text-center mt-5">
+                    <h3 className="fw-bold">Thông số kỹ thuật</h3>
+                    <p className="text-muted">Chi tiết dòng sản phẩm {products[activeTab].title}</p>
+                </div>
+                <div className="row justify-content-center">
+                    <div className="col-md-8">
+                        <div className="table-responsive">
+                            <table className="table table-bordered table-striped">
+                                <thead className="table-primary">
+                                    <tr>
+                                        <th>Thông số</th>
+                                        <th className="text-end">Giá trị</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {products[activeTab].specs.map((spec, idx) => (
+                                        <tr key={idx}>
+                                            <td><strong>{spec.name}</strong></td>
+                                            <td className="text-end">{spec.value}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
