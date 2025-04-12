@@ -654,10 +654,12 @@
 function ProductList() {
 
     const [timeLeft, setTimeLeft] = useState("");
+    
+  const [isPromoOver, setIsPromoOver] = useState(false);
 
   // Thiết lập thời gian kết thúc khuyến mãi (ví dụ: sau 3 ngày)
   const deadline = new Date();
-  deadline.setDate(deadline.getDate() + 13); // +3 ngày
+  deadline.setDate(deadline.getDate() + 10); // +3 ngày
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -666,6 +668,7 @@ function ProductList() {
 
       if (distance <= 0) {
         setTimeLeft("Đã hết khuyến mãi");
+        setIsPromoOver(true);
         clearInterval(interval);
         return;
       }
@@ -719,11 +722,24 @@ function ProductList() {
                                 <div className="card-body">
                                     <h5 className="card-title">{item.title}</h5>
                                     {/*<p className="card-text text-primary fw-bold fs-5">{item.price}</p>*/}
-                                    <p className="mb-2">
+                                    {/*<p className="mb-2">
                                         <span className="text-muted text-decoration-line-through me-2">{item.originalPrice}</span>
                                         <span className="text-danger fw-bold fs-5">{item.salePrice}</span>
-                                    </p>
-                                    <p className="text-warning small">{timeLeft}</p>
+                                    </p>*/}
+                                    {isPromoOver ? (
+                                        <p className="text-primary fw-bold fs-5">{item.originalPrice}</p>
+                                    ) : (
+                                        <>
+                                        <p className="mb-2">
+                                            <span className="text-muted text-decoration-line-through me-2">
+                                            {item.originalPrice}
+                                            </span>
+                                            <span className="text-danger fw-bold fs-5">{item.salePrice}</span>
+                                        </p>
+                                        <p className="text-warning small">{timeLeft}</p>
+                                        </>
+                                    )}
+                                   {/* <p className="text-warning small">{timeLeft}</p>*/}
                                 </div>
                             </div>
                         </div>
