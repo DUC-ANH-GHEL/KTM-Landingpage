@@ -257,6 +257,35 @@
                 { name: "Bảo hành", value: "1 năm" }
             ];
 
+            const productSpecsNghieng = [
+                { name: "Lực đẩy", value: "4.200kg" },
+                { name: "Lực kéo", value: "3.400kg" },
+                { name: "Đầu táo", value: "Ø20mm" },
+                { name: "Ty cứng", value: "Ø28mm" },
+                { name: "Vỏ xy lanh", value: "Ø70mm" },
+                { name: "Ren", value: "1/4 lỗm" },
+                { name: "Kết nối", value: "lỗ 3/8, đầu đực 1/4 lỗm" },
+                { name: "Khoảng cách tâm lỗ", value: "35mm" },
+                { name: "Khoảng cách lỗ cuối", value: "368mm" },
+                { name: "Hành trình ty", value: "110mm" },
+                { name: "Tổng chiều dài rút", value: "438mm" },
+                { name: "Tổng chiều dài kéo", value: "548mm" },
+                { name: "Trọng lượng", value: "7kg" },
+                { name: "Bảo hành", value: "1 năm" }
+            ];
+
+            const productSpecsUi = [
+                { name: "Vỏ xy lanh", value: "Ø60mm" },
+                { name: "Ty cứng", value: "Ø32mm" },
+                { name: "Đầu táo", value: "Ø25mm" },
+                { name: "Ren", value: "1/4 lỗm" },
+                { name: "Van chống tụt", value: "Có" },
+                { name: "Chiều dài rút", value: "730mm" },
+                { name: "Chiều dài kéo", value: "1240mm" },
+                { name: "Hành trình", value: "600mm" }
+            ];
+
+
 
             useEffect(() => {
                 // Intersection Observer for fade-up animations
@@ -284,8 +313,8 @@
                     <HeroSection />
                     <div className="product-slider">
                         <ProductShowcase imageSrc="2.jpg" specs={productSpecs} title="xy lanh giữa" />
-                        <ProductShowcase imageSrc="3.jpg" specs={productSpecs} title="xy lanh ngiêng" />
-                        <ProductShowcase imageSrc="4.jpg" specs={productSpecs} title="xy lanh ủi" />
+                        <ProductShowcase imageSrc="3.jpg" specs={productSpecsNghieng} title="xy lanh ngiêng" />
+                        <ProductShowcase imageSrc="4.jpg" specs={productSpecsUi} title="xy lanh ủi" />
                     </div>
                     <CustomerReviews />
                     <ContactForm />
