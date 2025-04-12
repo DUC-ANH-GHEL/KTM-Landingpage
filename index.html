@@ -719,7 +719,9 @@ function ProductShowcaseTabs() {
                         {products.map((prod, idx) => (
                             <button
                                 key={idx}
-                                className={`btn btn-outline-primary ${activeTab === idx ? "active" : ""}`}
+                                // className={`btn btn-outline-primary ${activeTab === idx ? "active" : ""}`}
+                                className={`btn ${activeTab === idx ? "btn-primary text-white fw-bold" : "btn-outline-primary fw-semibold border rounded shadow-sm"}`}
+                                style={{ margin: '4px', minWidth: '110px' }}
                                 onClick={() => setActiveTab(idx)}
                             >
                                 {prod.title}
