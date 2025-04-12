@@ -656,17 +656,23 @@ function ProductList() {
         {
             image: "51.jpg",
             title: "Bộ van 3 tay KTM có lọc mạt + 1 xylanh giữa chống tụt, 2 đầu táo 19 phù hợp máy kéo 30-90hp",
-            price: "5.550.000đ"
+            price: "5.550.000đ",
+            originalPrice: "6.380.000đ",
+            salePrice: "5.550.000đ"
         },
         {
             image: "61.jpg",
             title: "Bộ van 3 tay KTM có lọc mạt + 3 xylanh 1 Nghiêng 1 Giữa 1 nâng hạ rạch vạt + đủ phụ kiện bích dây ren giá đỡ chốt sẵn lắp.",
-            price: "10.250.000đ"
+            price: "10.250.000đ",
+            originalPrice: "10.580.000đ",
+            salePrice: "10.250.000đ"
         },
         {
             image: "71.jpg",
             title: "Bộ van 3 tay KTM có lọc mạt + 2 xylanh 1 nghiêng 1 giữa 1 tay chờ kép ren 1/4 lõm nhật - đủ phụ kiện dây ren giá đỡ sẵn lắp",
-            price: "7.800.000đ"
+            price: "7.800.000đ",
+            originalPrice: "8.580.000đ",
+            salePrice: "7.800.000đ"
         }
     ];
 
@@ -683,7 +689,11 @@ function ProductList() {
                                 <img src={item.image} alt={item.title} className="card-img-top" />
                                 <div className="card-body">
                                     <h5 className="card-title">{item.title}</h5>
-                                    <p className="card-text text-primary fw-bold fs-5">{item.price}</p>
+                                    {/*<p className="card-text text-primary fw-bold fs-5">{item.price}</p>*/}
+                                    <p className="mb-2">
+                                        <span className="text-muted text-decoration-line-through me-2">{item.originalPrice}</span>
+                                        <span className="text-danger fw-bold fs-5">{item.salePrice}</span>
+                                    </p>
                                 </div>
                             </div>
                         </div>
