@@ -325,7 +325,7 @@
                         <ProductShowcase imageSrc="4.jpg" specs={productSpecsUi} title="xy lanh ủi(2.200.000đ)" />
                     </div>
                     <ProductList />
-
+                    <ProductVanTay />
                     <CustomerReviews />
                     {/* <ContactForm />  */}
                     <FloatingSocial />
@@ -658,7 +658,7 @@ function ProductList() {
   const [isPromoOver, setIsPromoOver] = useState(false);
 
   // Thiết lập thời gian kết thúc khuyến mãi (ví dụ: sau 3 ngày)
-//   const deadline = new Date();
+    //   const deadline = new Date();
   const deadline = new Date("2025-04-12T18:20:00"); // 12/04/2025 lúc 23:59
   deadline.setDate(deadline.getDate() + 10); // +3 ngày
 
@@ -749,6 +749,63 @@ function ProductList() {
             </div>
         </section>
     );
+}
+
+function ProductVanTay() {
+  const priceTable = [
+    { type: "Van 1 tay", price: "1.900.000đ" },
+    { type: "Van 2 tay", price: "2.200.000đ" },
+    { type: "Van 3 tay", price: "2.700.000đ" },
+    { type: "Van 5 tay", price: "3.600.000đ" },
+    { type: "Van 6 tay", price: "4.100.000đ" },
+  ];
+
+  return (
+    <section className="pb-5 bg-white">
+      <div className="container">
+        <div className="text-center mb-4 fade-up">
+          <h2 className="fw-bold">Van tay thủy lực KTM</h2>
+          <p className="text-muted">
+            Dòng van điều khiển dầu cho các xylanh nâng – hạ, gập – trượt. Phù hợp mọi loại máy kéo.
+          </p>
+        </div>
+
+        <div className="row justify-content-center">
+          <div className="col-md-6 fade-up">
+            <div className="card shadow-sm h-100">
+              <img src="8.jpg" alt="Van tay KTM" className="card-img-top" />
+              <div className="card-body">
+                <h5 className="card-title text-center">Van tay đủ ren lọc KTM</h5>
+                <table className="table table-sm table-bordered mt-3">
+                  <thead>
+                    <tr>
+                      <th>Loại van</th>
+                      <th className="text-end">Giá</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {priceTable.map((row, i) => (
+                      <tr key={i}>
+                        <td>{row.type}</td>
+                        <td className="text-end">{row.price}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <a
+                  href="https://zalo.me/"
+                  target="_blank"
+                  className="btn btn-primary w-100 mt-3"
+                >
+                  Nhắn Zalo
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 
