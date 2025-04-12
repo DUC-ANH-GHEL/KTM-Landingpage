@@ -658,7 +658,8 @@ function ProductList() {
   const [isPromoOver, setIsPromoOver] = useState(false);
 
   // Thiết lập thời gian kết thúc khuyến mãi (ví dụ: sau 3 ngày)
-  const deadline = new Date();
+//   const deadline = new Date();
+  const deadline = new Date("2025-04-12T18:20:00"); // 12/04/2025 lúc 23:59
   deadline.setDate(deadline.getDate() + 10); // +3 ngày
 
   useEffect(() => {
