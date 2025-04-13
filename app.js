@@ -282,14 +282,23 @@ function ProductList() {
                     ) : (
                       <p className="fw-bold text-primary fs-5">{item.originalPrice}</p>
                     )}
-                    <a
+                    {/* <a
                       href="https://zalo.me/0966201140"
                       target="_blank"
                       rel="noopener"
                       className="btn btn-cta-animate btn-outline-primary btn-sm mt-2"
                     >
                       Tư vấn combo này
+                    </a> */}
+                    <a
+                    href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn tư vấn về " + item.name + " – " + item.desc)}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="btn btn-outline-primary btn-sm mt-2 btn-cta-animate"
+                    >
+                    Tư vấn combo này
                     </a>
+
                   </div>
                 </div>
               </div>
