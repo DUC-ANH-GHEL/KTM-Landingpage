@@ -135,68 +135,127 @@ function FloatingSocial() {
 
 
 
-function ProductShowcaseTabs() {
-    const [activeTab, setActiveTab] = useState(0);
-    const products = [
-      {
-        title: "Xy lanh giữa",
-        image: "2.jpg",
-        price: "1.950.000đ",
-        icon: "https://img.icons8.com/?size=100&id=YcNwFnEjuzC1&format=png&color=000000",
-        specs: ["Lực đẩy: 4200kg", "Lực kéo: 3400kg", "Chiều dài rút: 480mm", "Chiều dài kéo: 730mm", "Hành trình: 110mm", "Trọng lượng: 7kg"]
-      },
-      {
-        title: "Xy lanh nghiêng",
-        image: "3.jpg",
-        price: "1.950.000đ",
-        icon: "https://img.icons8.com/?size=100&id=rmNQmrTGoOyp&format=png&color=000000",
-        specs: ["Lực đẩy: 4200kg", "Lực kéo: 3400kg", "Chiều dài rút: 438mm", "Chiều dài kéo: 548mm", "Hành trình: 110mm", "Trọng lượng: 7kg"]
-      },
-      {
-        title: "Xy lanh ủi",
-        image: "4.jpg",
-        price: "2.200.000đ",
-        icon: "https://img.icons8.com/?size=100&id=33908&format=png&color=000000",
-        specs: ["Ty: Ø32mm", "Vỏ: Ø60mm", "Van chống tụt: Có", "Chiều dài rút: 730mm", "Chiều dài kéo: 1240mm", "Hành trình: 600mm"]
-      }
-    ];
+// function ProductShowcaseTabs() {
+//     const [activeTab, setActiveTab] = useState(0);
+//     const products = [
+//       {
+//         title: "Xy lanh giữa",
+//         image: "2.jpg",
+//         price: "1.950.000đ",
+//         icon: "https://img.icons8.com/?size=100&id=YcNwFnEjuzC1&format=png&color=000000",
+//         specs: ["Lực đẩy: 4200kg", "Lực kéo: 3400kg", "Chiều dài rút: 480mm", "Chiều dài kéo: 730mm", "Hành trình: 110mm", "Trọng lượng: 7kg"]
+//       },
+//       {
+//         title: "Xy lanh nghiêng",
+//         image: "3.jpg",
+//         price: "1.950.000đ",
+//         icon: "https://img.icons8.com/?size=100&id=rmNQmrTGoOyp&format=png&color=000000",
+//         specs: ["Lực đẩy: 4200kg", "Lực kéo: 3400kg", "Chiều dài rút: 438mm", "Chiều dài kéo: 548mm", "Hành trình: 110mm", "Trọng lượng: 7kg"]
+//       },
+//       {
+//         title: "Xy lanh ủi",
+//         image: "4.jpg",
+//         price: "2.200.000đ",
+//         icon: "https://img.icons8.com/?size=100&id=33908&format=png&color=000000",
+//         specs: ["Ty: Ø32mm", "Vỏ: Ø60mm", "Van chống tụt: Có", "Chiều dài rút: 730mm", "Chiều dài kéo: 1240mm", "Hành trình: 600mm"]
+//       }
+//     ];
   
-    return (
-      <section className="py-5 bg-light">
-        <div className="container">
-          <div className="text-center mb-4">
-            <h2 className="fw-bold">Chi tiết các dòng xy lanh</h2>
-            <div className="d-flex justify-content-center gap-2 flex-nowrap overflow-auto mt-3" style={{ whiteSpace: 'nowrap' }}>
-              {products.map((prod, idx) => (
-                <button
-                  key={idx}
-                  className={`btn text-wrap ${activeTab === idx ? "btn-primary text-white fw-bold" : "btn-outline-primary"}`}
-                  onClick={() => setActiveTab(idx)}
-                  style={{ maxWidth: '200px' }}
-                >
-                    <img src={prod.icon} alt="icon" className="me-2" style={{ width: '20px', height: '20px' }} />
+//     return (
+//       <section className="py-5 bg-light">
+//         <div className="container">
+//           <div className="text-center mb-4">
+//             <h2 className="fw-bold">Chi tiết các dòng xy lanh</h2>
+//             <div className="d-flex justify-content-center gap-2 flex-nowrap overflow-auto mt-3" style={{ whiteSpace: 'nowrap' }}>
+//               {products.map((prod, idx) => (
+//                 <button
+//                   key={idx}
+//                   className={`btn text-wrap ${activeTab === idx ? "btn-primary text-white fw-bold" : "btn-outline-primary"}`}
+//                   onClick={() => setActiveTab(idx)}
+//                   style={{ maxWidth: '200px' }}
+//                 >
+//                     <img src={prod.icon} alt="icon" className="me-2" style={{ width: '20px', height: '20px' }} />
                 
-                  {prod.title}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="text-center">
-            <img src={products[activeTab].image} alt={products[activeTab].title} className="img-fluid rounded shadow" style={{ maxHeight: '360px' }} />
-            <p className="mt-3 fw-bold text-danger fs-5">Giá: {products[activeTab].price}</p>
-          </div>
-          <ul className="list-group list-group-flush col-md-6 mx-auto mt-4">
-            {products[activeTab].specs.map((spec, i) => (
-              <li className="list-group-item d-flex justify-content-between" key={i}>
-                <span>{spec.split(":")[0]}</span>
-                <span className="fw-semibold">{spec.split(":")[1]}</span>
-              </li>
-            ))}
-          </ul>
+//                   {prod.title}
+//                 </button>
+//               ))}
+//             </div>
+//           </div>
+//           <div className="text-center">
+//             <img src={products[activeTab].image} alt={products[activeTab].title} className="img-fluid rounded shadow" style={{ maxHeight: '360px' }} />
+//             <p className="mt-3 fw-bold text-danger fs-5">Giá: {products[activeTab].price}</p>
+//           </div>
+//           <ul className="list-group list-group-flush col-md-6 mx-auto mt-4">
+//             {products[activeTab].specs.map((spec, i) => (
+//               <li className="list-group-item d-flex justify-content-between" key={i}>
+//                 <span>{spec.split(":")[0]}</span>
+//                 <span className="fw-semibold">{spec.split(":")[1]}</span>
+//               </li>
+//             ))}
+//           </ul>
+//         </div>
+//       </section>
+//     );
+//   }
+
+
+function ProductShowcaseTabs() {
+  const [modalImage, setModalImage] = useState(null);
+
+  const products = [
+    {
+      title: "Xy lanh giữa",
+      image: "2.jpg",
+      price: "1.950.000đ",
+    },
+    {
+      title: "Xy lanh nghiêng",
+      image: "3.jpg",
+      price: "1.950.000đ",
+    },
+    {
+      title: "Xy lanh ủi",
+      image: "4.jpg",
+      price: "2.200.000đ",
+    }
+  ];
+
+  return (
+    <section className="py-5 bg-light">
+      <div className="container">
+        <div className="text-center mb-4">
+          <h2 className="fw-bold">Chi tiết các dòng xy lanh</h2>
         </div>
-      </section>
-    );
-  }
+        <div className="row">
+          {products.map((prod, idx) => (
+            <div className="col-4 mb-4 d-flex justify-content-center" key={idx}
+            onClick={() => setModalImage(prod.image)}
+            >
+              <div className="card border-0 text-center">
+                <img
+                  src={prod.image}
+                  alt={prod.title}
+                  className="img-fluid rounded shadow clickable"
+                  style={{ maxHeight: '200px', cursor: 'pointer' }}
+                />
+                <div className="card-body p-2">
+                  <h5 className="card-title mb-1">{prod.title}</h5>
+                  <p className="card-text text-danger fw-bold">{prod.price}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {modalImage && (
+          <div className="modal-overlay" onClick={() => setModalImage(null)}>
+            <img src={modalImage} alt="Enlarged" className="img-fluid rounded"/>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
   
 
   
@@ -310,35 +369,221 @@ function ProductList() {
   }
 
   
-function ProductVanTay() {
+// function ProductVanTay() {
+// //   const vans = [
+// //     { type: "Van 1 tay", price: "1.900.000đ" },
+// //     { type: "Van 2 tay", price: "2.200.000đ" },
+// //     { type: "Van 3 tay", price: "2.700.000đ" },
+// //     { type: "Van 5 tay", price: "3.600.000đ" },
+// //     { type: "Van 6 tay", price: "4.100.000đ" },
+// //   ];
 //   const vans = [
-//     { type: "Van 1 tay", price: "1.900.000đ" },
-//     { type: "Van 2 tay", price: "2.200.000đ" },
-//     { type: "Van 3 tay", price: "2.700.000đ" },
-//     { type: "Van 5 tay", price: "3.600.000đ" },
-//     { type: "Van 6 tay", price: "4.100.000đ" },
+//     { type: "Van 1 tay", price: "1.900.000đ", icon: "https://img.icons8.com/?size=100&id=95YLm9Nru9Fa&format=png&color=000000" },
+//     { type: "Van 2 tay", price: "2.200.000đ", icon: "https://img.icons8.com/color/48/engineering.png" },
+//     { type: "Van 3 tay", price: "2.700.000đ", icon: "https://img.icons8.com/?size=100&id=43434&format=png&color=000000" },
+//     { type: "Van 4 tay", price: "3.200.000đ", icon: "https://img.icons8.com/?size=100&id=UFaE0x2zko7J&format=png&color=000000" },
+//     { type: "Van 5 tay", price: "3.600.000đ", icon: "https://img.icons8.com/?size=100&id=9svq1P7VUS14&format=png&color=000000" },
+//     { type: "Van 6 tay", price: "4.100.000đ", icon: "https://img.icons8.com/color/48/settings.png" }
 //   ];
+//   return (
+//     <section className="py-5 bg-light">
+//       <div className="container">
+//         <div className="text-center mb-4">
+//           <h2 className="fw-bold">Van tay thủy lực KTM</h2>
+//           <p className="text-muted">Điều khiển xy lanh nâng – hạ – gập – trượt phù hợp nhiều dòng máy</p>
+//         </div>
+//         <div className="row justify-content-center">
+//           <div className="col-md-6">
+//             <div className="card shadow-sm">
+//               <img src="8.jpg" alt="Van tay thủy lực" className="card-img-top" />
+//               <div className="card-body">
+//                 <table className="table table-bordered">
+//                   <thead>
+//                     <tr>
+//                       <th>Loại van</th>
+//                       <th className="text-end">Giá</th>
+//                     </tr>
+//                   </thead>
+//                   <tbody>
+//                     {vans.map((v, i) => (
+//                       <tr key={i}>
+//                         {/* <td>{v.type}</td> */}
+//                         <td><img src={v.icon} alt="icon" className="me-2" style={{ width: '20px', height: '20px' }} /> {v.type}</td>
+//                         <td className="text-end fw-semibold">{v.price}</td>
+//                       </tr>
+//                     ))}
+//                   </tbody>
+//                 </table>
+//                 <a href="https://zalo.me/0966201140" target="_blank" className="btn btn-primary w-100">Nhắn Zalo tư vấn</a>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </section>
+//   );
+// }
+
+
+// function ProductVanTay() {
+//   const vans = [
+//     { type: "Van 1 tay", price: "1.900.000 đ", icon: "https://img.icons8.com/?size=100&id=95YLm9Nru9Fa&format=png&color=000000" },
+//     { type: "Van 2 tay", price: "2.200.000 đ", icon: "https://img.icons8.com/color/48/engineering.png" },
+//     { type: "Van 3 tay", price: "2.700.000 đ", icon: "https://img.icons8.com/?size=100&id=43434&format=png&color=000000" },
+//     { type: "Van 4 tay", price: "3.200.000 đ", icon: "https://img.icons8.com/?size=100&id=UFaE0x2zko7J&format=png&color=000000" },
+//     { type: "Van 5 tay", price: "3.600.000 đ", icon: "https://img.icons8.com/?size=100&id=9svq1P7VUS14&format=png&color=000000" },
+//     { type: "Van 6 tay", price: "4.100.000 đ", icon: "https://img.icons8.com/color/48/settings.png" }
+//   ];
+
+//   return (
+//     <section className="py-5 bg-light">
+//       <div className="container">
+//         {/* Tiêu đề chung */}
+//         <div className="text-center mb-5">
+//           <h2 className="fw-bold">Van tay thủy lực KTM</h2>
+//           <p className="text-muted">
+//             Điều khiển xy lanh nâng – hạ – gập – trượt phù hợp nhiều dòng máy
+//           </p>
+//         </div>
+
+//         <div className="row align-items-center">
+//           {/* Bên trái: ảnh sản phẩm tổng + nút Zalo */}
+//           <div className="col-12 col-lg-6 text-center mb-4 mb-lg-0">
+//             <img
+//               src="8.jpg"
+//               alt="Van tay thủy lực KTM"
+//               className="img-fluid rounded shadow mb-3"
+//               style={{ maxHeight: '300px' }}
+//             />
+//             <div>
+//               <a
+//                 href="https://zalo.me/0966201140"
+//                 target="_blank"
+//                 rel="noopener noreferrer"
+//                 className="btn btn-primary btn-lg"
+//               >
+//                 Nhắn Zalo
+//               </a>
+//             </div>
+//           </div>
+
+//           {/* Bên phải: grid 6 item */}
+//           <div className="col-12 col-lg-6">
+//             <div className="row">
+//               {vans.map((v, i) => (
+//                 <div
+//                   key={i}
+//                   className="col-12 col-sm-6 col-md-4 mb-4"
+//                 >
+//                   <div className="card h-100 border rounded p-3 text-center shadow-sm">
+//                     <img
+//                       src={v.icon}
+//                       alt={v.type}
+//                       style={{ width: '40px', height: '40px', margin: '0 auto' }}
+//                     />
+//                     <h5 className="mt-2">{v.type}</h5>
+//                     <p className="text-warning fw-bold">{v.price}</p>
+//                     <button className="btn btn-outline-primary">
+//                       Mua
+//                     </button>
+//                   </div>
+//                 </div>
+//               ))}
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </section>
+//   );
+// }
+
+function ProductVanTay() {
   const vans = [
-    { type: "Van 1 tay", price: "1.900.000đ", icon: "https://img.icons8.com/?size=100&id=95YLm9Nru9Fa&format=png&color=000000" },
-    { type: "Van 2 tay", price: "2.200.000đ", icon: "https://img.icons8.com/color/48/engineering.png" },
-    { type: "Van 3 tay", price: "2.700.000đ", icon: "https://img.icons8.com/?size=100&id=43434&format=png&color=000000" },
-    { type: "Van 4 tay", price: "3.200.000đ", icon: "https://img.icons8.com/?size=100&id=UFaE0x2zko7J&format=png&color=000000" },
-    { type: "Van 5 tay", price: "3.600.000đ", icon: "https://img.icons8.com/?size=100&id=9svq1P7VUS14&format=png&color=000000" },
-    { type: "Van 6 tay", price: "4.100.000đ", icon: "https://img.icons8.com/color/48/settings.png" }
+    { type: "Van 1 tay", price: "1.900.000 đ", icon: "https://img.icons8.com/?size=100&id=95YLm9Nru9Fa&format=png&color=000000" },
+    { type: "Van 2 tay", price: "2.200.000 đ", icon: "https://img.icons8.com/color/48/engineering.png" },
+    { type: "Van 3 tay", price: "2.700.000 đ", icon: "https://img.icons8.com/?size=100&id=43434&format=png&color=000000" },
+    { type: "Van 4 tay", price: "3.200.000 đ", icon: "https://img.icons8.com/?size=100&id=UFaE0x2zko7J&format=png&color=000000" },
+    { type: "Van 5 tay", price: "3.600.000 đ", icon: "https://img.icons8.com/?size=100&id=9svq1P7VUS14&format=png&color=000000" },
+    { type: "Van 6 tay", price: "4.100.000 đ", icon: "https://img.icons8.com/color/48/settings.png" }
   ];
+
   return (
     <section className="py-5 bg-light">
       <div className="container">
-        <div className="text-center mb-4">
+        {/* Tiêu đề chung */}
+        <div className="text-center mb-5">
           <h2 className="fw-bold">Van tay thủy lực KTM</h2>
-          <p className="text-muted">Điều khiển xy lanh nâng – hạ – gập – trượt phù hợp nhiều dòng máy</p>
+          <p className="text-muted">
+            Điều khiển xy lanh nâng – hạ – gập – trượt phù hợp nhiều dòng máy
+          </p>
         </div>
-        <div className="row justify-content-center">
-          <div className="col-md-6">
+
+        {/* ===== DESKTOP: show when ≥992px ===== */}
+        <div className="d-none d-md-block">
+          <div className="row align-items-center">
+            {/* ảnh + nút Zalo */}
+            <div className="col-lg-6 text-center mb-4 mb-lg-0">
+              <img
+                src="8.jpg"
+                alt="Van tay thủy lực KTM"
+                className="img-fluid rounded shadow mb-3"
+                style={{ maxHeight: '400px' }}
+              />
+              <div>
+                <a
+                  href="https://zalo.me/0966201140"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary btn-lg"
+                >
+                  Nhắn Zalo
+                </a>
+              </div>
+            </div>
+
+            {/* grid 6 items */}
+            <div className="col-lg-6">
+              <div className="row">
+                {vans.map((v, i) => (
+                  <div key={i} className="col-4 mb-4">
+                    <div className="card h-100 border rounded p-3 text-center shadow-sm">
+                      <img
+                        src={v.icon}
+                        alt={v.type}
+                        style={{ width: '40px', height: '40px', margin: '0 auto' }}
+                      />
+                      <h5 className="mt-2">{v.type}</h5>
+                      <p className="text-warning fw-bold">{v.price}</p>
+                      {/* <button className="btn btn-outline-primary">
+                        Mua
+                      </button> */}
+                       <a
+                        href="https://zalo.me/0966201140"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline-primary"
+                      >
+                        Mua
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== MOBILE: show when <992px ===== */}
+        <div className="d-block d-md-none row justify-content-center">
+          <div className="col-12 col-md-6">
             <div className="card shadow-sm">
-              <img src="8.jpg" alt="Van tay thủy lực" className="card-img-top" />
+              <img
+                src="8.jpg"
+                alt="Van tay thủy lực KTM"
+                className="card-img-top"
+              />
               <div className="card-body">
-                <table className="table table-bordered">
+                <table className="table table-bordered mb-3">
                   <thead>
                     <tr>
                       <th>Loại van</th>
@@ -348,14 +593,28 @@ function ProductVanTay() {
                   <tbody>
                     {vans.map((v, i) => (
                       <tr key={i}>
-                        {/* <td>{v.type}</td> */}
-                        <td><img src={v.icon} alt="icon" className="me-2" style={{ width: '20px', height: '20px' }} /> {v.type}</td>
+                        <td>
+                          <img
+                            src={v.icon}
+                            alt=""
+                            className="me-2"
+                            style={{ width: '20px', height: '20px' }}
+                          />
+                          {v.type}
+                        </td>
                         <td className="text-end fw-semibold">{v.price}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <a href="https://zalo.me/0966201140" target="_blank" className="btn btn-primary w-100">Nhắn Zalo tư vấn</a>
+                <a
+                  href="https://zalo.me/0966201140"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary w-100"
+                >
+                  Nhắn Zalo tư vấn
+                </a>
               </div>
             </div>
           </div>
