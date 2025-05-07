@@ -36,6 +36,9 @@
 
   <!-- Custom Styles (Tối ưu mobile, màu sắc, layout theo tư duy nhà nông/kỹ thuật) -->
   <link rel="stylesheet" href="styles.css" />
+  <!-- Trong <head> -->
+<link rel="stylesheet" href="https://unpkg.com/aos@2.3.4/dist/aos.css" />
+
 </head>
 <body>
   <div id="root"></div>
@@ -52,5 +55,16 @@
 
   <!-- React App Code -->
   <script type="text/babel" src="app.js"></script>
+  <!-- Trước </body> -->
+<script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+<script>
+  AOS.init({
+    duration: 3000,
+    once: false,
+    offset: 100,
+    easing: 'ease-out-back'
+  });
+</script>
+
 </body>
 </html>

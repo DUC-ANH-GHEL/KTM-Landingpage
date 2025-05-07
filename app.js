@@ -2,6 +2,7 @@
 const { useState, useEffect } = React;
 
 function App() {
+
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -13,6 +14,8 @@ function App() {
     document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
     return () => observer.disconnect();
   }, []);
+
+ 
 
   useEffect(() => {
     if (window.$ && $('.combo-carousel').slick) {
@@ -207,16 +210,19 @@ function ProductShowcaseTabs() {
       title: "Xy lanh giữa",
       image: "2.jpg",
       price: "1.950.000đ",
+       aos: "fade-left"
     },
     {
       title: "Xy lanh nghiêng",
       image: "3.jpg",
       price: "1.950.000đ",
+      aos: "fade-down"
     },
     {
       title: "Xy lanh ủi",
       image: "4.jpg",
       price: "2.200.000đ",
+      aos: "fade-right"
     }
   ];
 
@@ -230,6 +236,8 @@ function ProductShowcaseTabs() {
           {products.map((prod, idx) => (
             <div className="col-4 mb-4 d-flex justify-content-center" key={idx}
             onClick={() => setModalImage(prod.image)}
+            data-aos={prod.aos}
+              data-aos-delay={idx * 1000}
             >
               <div className="card border-0 text-center">
                 <img
@@ -315,8 +323,10 @@ function ProductList() {
           </div>
           <div className="combo-carousel">
             {products.map((item, i) => (
-              <div key={i}>
-                <div className="card h-100 shadow-sm mx-2 position-relative">
+              <div key={i} data-aos="fade"               // ✔ dùng hiệu ứng có sẵn
+              data-aos-delay={i * 200}
+              className="rotate-fade">
+                <div className="card h-100 shadow-sm mx-2 position-relative rotate-fade">
                   {item.promo && !isPromoOver && (
                     <span className="badge bg-danger position-absolute top-0 end-0 m-2"><span className='fire-icon'>🔥</span> Khuyến mãi</span>
                   )}
@@ -576,7 +586,7 @@ function ProductVanTay() {
         {/* ===== MOBILE: show when <992px ===== */}
         <div className="d-block d-md-none row justify-content-center">
           <div className="col-12 col-md-6">
-            <div className="card shadow-sm">
+            <div className="card shadow-sm" data-aos="fade-right">
               <img
                 src="8.jpg"
                 alt="Van tay thủy lực KTM"
