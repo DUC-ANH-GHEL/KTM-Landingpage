@@ -205,8 +205,8 @@ function ProductList() {
     const [isPromoOver, setIsPromoOver] = useState(false);
     const [showUrgencyPopup, setShowUrgencyPopup] = useState(false);
   
-    const deadline = new Date("2025-04-22T18:20:00");
-    deadline.setDate(deadline.getDate() + 10);
+    const deadline = new Date("2025-05-07T18:20:00");
+    deadline.setDate(deadline.getDate() + 15);
   
     useEffect(() => {
       const interval = setInterval(() => {
