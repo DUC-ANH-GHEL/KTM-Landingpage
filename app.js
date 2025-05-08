@@ -636,11 +636,11 @@ function ProductList() {
 
 function ProductVanTay() {
   const vans = [
-    { type: "Van 1 tay", price: "1.900.000 đ", color: "success", icon: "https://img.icons8.com/?size=100&id=95YLm9Nru9Fa&format=png&color=000000" },
-    { type: "Van 2 tay", price: "2.200.000 đ", color: "info", icon: "https://img.icons8.com/color/48/engineering.png" },
-    { type: "Van 3 tay", price: "2.700.000 đ", color: "warning", icon: "https://img.icons8.com/?size=100&id=43434&format=png&color=000000" },
-    { type: "Van 4 tay", price: "3.200.000 đ", color: "primary", icon: "https://img.icons8.com/?size=100&id=UFaE0x2zko7J&format=png&color=000000" },
-    { type: "Van 5 tay", price: "3.600.000 đ", color: "secondary", icon: "https://img.icons8.com/?size=100&id=9svq1P7VUS14&format=png&color=000000" },
+    { type: "Van 1 tay", price: "1.900.000 đ", color: "success", icon: "./van1.png" },
+    { type: "Van 2 tay", price: "2.200.000 đ", color: "info", icon: "./van2.png" },
+    { type: "Van 3 tay", price: "2.700.000 đ", color: "warning", icon: "./van3.png" },
+    { type: "Van 4 tay", price: "3.200.000 đ", color: "primary", icon: "./van4.png" },
+    { type: "Van 5 tay", price: "3.600.000 đ", color: "secondary", icon: "./van5.png" },
     { type: "Van 6 tay", price: "4.100.000 đ", color: "dark", icon: "https://img.icons8.com/color/48/settings.png" }
   ];
 
@@ -682,7 +682,7 @@ function ProductVanTay() {
                       <img
                         src={v.icon}
                         alt={v.type}
-                        style={{ width: '40px', height: '40px', margin: '0 auto' }}
+                        style={{ width: '50%', height: '50%', margin: '0 auto' }}
                       />
                       <h6 className="mt-2">{v.type}</h6>
                       <p className="text-danger fw-bold small">{v.price}</p>
@@ -707,7 +707,7 @@ function ProductVanTay() {
           <div className="row g-2 mb-4">
             {vans.map((v, i) => (
               <div className="col-4 text-center" key={i}>
-                <img src={v.icon} alt={v.type} style={{ width: 36, height: 36 }} />
+                <img src={v.icon} alt={v.type} style={{ width: '50%', height: '50%' }} />
                 <div className="fw-semibold small mt-1">{v.type}</div>
                 <div className="fw-bold text-danger small">{v.price}</div>
                 <a
