@@ -507,31 +507,155 @@ function ProductList() {
 //   );
 // }
 
+// function ProductVanTay() {
+//   const vans = [
+//     { type: "Van 1 tay", price: "1.900.000 đ", icon: "https://img.icons8.com/?size=100&id=95YLm9Nru9Fa&format=png&color=000000" },
+//     { type: "Van 2 tay", price: "2.200.000 đ", icon: "https://img.icons8.com/color/48/engineering.png" },
+//     { type: "Van 3 tay", price: "2.700.000 đ", icon: "https://img.icons8.com/?size=100&id=43434&format=png&color=000000" },
+//     { type: "Van 4 tay", price: "3.200.000 đ", icon: "https://img.icons8.com/?size=100&id=UFaE0x2zko7J&format=png&color=000000" },
+//     { type: "Van 5 tay", price: "3.600.000 đ", icon: "https://img.icons8.com/?size=100&id=9svq1P7VUS14&format=png&color=000000" },
+//     { type: "Van 6 tay", price: "4.100.000 đ", icon: "https://img.icons8.com/color/48/settings.png" }
+//   ];
+
+//   return (
+//     <section className="py-5 bg-light">
+//       <div className="container">
+//         {/* Tiêu đề chung */}
+//         <div className="text-center mb-5">
+//           <h2 className="fw-bold">Van tay thủy lực KTM</h2>
+//           <p className="text-muted">
+//             Điều khiển xy lanh nâng – hạ – gập – trượt phù hợp nhiều dòng máy
+//           </p>
+//         </div>
+
+//         {/* ===== DESKTOP: show when ≥992px ===== */}
+//         <div className="d-none d-md-block">
+//           <div className="row align-items-center">
+//             {/* ảnh + nút Zalo */}
+//             <div className="col-lg-6 text-center mb-4 mb-lg-0">
+//               <img
+//                 src="8.jpg"
+//                 alt="Van tay thủy lực KTM"
+//                 className="img-fluid rounded shadow mb-3"
+//                 style={{ maxHeight: '400px' }}
+//               />
+//               <div>
+//                 <a
+//                   href="https://zalo.me/0966201140"
+//                   target="_blank"
+//                   rel="noopener noreferrer"
+//                   className="btn btn-primary btn-lg"
+//                 >
+//                   Nhắn Zalo
+//                 </a>
+//               </div>
+//             </div>
+
+//             {/* grid 6 items */}
+//             <div className="col-lg-6">
+//               <div className="row">
+//                 {vans.map((v, i) => (
+//                   <div key={i} className="col-4 mb-4">
+//                     <div className="card h-100 border rounded p-3 text-center shadow-sm">
+//                       <img
+//                         src={v.icon}
+//                         alt={v.type}
+//                         style={{ width: '40px', height: '40px', margin: '0 auto' }}
+//                       />
+//                       <h5 className="mt-2">{v.type}</h5>
+//                       <p className="text-warning fw-bold">{v.price}</p>
+//                       {/* <button className="btn btn-outline-primary">
+//                         Mua
+//                       </button> */}
+//                        <a
+//                         href="https://zalo.me/0966201140"
+//                         target="_blank"
+//                         rel="noopener noreferrer"
+//                         className="btn btn-outline-primary"
+//                       >
+//                         Mua
+//                       </a>
+//                     </div>
+//                   </div>
+//                 ))}
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+
+//         {/* ===== MOBILE: show when <992px ===== */}
+//         <div className="d-block d-md-none row justify-content-center">
+//           <div className="col-12 col-md-6">
+//             <div className="card shadow-sm" data-aos="fade-right">
+//               <img
+//                 src="8.jpg"
+//                 alt="Van tay thủy lực KTM"
+//                 className="card-img-top"
+//               />
+//               <div className="card-body">
+//                 <table className="table table-bordered mb-3">
+//                   <thead>
+//                     <tr>
+//                       <th>Loại van</th>
+//                       <th className="text-end">Giá</th>
+//                     </tr>
+//                   </thead>
+//                   <tbody>
+//                     {vans.map((v, i) => (
+//                       <tr key={i}>
+//                         <td>
+//                           <img
+//                             src={v.icon}
+//                             alt=""
+//                             className="me-2"
+//                             style={{ width: '20px', height: '20px' }}
+//                           />
+//                           {v.type}
+//                         </td>
+//                         <td className="text-end fw-semibold">{v.price}</td>
+//                       </tr>
+//                     ))}
+//                   </tbody>
+//                 </table>
+//                 <a
+//                   href="https://zalo.me/0966201140"
+//                   target="_blank"
+//                   rel="noopener noreferrer"
+//                   className="btn btn-primary w-100"
+//                 >
+//                   Nhắn Zalo tư vấn
+//                 </a>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </section>
+//   );
+// }
+
 function ProductVanTay() {
   const vans = [
-    { type: "Van 1 tay", price: "1.900.000 đ", icon: "https://img.icons8.com/?size=100&id=95YLm9Nru9Fa&format=png&color=000000" },
-    { type: "Van 2 tay", price: "2.200.000 đ", icon: "https://img.icons8.com/color/48/engineering.png" },
-    { type: "Van 3 tay", price: "2.700.000 đ", icon: "https://img.icons8.com/?size=100&id=43434&format=png&color=000000" },
-    { type: "Van 4 tay", price: "3.200.000 đ", icon: "https://img.icons8.com/?size=100&id=UFaE0x2zko7J&format=png&color=000000" },
-    { type: "Van 5 tay", price: "3.600.000 đ", icon: "https://img.icons8.com/?size=100&id=9svq1P7VUS14&format=png&color=000000" },
-    { type: "Van 6 tay", price: "4.100.000 đ", icon: "https://img.icons8.com/color/48/settings.png" }
+    { type: "Van 1 tay", price: "1.900.000 đ", color: "success", icon: "https://img.icons8.com/?size=100&id=95YLm9Nru9Fa&format=png&color=000000" },
+    { type: "Van 2 tay", price: "2.200.000 đ", color: "info", icon: "https://img.icons8.com/color/48/engineering.png" },
+    { type: "Van 3 tay", price: "2.700.000 đ", color: "warning", icon: "https://img.icons8.com/?size=100&id=43434&format=png&color=000000" },
+    { type: "Van 4 tay", price: "3.200.000 đ", color: "primary", icon: "https://img.icons8.com/?size=100&id=UFaE0x2zko7J&format=png&color=000000" },
+    { type: "Van 5 tay", price: "3.600.000 đ", color: "secondary", icon: "https://img.icons8.com/?size=100&id=9svq1P7VUS14&format=png&color=000000" },
+    { type: "Van 6 tay", price: "4.100.000 đ", color: "dark", icon: "https://img.icons8.com/color/48/settings.png" }
   ];
 
   return (
     <section className="py-5 bg-light">
       <div className="container">
-        {/* Tiêu đề chung */}
         <div className="text-center mb-5">
           <h2 className="fw-bold">Van tay thủy lực KTM</h2>
-          <p className="text-muted">
-            Điều khiển xy lanh nâng – hạ – gập – trượt phù hợp nhiều dòng máy
-          </p>
+          <p className="text-muted">Điều khiển xy lanh nâng – hạ – gập – trượt phù hợp nhiều dòng máy</p>
         </div>
 
-        {/* ===== DESKTOP: show when ≥992px ===== */}
-        <div className="d-none d-md-block">
+        {/* ===== DESKTOP ===== */}
+        <div className="d-none d-lg-block">
           <div className="row align-items-center">
-            {/* ảnh + nút Zalo */}
+            {/* Ảnh + nút Zalo */}
             <div className="col-lg-6 text-center mb-4 mb-lg-0">
               <img
                 src="8.jpg"
@@ -539,19 +663,17 @@ function ProductVanTay() {
                 className="img-fluid rounded shadow mb-3"
                 style={{ maxHeight: '400px' }}
               />
-              <div>
-                <a
-                  href="https://zalo.me/0966201140"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary btn-lg"
-                >
-                  Nhắn Zalo
-                </a>
-              </div>
+              <a
+                href="https://zalo.me/0966201140"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary btn-lg"
+              >
+                Nhắn Zalo
+              </a>
             </div>
 
-            {/* grid 6 items */}
+            {/* Grid 6 sản phẩm */}
             <div className="col-lg-6">
               <div className="row">
                 {vans.map((v, i) => (
@@ -562,16 +684,13 @@ function ProductVanTay() {
                         alt={v.type}
                         style={{ width: '40px', height: '40px', margin: '0 auto' }}
                       />
-                      <h5 className="mt-2">{v.type}</h5>
-                      <p className="text-warning fw-bold">{v.price}</p>
-                      {/* <button className="btn btn-outline-primary">
-                        Mua
-                      </button> */}
-                       <a
+                      <h6 className="mt-2">{v.type}</h6>
+                      <p className="text-danger fw-bold small">{v.price}</p>
+                      <a
                         href="https://zalo.me/0966201140"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn btn-outline-primary"
+                        className={`btn btn-sm btn-${v.color}`}
                       >
                         Mua
                       </a>
@@ -583,56 +702,40 @@ function ProductVanTay() {
           </div>
         </div>
 
-        {/* ===== MOBILE: show when <992px ===== */}
-        <div className="d-block d-md-none row justify-content-center">
-          <div className="col-12 col-md-6">
-            <div className="card shadow-sm" data-aos="fade-right">
-              <img
-                src="8.jpg"
-                alt="Van tay thủy lực KTM"
-                className="card-img-top"
-              />
-              <div className="card-body">
-                <table className="table table-bordered mb-3">
-                  <thead>
-                    <tr>
-                      <th>Loại van</th>
-                      <th className="text-end">Giá</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {vans.map((v, i) => (
-                      <tr key={i}>
-                        <td>
-                          <img
-                            src={v.icon}
-                            alt=""
-                            className="me-2"
-                            style={{ width: '20px', height: '20px' }}
-                          />
-                          {v.type}
-                        </td>
-                        <td className="text-end fw-semibold">{v.price}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        {/* ===== MOBILE ===== */}
+        <div className="d-block d-lg-none">
+          <div className="row g-2 mb-4">
+            {vans.map((v, i) => (
+              <div className="col-4 text-center" key={i}>
+                <img src={v.icon} alt={v.type} style={{ width: 36, height: 36 }} />
+                <div className="fw-semibold small mt-1">{v.type}</div>
+                <div className="fw-bold text-danger small">{v.price}</div>
                 <a
                   href="https://zalo.me/0966201140"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn btn-primary w-100"
+                  className={`btn btn-sm btn-${v.color} mt-1`}
                 >
-                  Nhắn Zalo tư vấn
+                  Mua ngay
                 </a>
               </div>
-            </div>
+            ))}
           </div>
+
+          <a
+            href="https://zalo.me/0966201140"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-danger btn-lg fw-bold w-100"
+          >
+            Mua ngay
+          </a>
         </div>
       </div>
     </section>
   );
 }
+
 
 function CustomerReviews() {
     const reviews = [
