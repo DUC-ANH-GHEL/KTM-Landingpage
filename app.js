@@ -653,9 +653,8 @@ function ProductVanTay() {
         </div>
 
         {/* ===== DESKTOP ===== */}
-        <div className="d-none d-lg-block">
+        {/* <div className="d-none d-lg-block">
           <div className="row align-items-center">
-            {/* Ảnh + nút Zalo */}
             <div className="col-lg-6 text-center mb-4 mb-lg-0">
               <img
                 src="8.jpg"
@@ -673,7 +672,6 @@ function ProductVanTay() {
               </a>
             </div>
 
-            {/* Grid 6 sản phẩm */}
             <div className="col-lg-6">
               <div className="row">
                 {vans.map((v, i) => (
@@ -700,7 +698,62 @@ function ProductVanTay() {
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
+
+         {/* ===== DESKTOP: show when ≥992px ===== */}
+        <div className="d-none d-md-block">
+          <div className="row align-items-center">
+            {/* ảnh + nút Zalo */}
+            <div className="col-lg-6 text-center mb-4 mb-lg-0">
+              <img
+                src="8.jpg"
+                alt="Van tay thủy lực KTM"
+                className="img-fluid rounded shadow mb-3"
+                style={{ maxHeight: '400px' }}
+              />
+              <div>
+                <a
+                  href="https://zalo.me/0966201140"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary btn-lg"
+                >
+                  Nhắn Zalo
+                </a>
+              </div>
+            </div>
+
+            {/* grid 6 items */}
+            <div className="col-lg-6">
+              <div className="row">
+                {vans.map((v, i) => (
+                  <div key={i} className="col-4 mb-4">
+                    <div className="card h-100 border rounded p-3 text-center shadow-sm">
+                      <img
+                        src={v.icon}
+                        alt={v.type}
+                        style={{ width: '50%', height: '50%', margin: '0 auto' }}
+                      />
+                      <h5 className="mt-2">{v.type}</h5>
+                      <p className="text-warning fw-bold">{v.price}</p>
+                      {/* <button className="btn btn-outline-primary">
+                        Mua
+                      </button> */}
+                       <a
+                        href="https://zalo.me/0966201140"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline-primary"
+                      >
+                        Mua
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div> 
 
         {/* ===== MOBILE ===== */}
         <div className="d-block d-lg-none">
