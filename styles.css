@@ -251,6 +251,6 @@ body {
 
 /* AOS sẽ tự gán class này khi xuất hiện */
 .aos-animate.rotate-fade {
-  animation: rotateAndFade 10s ease-out forwards;
+  animation: rotateAndFade 5s ease-out forwards;
 }
 
