@@ -254,3 +254,32 @@ body {
   animation: rotateAndFade 5s ease-out forwards;
 }
 
+
+.video-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 1050;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.video-modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 800px;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+
+.video-thumb img {
+  transition: transform 0.3s;
+}
+
+.video-thumb:hover img {
+  transform: scale(1.03);
+}
+

@@ -67,6 +67,7 @@ function App() {
       <ProductShowcaseTabs />
       <ProductList />
       <ProductVanTay />
+      <InstructionVideos />
       <CustomerReviews />
       <FloatingSocial />
     </>
@@ -852,5 +853,57 @@ function CustomerReviews() {
     );
 }
 
+
+function InstructionVideos() {
+  const [activeVideo, setActiveVideo] = useState(null);
+
+  const videos = [
+    { id: 1, thumb: "youtube1.jpg", url: "https://www.youtube.com/embed/2MLY9YJrroU?si=qvuJDHHp3bmNcIWY" },
+    { id: 2, thumb: "youtube2.jpg", url: "https://www.youtube.com/embed/udfbXdJsh5M?si=88OjGhOoO2tYTGDJ" },
+    { id: 3, thumb: "youtube3.jpg", url: "https://www.youtube.com/embed/Pt6E4VkcbYg?si=RZD_-Qo26sYSfu8_" },
+    // { id: 4, thumb: "youtube2.jpg", url: "https://www.youtube.com/embed/VIDEO_ID4" },
+    // { id: 5, thumb: "youtube2.jpg", url: "https://www.youtube.com/embed/VIDEO_ID5" },
+    // { id: 6, thumb: "youtube2.jpg", url: "https://www.youtube.com/embed/VIDEO_ID6" },
+  ];
+
+  return (
+    <section className="py-5">
+      <div className="container text-center">
+        <h2 className="fw-bold mb-4">Video hướng dẫn</h2>
+        <div className="row g-3">
+          {videos.map((v, i) => (
+            <div key={i} className="col-6 col-md-4">
+              <div className="position-relative video-thumb" onClick={() => setActiveVideo(v.url)} style={{ cursor: "pointer" }}>
+                <img src={v.thumb} alt={`video ${i + 1}`} className="img-fluid rounded shadow" />
+                <div className="position-absolute top-50 start-50 translate-middle">
+                  <i className="fas fa-play-circle fa-2x text-white"></i>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {activeVideo && (
+          <div className="video-modal-overlay" onClick={() => setActiveVideo(null)}>
+            <div className="video-modal-content" onClick={(e) => e.stopPropagation()}>
+              <button className="btn btn-light position-absolute top-0 end-0 m-2" onClick={() => setActiveVideo(null)}>
+                &times;
+              </button>
+              <div className="ratio ratio-16x9">
+                <iframe
+                  src={activeVideo}
+                  title="Video hướng dẫn"
+                  frameBorder="0"
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
 ReactDOM.render(<App />, document.getElementById("root"));
