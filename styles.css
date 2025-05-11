@@ -283,3 +283,39 @@ body {
   transform: scale(1.03);
 }
 
+.modal-overlay-full {
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 420px;
+  animation: popIn 0.4s ease;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.scratch-box {
+  min-height: 80px;
+  font-size: 1.25rem;
+}
+
+.button-close-margin {
+  margin: -0.5rem !important;
+  border-radius: 30px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    background-color: red;
+}
+
+
