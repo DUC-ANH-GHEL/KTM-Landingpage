@@ -500,7 +500,7 @@ function InstructionVideos() {
     { id: 1, thumb: "youtube1.jpg", url: "https://www.youtube.com/embed/2MLY9YJrroU?si=qvuJDHHp3bmNcIWY" },
     { id: 2, thumb: "youtube2.jpg", url: "https://www.youtube.com/embed/udfbXdJsh5M?si=88OjGhOoO2tYTGDJ" },
     { id: 3, thumb: "youtube3.jpg", url: "https://www.youtube.com/embed/Pt6E4VkcbYg?si=RZD_-Qo26sYSfu8_" },
-    // { id: 4, thumb: "youtube2.jpg", url: "https://www.youtube.com/embed/VIDEO_ID4" },
+    { id: 4, thumb: "youtube4.jpg", url: "https://www.youtube.com/embed/x2TQKWooJEQ?si=n-cUkEEnpIqwx_iY" },
     // { id: 5, thumb: "youtube2.jpg", url: "https://www.youtube.com/embed/VIDEO_ID5" },
     // { id: 6, thumb: "youtube2.jpg", url: "https://www.youtube.com/embed/VIDEO_ID6" },
   ];
