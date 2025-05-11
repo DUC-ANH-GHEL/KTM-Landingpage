@@ -563,46 +563,46 @@ function MiniGameModal() {
 
   const validatePhone = (phone) => /^0\d{9}$/.test(phone.trim());
 
-  // const handleFormSubmit = () => {
-  //   handlePuzzleComplete()
-  //   const { name, phone } = formData;
-  //   if (!name || !phone) return setError("Vui lòng nhập đủ thông tin");
-  //   if (!validatePhone(phone)) return setError("Số điện thoại không hợp lệ");
-  //   setError("");
-  //   setStep(2); // sang puzzle
-  // };
-
-  const handleFormSubmit = async () => {
+  const handleFormSubmit = () => {
+    handlePuzzleComplete()
     const { name, phone } = formData;
     if (!name || !phone) return setError("Vui lòng nhập đủ thông tin");
     if (!validatePhone(phone)) return setError("Số điện thoại không hợp lệ");
+    setError("");
+    setStep(2); // sang puzzle
+  };
+
+  // const handleFormSubmit = async () => {
+  //   const { name, phone } = formData;
+  //   if (!name || !phone) return setError("Vui lòng nhập đủ thông tin");
+  //   if (!validatePhone(phone)) return setError("Số điện thoại không hợp lệ");
   
-    try {
-      // Gửi dữ liệu lên Google Sheet thông qua SheetDB
-      const response = await fetch("https://sheetdb.io/api/v1/br3yxz6v6al06", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: {
-            Name: name,
-            Phone: phone,
-          },
-        }),
-      });
+    // try {
+    //   // Gửi dữ liệu lên Google Sheet thông qua SheetDB
+    //   const response = await fetch("https://sheetdb.io/api/v1/br3yxz6v6al06", {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({
+    //       data: {
+    //         Name: name,
+    //         Phone: phone,
+    //       },
+    //     }),
+    //   });
       
   
-      if (!response.ok) {
-        throw new Error("Gửi dữ liệu thất bại");
-      }
+    //   if (!response.ok) {
+    //     throw new Error("Gửi dữ liệu thất bại");
+    //   }
   
-      // Nếu thành công, tiếp tục game
-      setError("");
-      setStep(2); // sang bước puzzle
-    } catch (error) {
-      console.error("Lỗi gửi dữ liệu:", error);
-      setError("Có lỗi xảy ra, vui lòng thử lại sau.");
-    }
-  };
+  //     // Nếu thành công, tiếp tục game
+  //     setError("");
+  //     setStep(2); // sang bước puzzle
+  //   } catch (error) {
+  //     console.error("Lỗi gửi dữ liệu:", error);
+  //     setError("Có lỗi xảy ra, vui lòng thử lại sau.");
+  //   }
+  // };
   
 
   // const handlePuzzleComplete = () => {
@@ -668,7 +668,7 @@ function MiniGameModal() {
           {step === 2 && (
             // <MemoryMatchGame onWin={() => setStep(3)} />
             // <PuzzleBoard image="2.jpg" onComplete={handlePuzzleComplete} />
-            <SlotMachine setStep={setStep} />
+            <SlotMachine setStep={setStep} formData={formData} />
 
           )}
 
@@ -1060,7 +1060,7 @@ function MemoryMatchGame({ onWin }) {
 // }
 
 // ép trúng thưởng ở slot quay cuối
-function SlotMachine({ setStep }) {
+function SlotMachine({ setStep, formData }) {
   const [spinning, setSpinning] = React.useState(false);
   const [slots, setSlots] = React.useState(["", "", ""]);
   const [result, setResult] = React.useState(null);
@@ -1089,6 +1089,61 @@ function SlotMachine({ setStep }) {
     { name: "☎️", image: "71.jpg", prize: "Giảm 300K phí vận chuyển" },
   ];
 
+  const handleSpinResult = async (forceWin) => {
+    let final;
+    if (forceWin) {
+      const chosen = images[Math.floor(Math.random() * images.length)];
+      final = [chosen, chosen, chosen];
+    } else {
+      const shuffled = images.sort(() => 0.5 - Math.random());
+      final = [shuffled[0], shuffled[1], shuffled[2]];
+    }
+  
+    setSlots(final);
+    setSpinsUsed((prev) => prev + 1);
+    setSpinning(false);
+  
+    if (final[0].name === final[1].name && final[1].name === final[2].name) {
+      const gift = final[0].prize;
+      setResult(`🎉 Xin chúc mừng bạn đã trúng: ${gift}! Vui lòng liên hệ fb hoặc zalo để nhận thưởng nhé bạn`);
+  
+      // Bắn pháo hoa
+      const canvas = document.getElementById("confetti-canvas");
+      if (canvas) {
+        const confettiInstance = confetti.create(canvas, { resize: true, useWorker: true });
+        for (let i = 0; i < 25; i++) {
+          setTimeout(() => {
+            confettiInstance({
+              particleCount: 100,
+              spread: 70,
+              origin: { x: Math.random(), y: Math.random() * 0.6 }
+            });
+          }, i * 1000);
+        }
+      }
+  
+      try {
+        await fetch("https://sheetdb.io/api/v1/br3yxz6v6al06", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: {
+              Name: formData.name,
+              Phone: formData.phone,
+              Gift: gift,
+            },
+          }),
+        });
+      } catch (error) {
+        console.error("Lỗi khi lưu vào sheet:", error);
+      }
+  
+      setTimeout(() => setStep(null), 25000);
+    } else {
+      setResult("💔 Không trúng thưởng, thử lại nhé!");
+    }
+  };
+  
   const spin = () => {
     if (spinning || spinsLeft <= 0) return;
 
@@ -1105,59 +1160,79 @@ function SlotMachine({ setStep }) {
 
       if (Math.random() < 0.05 || isLastSpin) {
         clearInterval(interval);
+        handleSpinResult(isLastSpin); // gọi hàm async xử lý kết quả
+        // let final;
+        // if (isLastSpin) {
+        //   const chosen = images[Math.floor(Math.random() * images.length)];
+        //   final = [chosen, chosen, chosen];
+        // } else {
+        //   const shuffled = images.sort(() => 0.5 - Math.random());
+        //   final = [shuffled[0], shuffled[1], shuffled[2]];
+        // }
 
-        let final;
-        if (isLastSpin) {
-          const chosen = images[Math.floor(Math.random() * images.length)];
-          final = [chosen, chosen, chosen];
-        } else {
-          const shuffled = images.sort(() => 0.5 - Math.random());
-          final = [shuffled[0], shuffled[1], shuffled[2]];
-        }
+        // setSlots(final);
+        // setSpinsUsed((prev) => prev + 1);
+        // setSpinning(false);
 
-        setSlots(final);
-        setSpinsUsed((prev) => prev + 1);
-        setSpinning(false);
+        // if (final[0].name === final[1].name && final[1].name === final[2].name) {
+        //   setResult(`🎉 Xin chúc mừng bạn đã trúng: ${final[0].prize}!
+        //     Vui lòng liên hệ fb hoặc zalo để nhận thưởng nhé bạn`);
+        //    // 👉 BẮN PHÁO HOA
+        //   //  for (let i = 0; i < 5; i++) {
+        //   //   setTimeout(() => {
+        //   //     confetti({
+        //   //       particleCount: 100,
+        //   //       spread: 70,
+        //   //       origin: { x: Math.random(), y: Math.random() * 0.6 }
+        //   //     });
+        //   //   }, i * 300);
+        //   // }
 
-        if (final[0].name === final[1].name && final[1].name === final[2].name) {
-          setResult(`🎉 Xin chúc mừng bạn đã trúng: ${final[0].prize}!
-            Vui lòng liên hệ fb hoặc zalo để nhận thưởng nhé bạn`);
-           // 👉 BẮN PHÁO HOA
-          //  for (let i = 0; i < 5; i++) {
-          //   setTimeout(() => {
-          //     confetti({
-          //       particleCount: 100,
-          //       spread: 70,
-          //       origin: { x: Math.random(), y: Math.random() * 0.6 }
-          //     });
-          //   }, i * 300);
-          // }
+        //    // 🎆 BẮN PHÁO HOA TRONG MODAL
+        //    const canvas = document.getElementById("confetti-canvas");
+        //    if (canvas) {
+        //      const confettiInstance = confetti.create(canvas, {
+        //        resize: true,
+        //        useWorker: true
+        //      });
+        //      for (let i = 0; i < 25; i++) {
+        //        setTimeout(() => {
+        //          confettiInstance({
+        //            particleCount: 100,
+        //            spread: 70,
+        //            origin: { x: Math.random(), y: Math.random() * 0.6 }
+        //          });
+        //        }, i * 1000);
+        //      }
+        //     }
 
-           // 🎆 BẮN PHÁO HOA TRONG MODAL
-           const canvas = document.getElementById("confetti-canvas");
-           if (canvas) {
-             const confettiInstance = confetti.create(canvas, {
-               resize: true,
-               useWorker: true
-             });
-             for (let i = 0; i < 25; i++) {
-               setTimeout(() => {
-                 confettiInstance({
-                   particleCount: 100,
-                   spread: 70,
-                   origin: { x: Math.random(), y: Math.random() * 0.6 }
-                 });
-               }, i * 1000);
-             }
-            }
+        //     const gift = final[0].prize;
+
+
+        //      // ✅ Gọi API lưu khách trúng thưởng
+        //     try {
+        //       await fetch("https://sheetdb.io/api/v1/br3yxz6v6al06", {
+        //         method: "POST",
+        //         headers: { "Content-Type": "application/json" },
+        //         body: JSON.stringify({
+        //           data: {
+        //             Name: formData.name,
+        //             Phone: formData.phone,
+        //             Gift: gift,
+        //           },
+        //         }),
+        //       });
+        //     } catch (error) {
+        //       console.error("Lỗi khi lưu vào sheet:", error);
+        //     }
           
-          setTimeout(() => setStep(null), 25000); // đóng modal
-        } else {
-          setResult("💔 Không trúng thưởng, thử lại nhé!");
-          // if (spinsUsed + 1 >= totalSpins) {
-            // setTimeout(() => setStep(4), 3000);
-          // }
-        }
+        //   setTimeout(() => setStep(null), 25000); // đóng modal
+        // } else {
+        //   setResult("💔 Không trúng thưởng, thử lại nhé!");
+        //   // if (spinsUsed + 1 >= totalSpins) {
+        //     // setTimeout(() => setStep(4), 3000);
+        //   // }
+        // }
       }
     }, 100);
   };
