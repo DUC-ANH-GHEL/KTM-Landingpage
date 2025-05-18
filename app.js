@@ -629,41 +629,113 @@ function YoutubeShortsSection({ onOpen }) {
 }
 
 
+// function YoutubeShortsModal({ onClose }) {
+//   const shorts = [
+//     "UCreMHzob5c",
+//     "X7KeEUeH08s",
+//     "aRGJaryWCZM",
+//     "1jUJZ3JVYrE",
+//     "P4B9jBiCumw",
+//     "FEDQpcHVzEA",
+//     "sg45zTOzlr8",
+//     "VuPrPSkBtNE",
+//     "7aGK8dR8pK0"
+//   ];
+//   const containerRef = React.useRef(null);
+//   const iframeRefs = React.useRef([]);
+
+//   // Pause all videos except current
+//   const handleIntersection = (entries) => {
+//     entries.forEach((entry) => {
+//       const iframe = entry.target.querySelector("iframe");
+//       if (!iframe) return;
+//       if (entry.isIntersecting) {
+//         // Play video
+//         iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+//       } else {
+//         // Pause video
+//         iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+//       }
+//     });
+//   };
+
+//   useEffect(() => {
+//     const observer = new IntersectionObserver(handleIntersection, {
+//       threshold: 0.6
+//     });
+
+//     const items = containerRef.current.querySelectorAll(".short-item");
+//     items.forEach((el) => observer.observe(el));
+
+//     return () => observer.disconnect();
+//   }, []);
+
+//   return (
+//     <div className="modal-overlay-full bg-black text-white" style={{ zIndex: 9999 }}>
+//       <button className="btn btn-light text-danger position-absolute top-0 end-0 m-3" onClick={onClose}>
+//         Tắt
+//       </button>
+//       <div
+//         className="shorts-container"
+//         ref={containerRef}
+//         style={{
+//           height: "100vh",
+//           overflowY: "scroll",
+//           scrollSnapType: "y mandatory",
+//         }}
+//       >
+//         {shorts.map((id, i) => (
+//           <div
+//             key={i}
+//             className="short-item"
+//             style={{
+//               height: "100vh",
+//               scrollSnapAlign: "start",
+//             }}
+//           >
+//             <iframe
+//               ref={(el) => (iframeRefs.current[i] = el)}
+//               width="100%"
+//               height="100%"
+//               src={`https://www.youtube.com/embed/${id}?enablejsapi=1&playsinline=1&rel=0&autoplay=0`}
+//               frameBorder="0"
+//               allow="autoplay; encrypted-media"
+//               allowFullScreen
+//               webkitallowfullscreen
+//               title={`Short ${i}`}
+//             ></iframe>
+//           </div>
+//         ))}
+//       </div>
+//     </div>
+//   );
+// }
+
 function YoutubeShortsModal({ onClose }) {
   const shorts = [
-    "UCreMHzob5c",
-    "X7KeEUeH08s",
-    "aRGJaryWCZM",
-    "1jUJZ3JVYrE",
-    "P4B9jBiCumw",
-    "FEDQpcHVzEA",
-    "sg45zTOzlr8",
-    "VuPrPSkBtNE",
-    "7aGK8dR8pK0"
+    "UCreMHzob5c", "X7KeEUeH08s", "aRGJaryWCZM",
+    "1jUJZ3JVYrE", "P4B9jBiCumw", "FEDQpcHVzEA",
+    "sg45zTOzlr8", "VuPrPSkBtNE", "7aGK8dR8pK0"
   ];
   const containerRef = React.useRef(null);
   const iframeRefs = React.useRef([]);
 
-  // Pause all videos except current
   const handleIntersection = (entries) => {
     entries.forEach((entry) => {
       const iframe = entry.target.querySelector("iframe");
       if (!iframe) return;
-      if (entry.isIntersecting) {
-        // Play video
-        iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-      } else {
-        // Pause video
-        iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
-      }
+
+      const command = {
+        event: "command",
+        func: entry.isIntersecting ? "playVideo" : "pauseVideo",
+        args: [],
+      };
+      iframe.contentWindow.postMessage(JSON.stringify(command), "*");
     });
   };
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(handleIntersection, {
-      threshold: 0.6
-    });
-
+  React.useEffect(() => {
+    const observer = new IntersectionObserver(handleIntersection, { threshold: 0.6 });
     const items = containerRef.current.querySelectorAll(".short-item");
     items.forEach((el) => observer.observe(el));
 
@@ -697,7 +769,7 @@ function YoutubeShortsModal({ onClose }) {
               ref={(el) => (iframeRefs.current[i] = el)}
               width="100%"
               height="100%"
-              src={`https://www.youtube.com/embed/${id}?enablejsapi=1&playsinline=1&rel=0&autoplay=0`}
+              src={`https://www.youtube.com/embed/${id}?enablejsapi=1&playsinline=1&mute=0&rel=0`}
               frameBorder="0"
               allow="autoplay; encrypted-media"
               allowFullScreen
