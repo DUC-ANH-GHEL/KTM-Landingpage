@@ -156,19 +156,19 @@ function ProductShowcaseTabs() {
   const products = [
     {
       title: "Xy lanh giữa",
-      image: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538306/2_sxq2wa.jpg",
+      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538306/2_sxq2wa.jpg",
       price: "1.950.000đ",
        aos: "fade-left"
     },
     {
       title: "Xy lanh nghiêng",
-      image: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538307/3_nxbqyo.jpg",
+      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538307/3_nxbqyo.jpg",
       price: "1.950.000đ",
       aos: "fade-down"
     },
     {
       title: "Xy lanh ủi",
-      image: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538307/4_rj8cv2.jpg",
+      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538307/4_rj8cv2.jpg",
       price: "2.200.000đ",
       aos: "fade-right"
     }
@@ -254,7 +254,7 @@ function ProductList() {
   
     const products = [
       { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538307/51_hrmhpd.jpg",
+        img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538307/51_hrmhpd.jpg",
         name: "Combo 1", 
         desc: "Bộ van 3 tay KTM có lọc mạt + 1 xylanh giữa chống tụt, 2 đầu táo 19 phù hợp máy kéo 30-90hp", 
         salePrice: "5.550.000đ", 
@@ -262,21 +262,21 @@ function ProductList() {
         promo: true 
       },
       { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538307/61_obusxv.jpg", 
+        img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538307/61_obusxv.jpg", 
         name: "Combo 2", 
         desc: "Bộ van 3 tay KTM có lọc mạt + 3 xylanh 1 Nghiêng 1 Giữa 1 nâng hạ rạch vạt + đủ phụ kiện bích dây ren giá đỡ chốt sẵn lắp.", 
         salePrice: "10.250.000đ", 
         originalPrice: "10.580.000đ", 
         promo: true },
       { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538308/71_rqywnc.jpg", 
+        img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538308/71_rqywnc.jpg", 
         name: "Combo 3", 
         desc: "Bộ van 3 tay KTM có lọc mạt + 2 xylanh 1 nghiêng 1 giữa 1 tay chờ kép ren 1/4 lõm nhật - đủ phụ kiện dây ren giá đỡ sẵn lắp", 
         salePrice: "7.800.000đ", 
         originalPrice: "8.580.000đ", 
         promo: true },
       { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747537715/Combo_van_5_tay_2_xylanh_1_nghi%C3%AAng_1_gi%E1%BB%AFa_KTM_htd1au.jpg",
+        img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747537715/Combo_van_5_tay_2_xylanh_1_nghi%C3%AAng_1_gi%E1%BB%AFa_KTM_htd1au.jpg",
         name: "Combo 4",
         desc: "Combo van 5 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
         salePrice: "8.800.000đ",
@@ -284,7 +284,7 @@ function ProductList() {
         promo: false 
       },
       { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747539250/Combo_van_5_tay_1_xylanh_nghi%C3%AAng_KTM_kv6irg.jpg",
+        img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747539250/Combo_van_5_tay_1_xylanh_nghi%C3%AAng_KTM_kv6irg.jpg",
         name: "Combo 5",
         desc: "Conbo van 5 tay + 1 xylanh nghiêng (giữa) mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
         salePrice: "6.550.000đ",
@@ -363,11 +363,11 @@ function ProductList() {
 
 function ProductVanTay() {
   const vans = [
-    { type: "Van 1 tay", price: "1.900.000 đ", color: "success", icon: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538310/van1_sjzm7p.png" },
-    { type: "Van 2 tay", price: "2.200.000 đ", color: "info", icon: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538310/van2_hogp0r.png" },
-    { type: "Van 3 tay", price: "2.700.000 đ", color: "warning", icon: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538312/van3_qettd5.png" },
-    { type: "Van 4 tay", price: "3.200.000 đ", color: "primary", icon: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538311/van4_bxu8ry.png" },
-    { type: "Van 5 tay", price: "3.600.000 đ", color: "secondary", icon: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538312/van5_pjllmw.png" },
+    { type: "Van 1 tay", price: "1.900.000 đ", color: "success", icon: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/van1_sjzm7p.png" },
+    { type: "Van 2 tay", price: "2.200.000 đ", color: "info", icon: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/van2_hogp0r.png" },
+    { type: "Van 3 tay", price: "2.700.000 đ", color: "warning", icon: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/van3_qettd5.png" },
+    { type: "Van 4 tay", price: "3.200.000 đ", color: "primary", icon: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538311/van4_bxu8ry.png" },
+    { type: "Van 5 tay", price: "3.600.000 đ", color: "secondary", icon: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/van5_pjllmw.png" },
     { type: "Van 6 tay", price: "4.100.000 đ", color: "dark", icon: "https://img.icons8.com/color/48/settings.png" }
   ];
 
@@ -385,7 +385,7 @@ function ProductVanTay() {
             {/* ảnh + nút Zalo */}
             <div className="col-lg-6 text-center mb-4 mb-lg-0">
               <img
-                src="https://res.cloudinary.com/diwxfpt92/image/upload/v1747538307/8_q6acot.jpg"
+                src="https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538307/8_q6acot.jpg"
                 alt="Van tay thủy lực KTM"
                 className="img-fluid rounded shadow mb-3"
                 style={{ maxHeight: '400px' }}
@@ -536,12 +536,12 @@ function InstructionVideos() {
   const [activeVideo, setActiveVideo] = useState(null);
 
   const videos = [
-    { id: 1, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538310/youtube1_y63sbd.jpg", url: "https://www.youtube.com/embed/2MLY9YJrroU?si=qvuJDHHp3bmNcIWY" },
-    { id: 2, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538311/youtube2_yq3k1j.jpg", url: "https://www.youtube.com/embed/udfbXdJsh5M?si=88OjGhOoO2tYTGDJ" },
-    { id: 3, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538311/youtube3_o7jy33.jpg", url: "https://www.youtube.com/embed/Pt6E4VkcbYg?si=RZD_-Qo26sYSfu8_" },
-    { id: 4, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538312/youtube4_ykmqip.jpg", url: "https://www.youtube.com/embed/x2TQKWooJEQ?si=n-cUkEEnpIqwx_iY" },
-    { id: 5, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538312/youtube5_dy8uj1.jpg", url: "https://www.youtube.com/embed/_M6O7gCgdAc?si=nt8RATetDmGp5_3f" },
-    { id: 6, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1747538312/youtube6_ef0wre.jpg", url: "https://www.youtube.com/embed/sjnXAr8kZmg?si=VsweCEEUkZOFVcII" },
+    { id: 1, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/youtube1_y63sbd.jpg", url: "https://www.youtube.com/embed/2MLY9YJrroU?si=qvuJDHHp3bmNcIWY" },
+    { id: 2, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538311/youtube2_yq3k1j.jpg", url: "https://www.youtube.com/embed/udfbXdJsh5M?si=88OjGhOoO2tYTGDJ" },
+    { id: 3, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538311/youtube3_o7jy33.jpg", url: "https://www.youtube.com/embed/Pt6E4VkcbYg?si=RZD_-Qo26sYSfu8_" },
+    { id: 4, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube4_ykmqip.jpg", url: "https://www.youtube.com/embed/x2TQKWooJEQ?si=n-cUkEEnpIqwx_iY" },
+    { id: 5, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube5_dy8uj1.jpg", url: "https://www.youtube.com/embed/_M6O7gCgdAc?si=nt8RATetDmGp5_3f" },
+    { id: 6, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube6_ef0wre.jpg", url: "https://www.youtube.com/embed/sjnXAr8kZmg?si=VsweCEEUkZOFVcII" },
   ];
 
   return (
