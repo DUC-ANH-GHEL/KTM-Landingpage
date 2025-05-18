@@ -4,6 +4,8 @@ const { useState, useEffect } = React;
 function App() {
   const [showMiniGame, setShowMiniGame] = useState(false);
   const reviewRef = React.useRef();
+  const [showShortsModal, setShowShortsModal] = useState(false);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -87,6 +89,8 @@ function App() {
       <ProductList />
       <ProductVanTay />
       <InstructionVideos />
+      <YoutubeShortsSection onOpen={() => setShowShortsModal(true)} />
+      {showShortsModal && <YoutubeShortsModal onClose={() => setShowShortsModal(false)} />}
       {/* <CustomerReviews /> */}
       <CustomerReviews innerRef={reviewRef} />
       <FloatingSocial />
@@ -579,6 +583,133 @@ function InstructionVideos() {
     </section>
   );
 }
+
+// function YoutubeShortsSection({ onOpen }) {
+//   return (
+//     <section className="py-5 bg-dark text-white text-center">
+//       <div className="container">
+//         <h2 className="fw-bold mb-3">🎬 Video ngắn - Mẹo máy nông nghiệp</h2>
+//         <p className="text-light">Lướt xem những mẹo nhanh cực hay giống TikTok/Youtube Shorts</p>
+//         <button className="btn btn-danger mt-3 px-4" onClick={onOpen}>
+//           Xem video dạng lướt
+//         </button>
+//       </div>
+//     </section>
+//   );
+// }
+
+function YoutubeShortsSection({ onOpen }) {
+  return (
+    <section className="py-5 bg-dark text-white text-center">
+      <div className="container">
+        <div className="d-flex flex-column align-items-center">
+          <div className="mb-3" style={{ maxWidth: 300, position: "relative" }} onClick={onOpen}>
+            <img
+              src="https://img.youtube.com/vi/UCreMHzob5c/hqdefault.jpg"
+              alt="Video preview"
+              className="img-fluid rounded shadow"
+            />
+            <div className="position-absolute top-50 start-50 translate-middle">
+              <i className="fas fa-play-circle fa-3x text-white"></i>
+            </div>
+          </div>
+
+          <h2 className="fw-bold mb-2">📹 Video ngắn - Mẹo máy nông nghiệp</h2>
+          <p className="text-light small">
+            Xem mẹo cực hay, lướt giống TikTok/Youtube Shorts
+          </p>
+
+          <button className="btn btn-danger mt-2 px-4 py-2 fw-semibold rounded-pill" onClick={onOpen}>
+            ▶️ Bấm để xem ngay
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+function YoutubeShortsModal({ onClose }) {
+  const shorts = [
+    "UCreMHzob5c",
+    "X7KeEUeH08s",
+    "aRGJaryWCZM",
+    "1jUJZ3JVYrE",
+    "P4B9jBiCumw",
+    "FEDQpcHVzEA",
+    "sg45zTOzlr8",
+    "VuPrPSkBtNE",
+    "7aGK8dR8pK0"
+  ];
+  const containerRef = React.useRef(null);
+  const iframeRefs = React.useRef([]);
+
+  // Pause all videos except current
+  const handleIntersection = (entries) => {
+    entries.forEach((entry) => {
+      const iframe = entry.target.querySelector("iframe");
+      if (!iframe) return;
+      if (entry.isIntersecting) {
+        // Play video
+        iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+      } else {
+        // Pause video
+        iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+      }
+    });
+  };
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(handleIntersection, {
+      threshold: 0.6
+    });
+
+    const items = containerRef.current.querySelectorAll(".short-item");
+    items.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className="modal-overlay-full bg-black text-white" style={{ zIndex: 9999 }}>
+      <button className="btn btn-light text-danger position-absolute top-0 end-0 m-3" onClick={onClose}>
+        Tắt
+      </button>
+      <div
+        className="shorts-container"
+        ref={containerRef}
+        style={{
+          height: "100vh",
+          overflowY: "scroll",
+          scrollSnapType: "y mandatory",
+        }}
+      >
+        {shorts.map((id, i) => (
+          <div
+            key={i}
+            className="short-item"
+            style={{
+              height: "100vh",
+              scrollSnapAlign: "start",
+            }}
+          >
+            <iframe
+              ref={(el) => (iframeRefs.current[i] = el)}
+              width="100%"
+              height="100%"
+              src={`https://www.youtube.com/embed/${id}?enablejsapi=1&playsinline=1&rel=0&autoplay=0`}
+              frameBorder="0"
+              allow="autoplay; encrypted-media"
+              allowFullScreen
+              title={`Short ${i}`}
+            ></iframe>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 
 
 
