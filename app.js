@@ -87,6 +87,7 @@ function App() {
       <HeroSection />
       <ProductShowcaseTabs />
       <ProductList />
+      <HydraulicBladeProducts />
       <ProductVanTay />
       <InstructionVideos />
       <YoutubeShortsSection onOpen={() => setShowShortsModal(true)} />
@@ -104,12 +105,12 @@ function Header() {
     return (
       <header className="bg-white shadow-sm py-3 position-relative" role="banner">
         <div className="container d-flex justify-content-between align-items-center">
-          <h1 className="h4 m-0 text-primary fw-bold">Thiết bị thủy lực - Bá Đức</h1>
+          <h1 className="h4 m-0 text-primary fw-bold">Thiết bị thủy lực - KTM</h1>
           <a href="tel:+84966201140" className="btn btn-outline-primary d-none d-md-block">
            <i className="fas fa-phone-alt me-2" aria-hidden="true"></i>Hotline: 0966.201.140
          </a>
         </div>
-        <img src="logo-small.png" alt="Logo nhỏ" className="position-absolute top-50 end-0 translate-middle-y d-block d-md-none me-3" style={{ height: '32px' }} />
+        <img src="https://res.cloudinary.com/diwxfpt92/image/upload/v1749052964/products/ppe92dmlfy1eticfpdam.jpg" alt="Logo nhỏ" className="position-absolute top-50 end-0 translate-middle-y d-block d-md-none me-3" style={{ height: '32px' }} />
       </header>
     );
   }
@@ -291,6 +292,14 @@ function ProductList() {
         originalPrice: "6.550.000đ",
         promo: false 
       },
+      { 
+        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749135217/Combo_van_4_tay_1_xylanh_nghi%C3%AAng_1_xylanh_gi%E1%BB%AFa_nh6gjh.jpg",
+        name: "Combo 6",
+        desc: "	Combo van 4 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+        salePrice: "8.300.000đ",
+        originalPrice: "8.300.000đ",
+        promo: false 
+      },
     ];
   
     return (
@@ -360,6 +369,139 @@ function ProductList() {
       </section>
     );
   }
+
+
+
+function HydraulicBladeProducts() {
+  const products = [
+    { stt: 62, name: "Trang Trượt van 4 tay KTM 4 xylanh Lắp trên xới", code: "KTM-62", price: "21,200,000" },
+    { stt: 63, name: "Trang Gập Van tay KTM 4 xylanh Lắp trên xới", code: "KTM-63", price: "23,200,000" },
+    { stt: 64, name: "Trang Gập Van 4 tay KTM 2 xylanh nâng lắp trên xới", code: "KTM-64", price: "16,500,000" },
+    { stt: 65, name: "Trang Trượt Van 4 tay KTM + bừa lăn KTM", code: "KTM-65", price: "24,200,000" },
+    { stt: 66, name: "Trang Trượt Van 4 tay KTM + bừa lăn KTM", code: "KTM-66", price: "26,200,000" },
+    { stt: 67, name: "Trang Trượt Van 4 tay KTM + bừa đinh KTM", code: "KTM-67", price: "22,700,000" },
+    { stt: 68, name: "Trang Gập Van 4 tay KTM + bừa đinh KTM", code: "KTM-68", price: "24,700,000" },
+    { stt: 69, name: "Trang Trượt Van 4 tay KTM + Khung độc lập", code: "KTM-69", price: "21,500,000" },
+    { stt: 70, name: "Trang Gập KTM Van 4 tay + Khung độc lập", code: "KTM-70", price: "23,500,000" },
+    { stt: 71, name: "Bộ trang KTM Van 4 tay thêm xy lanh nghiêng (giữa)", code: "KTM-71", price: "2,000,000" },
+    { stt: 72, name: "Bộ trang KTM van 4 tay chuyển thêm 5 tay + 500k", code: "KTM-72", price: "500,000" },
+    { stt: 73, name: "Bộ trang KTM van 4 tay chuyển thêm 6 tay + 1.000.000", code: "KTM-73", price: "1,000,000" },
+  ];
+
+  const [searchTerm, setSearchTerm] = React.useState("");
+
+  // const filteredProducts = products.filter((prod) =>
+  //   prod.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //   prod.code.toLowerCase().includes(searchTerm.toLowerCase())
+  // );
+
+// 👉 Hàm bỏ dấu tiếng Việt
+const removeAccents = (str) =>
+  str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+const filteredProducts = products.filter((prod) => {
+  // Tách từ khóa theo khoảng trắng hoặc dấu phẩy
+  const keywords = searchTerm.split(/[\s,]+/).map(k => removeAccents(k.trim())).filter(k => k !== "");
+
+  if (keywords.length === 0) return true; // nếu không có từ khóa thì hiển thị hết
+
+  // Ghép các field của sản phẩm lại → bỏ dấu → search trong đó
+  const searchable = [
+    prod.name,
+    prod.code,
+    prod.stt.toString()
+  ].map(removeAccents).join(" ");
+
+  // Nếu TẤT CẢ từ khóa đều khớp → giữ lại
+  return keywords.every(keyword => searchable.includes(keyword));
+});
+
+
+
+  return (
+    <section className="py-5 bg-light">
+      <div className="container">
+        <h2 className="fw-bold text-center mb-4 text-primary">TRANG GẠT THỦY LỰC KTM</h2>
+        <div className="row g-4 align-items-stretch">
+          {/* Cột bên trái: ảnh */}
+          <div className="col-md-6 d-flex flex-column">
+            <div className="border rounded shadow-sm p-2 bg-white flex-grow-1 d-flex flex-column">
+              <img
+                src="https://res.cloudinary.com/diwxfpt92/image/upload/v1749135668/trang_g%E1%BA%A1t_wleewb.jpg"
+                alt="Trang Gạt Thủy Lực KTM"
+                className="img-fluid rounded mb-2"
+                style={{ objectFit: 'fill', height: '100%' }}
+              />
+              <small className="text-muted text-center">Hình ảnh thực tế các mẫu trang gạt lắp trên máy</small>
+            </div>
+          </div>
+
+          {/* Cột bên phải: bảng sản phẩm */}
+          <div className="col-md-6">
+            {/* Search box */}
+            <div className="mb-3 d-flex justify-content-end">
+              <input
+                type="text"
+                className="form-control w-75"
+                placeholder="Tìm kiếm sản phẩm hoặc mã số..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div className="table-responsive">
+              <table className="table table-striped table-hover align-middle">
+                <thead className="table-primary">
+                  <tr>
+                    <th scope="col">STT</th>
+                    <th scope="col">Tên sản phẩm</th>
+                    <th scope="col">Mã số</th>
+                    <th scope="col" className="text-end">Giá bán</th>
+                    <th scope="col">Đặt hàng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.length > 0 ? (
+                    filteredProducts.map((prod, idx) => (
+                      <tr key={idx}>
+                        <td>{prod.stt}</td>
+                        <td>{prod.name}</td>
+                        <td>{prod.code}</td>
+                        <td className="text-end">{prod.price} đ</td>
+                        <td>
+                          <a
+                            href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn mua: " + prod.name + " - " + prod.price + "đ")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm btn-outline-primary rounded-pill px-3"
+                          >
+                            Chọn mua
+                          </a>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="text-center text-muted py-3">
+                        Không tìm thấy sản phẩm phù hợp.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+
+
+
+
 
 function ProductVanTay() {
   const vans = [
