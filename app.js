@@ -2070,6 +2070,8 @@ function FooterCompany() {
 
           <div style={{ marginTop: "20px" }}>
             <span style={{ color: "#0000ff", fontWeight: "bold" }}>Kythuatmay.vn</span>
+            <br/>
+            <span style={{ color: "#0000ff", fontWeight: "bold" }}>Thuyluc.shop</span>
           </div>
 
           <div>
