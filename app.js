@@ -256,7 +256,7 @@ function ProductList() {
     const products = [
       { 
         img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747537715/Combo_van_5_tay_2_xylanh_1_nghi%C3%AAng_1_gi%E1%BB%AFa_KTM_htd1au.jpg",
-        name: "Combo 4",
+        name: "Combo 1",
         desc: "Combo van 5 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
         salePrice: "8.800.000đ",
         originalPrice: "8.800.000đ",
@@ -264,7 +264,7 @@ function ProductList() {
       },
       { 
         img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300157/Combo_van_3_tay_xylanh_gi%E1%BB%AFa_mxdsth.jpg",
-        name: "Combo 1", 
+        name: "Combo 2", 
         desc: "Bộ van 3 tay KTM có lọc mạt + 1 xylanh giữa chống tụt, 2 đầu táo 19 phù hợp máy kéo 30-90hp", 
         salePrice: "5.550.000đ", 
         originalPrice: "5.550.000đ", 
@@ -272,14 +272,14 @@ function ProductList() {
       },
       { 
         img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300461/combo_van_3_tay_3_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_%E1%BB%A7i_mgppxh.jpg", 
-        name: "Combo 2", 
+        name: "Combo 3", 
         desc: "Bộ van 3 tay KTM có lọc mạt + 3 xylanh 1 Nghiêng 1 Giữa 1 nâng hạ rạch vạt + đủ phụ kiện bích dây ren giá đỡ chốt sẵn lắp.", 
         salePrice: "10.250.000đ", 
         originalPrice: "10.250.000đ", 
         promo: false },
       { 
         img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300324/Combo_Van_3_tay_2_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_evihrt.jpg", 
-        name: "Combo 3", 
+        name: "Combo 4", 
         desc: "Bộ van 3 tay KTM có lọc mạt + 2 xylanh 1 nghiêng 1 giữa 1 tay chờ kép ren 1/4 lõm nhật - đủ phụ kiện dây ren giá đỡ sẵn lắp", 
         salePrice: "7.800.000đ", 
         originalPrice: "7.800.000đ", 
