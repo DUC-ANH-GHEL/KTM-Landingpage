@@ -93,7 +93,7 @@ function App() {
       <YoutubeShortsSection onOpen={() => setShowShortsModal(true)} />
       {showShortsModal && <YoutubeShortsModal onClose={() => setShowShortsModal(false)} />}
       {/* <CustomerReviews /> */}
-      <CustomerReviews innerRef={reviewRef} />
+      {/* <CustomerReviews innerRef={reviewRef} /> */}
       <FloatingSocial />
       {/* <MiniGameModal /> */}
       {/* {showMiniGame && <MiniGameModal />} */}
