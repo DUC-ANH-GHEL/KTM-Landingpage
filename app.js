@@ -2111,7 +2111,7 @@ function FooterCompany() {
 
         <a href="http://online.gov.vn/Home/WebDetails/61330">
           <img
-            src="http://online.gov.vn/Content/EndUser/LogoCCDVSaleNoti/logoSaleNoti.png"
+            src="https://res.cloudinary.com/diwxfpt92/image/upload/v1749379288/logoSaleNoti_whjtfz.png"
             alt="giấy phép"
             style={{ height: "50px" }}
           />
