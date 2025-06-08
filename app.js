@@ -2009,7 +2009,7 @@ function FooterCompany() {
 
           <div style={{ fontWeight: "bold" }}>
             Hotline đặt mua hàng:{" "}
-            <span style={{ color: "red" }}>0966 201 140 Mr Bá Đức</span>
+            <span style={{ color: "red" }}><a href="tel:0966 201 140">0966 201 140</a> Mr Bá Đức</span>
           </div>
 
           {/* <div style={{ fontWeight: "bold", color: "red", marginBottom: "10px" }}>
