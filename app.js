@@ -106,7 +106,7 @@ function Header() {
     return (
       <header className="bg-white shadow-sm py-3 position-relative" role="banner">
         <div className="container d-flex justify-content-between align-items-center">
-          <h1 className="h4 m-0 text-primary fw-bold">Thiết bị thủy lực - KTM</h1>
+          <h1 className="h4 m-0 text-primary fw-bold">Trang gạt - Xy lanh - KTM</h1>
           <a href="tel:+84966201140" className="btn btn-outline-primary d-none d-md-block">
            <i className="fas fa-phone-alt me-2" aria-hidden="true"></i>Hotline: 0966.201.140
          </a>
