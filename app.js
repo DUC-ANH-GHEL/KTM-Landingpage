@@ -86,8 +86,8 @@ function App() {
       <Header />
       <HeroSection />
       <ProductShowcaseTabs />
-      <ProductList />
       <HydraulicBladeProducts />
+      <ProductList />
       <ProductVanTay />
       <InstructionVideos />
       <YoutubeShortsSection onOpen={() => setShowShortsModal(true)} />
