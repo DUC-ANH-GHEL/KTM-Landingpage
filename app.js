@@ -375,7 +375,7 @@ function ProductList() {
 
 
 function HydraulicBladeProducts() {
-  const products = [
+  const allProducts = [
     { stt: 62, name: "Trang Trượt van 4 tay KTM 4 xylanh Lắp trên xới", code: "KTM-62", price: "21,200,000" },
     { stt: 63, name: "Trang Gập Van tay KTM 4 xylanh Lắp trên xới", code: "KTM-63", price: "23,200,000" },
     { stt: 64, name: "Trang Gập Van 4 tay KTM 2 xylanh nâng lắp trên xới", code: "KTM-64", price: "16,500,000" },
@@ -390,33 +390,46 @@ function HydraulicBladeProducts() {
     { stt: 73, name: "Bộ trang KTM van 4 tay chuyển thêm 6 tay + 1.000.000", code: "KTM-73", price: "1,000,000" },
   ];
 
+  // Only these are not commented in the original code
+  const mobileProducts = [
+    { stt: 62, name: "Trang Trượt van 4 tay KTM 4 xylanh Lắp trên xới", code: "KTM-62", price: "21,200,000" },
+    { stt: 63, name: "Trang Gập Van tay KTM 4 xylanh Lắp trên xới", code: "KTM-63", price: "23,200,000" },
+    { stt: 69, name: "Trang Trượt Van 4 tay KTM + Khung độc lập", code: "KTM-69", price: "21,500,000" },
+    { stt: 70, name: "Trang Gập KTM Van 4 tay + Khung độc lập", code: "KTM-70", price: "23,500,000" },
+  ];
+
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 768);
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const products = isMobile ? mobileProducts : allProducts;
+
   const [searchTerm, setSearchTerm] = React.useState("");
 
-  // const filteredProducts = products.filter((prod) =>
-  //   prod.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //   prod.code.toLowerCase().includes(searchTerm.toLowerCase())
-  // );
+  // 👉 Hàm bỏ dấu tiếng Việt
+  const removeAccents = (str) =>
+    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-// 👉 Hàm bỏ dấu tiếng Việt
-const removeAccents = (str) =>
-  str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const filteredProducts = products.filter((prod) => {
+    // Tách từ khóa theo khoảng trắng hoặc dấu phẩy
+    const keywords = searchTerm.split(/[\s,]+/).map(k => removeAccents(k.trim())).filter(k => k !== "");
 
-const filteredProducts = products.filter((prod) => {
-  // Tách từ khóa theo khoảng trắng hoặc dấu phẩy
-  const keywords = searchTerm.split(/[\s,]+/).map(k => removeAccents(k.trim())).filter(k => k !== "");
+    if (keywords.length === 0) return true; // nếu không có từ khóa thì hiển thị hết
 
-  if (keywords.length === 0) return true; // nếu không có từ khóa thì hiển thị hết
+    // Ghép các field của sản phẩm lại → bỏ dấu → search trong đó
+    const searchable = [
+      prod.name,
+      prod.code,
+      prod.stt.toString()
+    ].map(removeAccents).join(" ");
 
-  // Ghép các field của sản phẩm lại → bỏ dấu → search trong đó
-  const searchable = [
-    prod.name,
-    prod.code,
-    prod.stt.toString()
-  ].map(removeAccents).join(" ");
-
-  // Nếu TẤT CẢ từ khóa đều khớp → giữ lại
-  return keywords.every(keyword => searchable.includes(keyword));
-});
+    // Nếu TẤT CẢ từ khóa đều khớp → giữ lại
+    return keywords.every(keyword => searchable.includes(keyword));
+  });
 
 
 
