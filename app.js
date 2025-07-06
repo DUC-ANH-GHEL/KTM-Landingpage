@@ -413,131 +413,185 @@ function HydraulicBladeProducts() {
     { stt: 73, name: "Bộ trang KTM van 4 tay chuyển thêm 6 tay + 1.000.000", code: "KTM-73", price: "1,000,000" },
   ];
 
-  // Only these are not commented in the original code
-  const mobileProducts = [
-    { stt: 62, name: "Trang Trượt van 4 tay KTM 4 xylanh Lắp trên xới", code: "KTM-62", price: "21,200,000" },
-    { stt: 63, name: "Trang Gập Van tay KTM 4 xylanh Lắp trên xới", code: "KTM-63", price: "23,200,000" },
-    { stt: 69, name: "Trang Trượt Van 4 tay KTM + Khung độc lập", code: "KTM-69", price: "21,500,000" },
-    { stt: 70, name: "Trang Gập KTM Van 4 tay + Khung độc lập", code: "KTM-70", price: "23,500,000" },
-  ];
-
-  const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 768);
-
-  React.useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const products = isMobile ? mobileProducts : allProducts;
-
   const [searchTerm, setSearchTerm] = React.useState("");
+  const [selectedCategory, setSelectedCategory] = React.useState("trangTruotLapXoi");
 
-  // 👉 Hàm bỏ dấu tiếng Việt
+  // Sử dụng toàn bộ data cho cả desktop và mobile
+  const products = allProducts;
+
+  // Phân loại sản phẩm
+  const categories = {
+    all: { name: "Tất cả", count: products.length },
+    trangTruotLapXoi: { 
+      name: "Trang Trượt Lắp Xới", 
+      count: products.filter(p => p.name.includes("Trượt") && (p.name.includes("xới") || p.name.includes("Lắp trên"))).length 
+    },
+    trangTruotKhungDocLap: { 
+      name: "Trang Trượt Khung Độc Lập", 
+      count: products.filter(p => p.name.includes("Trượt") && p.name.includes("Khung độc lập")).length 
+    },
+    trangTruotBuaLan: { 
+      name: "Trang Trượt + Bừa Lăn", 
+      count: products.filter(p => p.name.includes("Trượt") && p.name.includes("bừa lăn")).length 
+    },
+    trangGap: { name: "Trang Gập", count: products.filter(p => p.name.includes("Gập")).length },
+    phuKien: { name: "Phụ kiện", count: products.filter(p => p.name.includes("thêm") || p.name.includes("chuyển")).length }
+  };
+
+  // Hàm bỏ dấu tiếng Việt
   const removeAccents = (str) =>
     str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   const filteredProducts = products.filter((prod) => {
-    // Tách từ khóa theo khoảng trắng hoặc dấu phẩy
+    // Lọc theo category
+    if (selectedCategory !== "all") {
+      if (selectedCategory === "trangTruotLapXoi" && (!prod.name.includes("Trượt") || (!prod.name.includes("xới") && !prod.name.includes("Lắp trên")))) return false;
+      if (selectedCategory === "trangTruotKhungDocLap" && (!prod.name.includes("Trượt") || !prod.name.includes("Khung độc lập"))) return false;
+      if (selectedCategory === "trangTruotBuaLan" && (!prod.name.includes("Trượt") || !prod.name.includes("bừa lăn"))) return false;
+      if (selectedCategory === "trangGap" && !prod.name.includes("Gập")) return false;
+      if (selectedCategory === "phuKien" && !prod.name.includes("thêm") && !prod.name.includes("chuyển")) return false;
+    }
+
+    // Lọc theo search term
     const keywords = searchTerm.split(/[\s,]+/).map(k => removeAccents(k.trim())).filter(k => k !== "");
+    if (keywords.length === 0) return true;
 
-    if (keywords.length === 0) return true; // nếu không có từ khóa thì hiển thị hết
-
-    // Ghép các field của sản phẩm lại → bỏ dấu → search trong đó
     const searchable = [
       prod.name,
       prod.code,
       prod.stt.toString()
     ].map(removeAccents).join(" ");
 
-    // Nếu TẤT CẢ từ khóa đều khớp → giữ lại
     return keywords.every(keyword => searchable.includes(keyword));
   });
-
-
 
   return (
     <section className="py-5 bg-light">
       <div className="container">
-        <h2 className="fw-bold text-center mb-4 text-primary">TRANG GẠT THỦY LỰC KTM</h2>
-        <div className="row g-4 align-items-stretch">
-          {/* Cột bên trái: ảnh */}
-          <div className="col-md-6 d-flex flex-column">
-            <div className="border rounded shadow-sm p-2 bg-white flex-grow-1 d-flex flex-column">
-              <img
-                src="https://res.cloudinary.com/diwxfpt92/image/upload/v1749135668/trang_g%E1%BA%A1t_wleewb.jpg"
-                alt="Trang Gạt Thủy Lực KTM"
-                className="img-fluid rounded mb-2"
-                style={{ objectFit: 'fill', height: '100%' }}
-              />
-              <small className="text-muted text-center">Hình ảnh thực tế các mẫu trang gạt lắp trên máy</small>
+        <div className="text-center mb-5">
+          <h2 className="fw-bold text-primary mb-3">🛠️ TRANG GẠT THỦY LỰC KTM</h2>
+          <p className="text-muted">Chuyên cung cấp trang gạt thủy lực chính hãng, lắp vừa mọi máy</p>
+        </div>
+
+        {/* Hình ảnh tham khảo - To hơn */}
+        <div className="text-center mb-5">
+          <img
+            src="https://res.cloudinary.com/diwxfpt92/image/upload/v1749135668/trang_g%E1%BA%A1t_wleewb.jpg"
+            alt="Trang Gạt Thủy Lực KTM"
+            className="img-fluid rounded shadow-lg"
+            style={{ maxHeight: '500px', objectFit: 'contain', width: '100%' }}
+          />
+          <small className="text-muted d-block mt-3">Hình ảnh thực tế các mẫu trang gạt lắp trên máy</small>
+        </div>
+
+        {/* Bộ lọc và tìm kiếm */}
+        <div className="row mb-4">
+          <div className="col-md-8">
+            <div className="btn-group w-100" role="group">
+              {Object.entries(categories).map(([key, category]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`btn ${selectedCategory === key ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => setSelectedCategory(key)}
+                >
+                  {category.name} ({category.count})
+                </button>
+              ))}
             </div>
           </div>
+          <div className="col-md-4">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="🔍 Tìm kiếm sản phẩm..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
 
-          {/* Cột bên phải: bảng sản phẩm */}
-          <div className="col-md-6">
-            {/* Search box */}
-            <div className="mb-3 d-flex justify-content-end">
-              <input
-                type="text"
-                className="form-control w-75"
-                placeholder="Tìm kiếm sản phẩm hoặc mã số..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+        {/* Grid sản phẩm */}
+        <div className="row g-4">
+          {filteredProducts.length > 0 ? (
+            filteredProducts.map((prod, idx) => (
+              <div key={idx} className="col-12 col-md-6 col-lg-4">
+                <div className="card h-100 shadow-sm border-0 product-card">
+                  <div className="card-header bg-primary text-white text-center py-2">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span className="badge bg-light text-primary">#{prod.stt}</span>
+                      <h6 className="mb-0 fw-bold">{prod.code}</h6>
+                      <span className="badge bg-warning text-dark">KTM</span>
+                    </div>
+                  </div>
+                  
+                  <div className="card-body d-flex flex-column">
+                    <h6 className="card-title fw-bold text-primary mb-3">
+                      {prod.name}
+                    </h6>
+                    
+                    <div className="mt-auto">
+                      <div className="d-flex justify-content-between align-items-center mb-3">
+                        <span className="text-muted small">Giá bán:</span>
+                        <span className="fw-bold text-danger fs-5">
+                          {prod.price} đ
+                        </span>
+                      </div>
+                      
+                      <a
+                        href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn mua: " + prod.name + " - " + prod.price + "đ")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-primary w-100"
+                      >
+                        <i className="fas fa-shopping-cart me-2"></i>
+                        Đặt hàng ngay
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-12">
+              <div className="text-center py-5">
+                <i className="fas fa-search fa-3x text-muted mb-3"></i>
+                <h5 className="text-muted">Không tìm thấy sản phẩm phù hợp</h5>
+                <p className="text-muted">Vui lòng thử từ khóa khác hoặc liên hệ tư vấn</p>
+                <a 
+                  href="https://zalo.me/0966201140" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="btn btn-primary"
+                >
+                  <i className="fas fa-phone me-2"></i>
+                  Tư vấn miễn phí
+                </a>
+              </div>
             </div>
+          )}
+        </div>
 
-            <div className="table-responsive">
-              <table className="table table-striped table-hover align-middle">
-                <thead className="table-primary">
-                  <tr>
-                    <th scope="col">STT</th>
-                    <th scope="col">Tên sản phẩm</th>
-                    <th scope="col">Mã số</th>
-                    <th scope="col" className="text-end">Giá bán</th>
-                    <th scope="col">Đặt hàng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.length > 0 ? (
-                    filteredProducts.map((prod, idx) => (
-                      <tr key={idx}>
-                        <td>{prod.stt}</td>
-                        <td>{prod.name}</td>
-                        <td>{prod.code}</td>
-                        <td className="text-end">{prod.price} đ</td>
-                        <td>
-                          <a
-                            href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn mua: " + prod.name + " - " + prod.price + "đ")}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-sm btn-outline-primary rounded-pill px-3"
-                          >
-                            Chọn mua
-                          </a>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="5" className="text-center text-muted py-3">
-                        Không tìm thấy sản phẩm phù hợp.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+        {/* Thông tin bổ sung */}
+        <div className="text-center mt-5">
+          <div className="alert alert-info">
+            <h6 className="fw-bold mb-2">💡 Cần tư vấn chọn trang gạt phù hợp?</h6>
+            <p className="mb-3">Hãy cho chúng tôi biết loại máy và nhu cầu để được tư vấn chính xác nhất!</p>
+            <a 
+              href="https://zalo.me/0966201140" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn btn-success btn-lg"
+            >
+              <i className="fas fa-comments me-2"></i>
+              Tư vấn miễn phí
+            </a>
           </div>
         </div>
       </div>
     </section>
   );
 }
-
-
-
-
 
 
 
