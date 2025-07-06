@@ -115,41 +115,184 @@ body {
     transform: translateY(0);
   }
   
-  /* Responsive tweaks */
-  @media (max-width: 768px) {
-    h1, h2 {
-      font-size: 1.5rem;
-    }
-  
-    .btn {
-      width: 100%;
-    }
-  
-    .hero-section {
-      padding: 3rem 1rem;
-    }
-  
-    .floating-social {
-      bottom: 15px;
-      right: 15px;
-    }
+  /* Zoom effect on hover */
+  .zoom-on-hover {
+    transition: transform 0.3s ease;
   }
-
-  /* .zoom-on-hover {
-    transition: transform 0.4s ease;
-  }
+  
   .zoom-on-hover:hover {
     transform: scale(1.05);
-  } */
-
-  .fire-icon {
-    display: inline-block;
-    animation: fire-blink 0.6s infinite alternate;
   }
   
-  @keyframes fire-blink {
-    0% { transform: scale(1); opacity: 1; }
-    100% { transform: scale(1.2); opacity: 0.7; }
+  /* Clickable cursor */
+  .clickable {
+    cursor: pointer;
+  }
+  
+  /* Modal overlay */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+  }
+  
+  .modal-overlay img {
+    max-width: 90%;
+    max-height: 90%;
+  }
+  
+  /* Video modal */
+  .video-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1050;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .video-modal-content {
+    position: relative;
+    width: 90%;
+    max-width: 800px;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+  }
+  
+  .video-thumb img {
+    transition: transform 0.3s;
+  }
+  
+  .video-thumb:hover img {
+    transform: scale(1.03);
+  }
+  
+  .modal-overlay-full {
+    position: fixed;
+    z-index: 9999;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  /* Modal box */
+  .modal-box {
+    background: white;
+    border-radius: 12px;
+    max-width: 90%;
+    max-height: 90%;
+    overflow-y: auto;
+    position: relative;
+    z-index: 10000;
+  }
+  
+  /* Button close margin */
+  .button-close-margin {
+    margin: 10px;
+  }
+  
+  /* Fire icon animation */
+  .fire-icon {
+    animation: flicker 1.5s infinite alternate;
+  }
+  
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .hero-section {
+      padding: 2rem 0;
+    }
+    
+    .floating-social {
+      bottom: 20px;
+      right: 20px;
+    }
+    
+    .social-button {
+      width: 50px;
+      height: 50px;
+    }
+    
+    section {
+      padding-top: 2rem;
+      padding-bottom: 2rem;
+    }
+  }
+  
+  /* Fix horizontal scroll on mobile */
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  .container, .row, .btn-group, .table-responsive {
+    overflow-x: hidden;
+  }
+  
+  /* Optimize for performance */
+  * {
+    box-sizing: border-box;
+  }
+  
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  
+  /* Video shorts container */
+  .shorts-container {
+    width: 100%;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+  }
+  
+  /* Animation for rotate and fade */
+  @keyframes rotateAndFade {
+    0% {
+      opacity: 0;
+      transform: rotate(0deg) scale(0.1);
+      border-radius: 50%;
+    }
+    50% {
+      opacity: 0.5;
+      transform: rotate(360deg) scale(0.3);
+      border-radius: 50%;
+    }
+    100% {
+      opacity: 1;
+      transform: rotate(720deg) scale(1);
+    }
+  }
+  
+  /* AOS animation class */
+  .aos-animate.rotate-fade {
+    animation: rotateAndFade 5s ease-out forwards;
+  }
+  
+  /* Scratch card styles */
+  .scratch-box {
+    min-height: 80px;
+    font-size: 1.25rem;
   }
 
   /* LED chữ chạy ngang glow effect */
@@ -165,8 +308,6 @@ body {
     from { opacity: 0.7; transform: scale(1); }
     to { opacity: 1; transform: scale(1.05); }
   }
-
-
 
 .custom-arrow {
     background-color: #0d6efd;
@@ -204,122 +345,7 @@ body {
     right: -16px;
   }
   
-   /* Fix scroll ngang mobile */
-   html, body {
-    max-width: 100%;
-    overflow-x: hidden;
-    }
-    .container, .row, .btn-group, .table-responsive, .product-list {
-    overflow-x: hidden;
-    }
-
-    /* overlay fullscreen để phóng to ảnh */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1050;
-}
-.modal-overlay img {
-  max-width: 90%;
-  max-height: 90%;
-}
-
-
-@keyframes rotateAndFade {
-  0% {
-    opacity: 0;
-    transform: rotate(0deg) scale(0.1);
-    border-radius: 50%;
-  }
-  50% {
-    opacity: 0.5;
-    transform: rotate(360deg) scale(0.3);
-    border-radius: 50%;
-  }
-  100% {
-    opacity: 1;
-    transform: rotate(720deg) scale(1);
-  }
-}
-
-/* AOS sẽ tự gán class này khi xuất hiện */
-.aos-animate.rotate-fade {
-  animation: rotateAndFade 5s ease-out forwards;
-}
-
-
-.video-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  z-index: 1050;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.video-modal-content {
-  position: relative;
-  width: 90%;
-  max-width: 800px;
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-}
-
-.video-thumb img {
-  transition: transform 0.3s;
-}
-
-.video-thumb:hover img {
-  transform: scale(1.03);
-}
-
-.modal-overlay-full {
-  position: fixed;
-  z-index: 9999;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.modal-box {
-  width: 100%;
-  max-width: 420px;
-  animation: popIn 0.4s ease;
-}
-
-@keyframes popIn {
-  from { transform: scale(0.9); opacity: 0; }
-  to   { transform: scale(1); opacity: 1; }
-}
-
-.scratch-box {
-  min-height: 80px;
-  font-size: 1.25rem;
-}
-
-.button-close-margin {
-  margin: -0.5rem !important;
-  border-radius: 30px;
-    padding: 10px 20px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    background-color: red;
-}
-
-
-/* video short */
+  /* video short */
 .modal-overlay-full {
   position: fixed;
   top: 0; left: 0;
@@ -330,11 +356,6 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-}
-.shorts-container {
-  width: 100%;
-  overflow-y: scroll;
-  scroll-snap-type: y mandatory;
 }
 
 

@@ -2,27 +2,7 @@
 const { useState, useEffect } = React;
 
 function App() {
-  const [showMiniGame, setShowMiniGame] = useState(false);
-  const reviewRef = React.useRef();
   const [showShortsModal, setShowShortsModal] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShowMiniGame(true); // ✅ Mở modal khi tới phần đánh giá
-          observer.disconnect(); // chỉ hiển thị một lần
-        }
-      },
-      { threshold: 0.2 }
-    );
-
-    if (reviewRef.current) {
-      observer.observe(reviewRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -36,67 +16,18 @@ function App() {
     return () => observer.disconnect();
   }, []);
 
- 
-
-  useEffect(() => {
-    if (window.$ && $('.combo-carousel').slick) {
-      $('.combo-carousel').slick({
-        prevArrow: '<button type="button" class="slick-prev custom-arrow">❮</button>',
-        nextArrow: '<button type="button" class="slick-next custom-arrow">❯</button>',
-        dots: true,
-        arrows: true,
-        infinite: true,
-        slidesToShow: 3,
-        slidesToScroll: 1,
-        autoplay: true,
-        autoplaySpeed: 4000,
-        speed: 600,
-        responsive: [
-          {
-            breakpoint: 992,
-            settings: {
-              slidesToShow: 2
-            }
-          },
-          {
-            breakpoint: 576,
-            settings: {
-              slidesToShow: 1
-            }
-          }
-        ]
-      });
-    }
-  }, []);
-
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      document.querySelectorAll('.btn-cta-animate').forEach(btn => {
-        btn.classList.add('animate__animated', 'animate__pulse');
-        setTimeout(() => btn.classList.remove('animate__animated', 'animate__pulse'), 1000);
-      });
-    }, 6000);
-    return () => clearInterval(interval);
-  }, []);
-
-
   return (
     <>
       <Header />
       <HeroSection />
       <ProductShowcaseTabs />
-      <HydraulicBladeProducts />
       <ProductList />
+      <HydraulicBladeProducts />
       <ProductVanTay />
       <InstructionVideos />
       <YoutubeShortsSection onOpen={() => setShowShortsModal(true)} />
       {showShortsModal && <YoutubeShortsModal onClose={() => setShowShortsModal(false)} />}
-      {/* <CustomerReviews /> */}
-      {/* <CustomerReviews innerRef={reviewRef} /> */}
       <FloatingSocial />
-      {/* <MiniGameModal /> */}
-      {/* {showMiniGame && <MiniGameModal />} */}
       <FooterCompany />
     </>
   );
