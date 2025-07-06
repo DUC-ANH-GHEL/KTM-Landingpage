@@ -221,6 +221,7 @@ function ProductList() {
     const [timeLeft, setTimeLeft] = useState("");
     const [isPromoOver, setIsPromoOver] = useState(false);
     const [showUrgencyPopup, setShowUrgencyPopup] = useState(false);
+    const [expandedGroups, setExpandedGroups] = useState(new Set(['van1tay'])); // Mở sẵn nhóm đầu tiên
   
     const deadline = new Date("2025-05-07T18:20:00");
     deadline.setDate(deadline.getDate() + 15);
@@ -253,56 +254,109 @@ function ProductList() {
   
       return () => clearInterval(interval);
     }, []);
-  
-    const products = [
-      { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747537715/Combo_van_5_tay_2_xylanh_1_nghi%C3%AAng_1_gi%E1%BB%AFa_KTM_htd1au.jpg",
-        name: "Combo 1",
-        desc: "Combo van 5 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
-        salePrice: "8.800.000đ",
-        originalPrice: "8.800.000đ",
-        promo: false 
+
+    // Nhóm sản phẩm theo loại van
+    const productGroups = {
+      van1tay: {
+        title: "🔧 Combo Van 1 Tay",
+        subtitle: "Điều khiển đơn giản, phù hợp máy nhỏ",
+        products: [
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1751807509/74_combo_van_1_tay_1_xylanh_%E1%BB%A7i_gvf1t1.jpg",
+            name: "Combo Van 1 tay + 1 xylanh ủi",
+            desc: "Bộ van 1 tay KTM + 1 xylanh ủi chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt", 
+            price: "5.000.000đ",
+            promo: false 
+          },
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1751807509/74.1_Combo_1_tay_xylanh_nghi%C3%AAng_thbmua.jpg", 
+            name: "Combo Van 1 tay + 1 xylanh nghiêng/giữa",
+            desc: "Bộ van 1 tay KTM + 1 xylanh nghiêng hoặc giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp", 
+            price: "4.750.000đ",
+            promo: false 
+          }
+        ]
       },
-      { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300157/Combo_van_3_tay_xylanh_gi%E1%BB%AFa_mxdsth.jpg",
-        name: "Combo 2", 
-        desc: "Bộ van 3 tay KTM có lọc mạt + 1 xylanh giữa chống tụt, 2 đầu táo 19 phù hợp máy kéo 30-90hp", 
-        salePrice: "5.550.000đ", 
-        originalPrice: "5.550.000đ", 
-        promo: false 
+      van3tay: {
+        title: "🛠️ Combo Van 3 Tay",
+        subtitle: "Phù hợp máy kéo 30-90hp",
+        products: [
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300157/Combo_van_3_tay_xylanh_gi%E1%BB%AFa_mxdsth.jpg",
+            name: "Combo Van 3 tay + 1 xylanh giữa",
+            desc: "Bộ van 3 tay KTM có lọc mạt + 1 xylanh giữa chống tụt, 2 đầu táo 19 phù hợp máy kéo 30-90hp", 
+            price: "5.550.000đ",
+            promo: false 
+          },
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300461/combo_van_3_tay_3_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_%E1%BB%A7i_mgppxh.jpg", 
+            name: "Combo Van 3 tay + 3 xylanh",
+            desc: "Bộ van 3 tay KTM có lọc mạt + 3 xylanh 1 Nghiêng 1 Giữa 1 nâng hạ rạch vạt + đủ phụ kiện bích dây ren giá đỡ chốt sẵn lắp.", 
+            price: "10.250.000đ",
+            promo: false 
+          },
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300324/Combo_Van_3_tay_2_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_evihrt.jpg", 
+            name: "Combo Van 3 tay + 2 xylanh",
+            desc: "Bộ van 3 tay KTM có lọc mạt + 2 xylanh 1 nghiêng 1 giữa 1 tay chờ kép ren 1/4 lõm nhật - đủ phụ kiện dây ren giá đỡ sẵn lắp", 
+            price: "7.800.000đ",
+            promo: false 
+          }
+        ]
       },
-      { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300461/combo_van_3_tay_3_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_%E1%BB%A7i_mgppxh.jpg", 
-        name: "Combo 3", 
-        desc: "Bộ van 3 tay KTM có lọc mạt + 3 xylanh 1 Nghiêng 1 Giữa 1 nâng hạ rạch vạt + đủ phụ kiện bích dây ren giá đỡ chốt sẵn lắp.", 
-        salePrice: "10.250.000đ", 
-        originalPrice: "10.250.000đ", 
-        promo: false },
-      { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300324/Combo_Van_3_tay_2_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_evihrt.jpg", 
-        name: "Combo 4", 
-        desc: "Bộ van 3 tay KTM có lọc mạt + 2 xylanh 1 nghiêng 1 giữa 1 tay chờ kép ren 1/4 lõm nhật - đủ phụ kiện dây ren giá đỡ sẵn lắp", 
-        salePrice: "7.800.000đ", 
-        originalPrice: "7.800.000đ", 
-        promo: false },
-      
-      { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747539250/Combo_van_5_tay_1_xylanh_nghi%C3%AAng_KTM_kv6irg.jpg",
-        name: "Combo 5",
-        desc: "Conbo van 5 tay + 1 xylanh nghiêng (giữa) mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
-        salePrice: "6.550.000đ",
-        originalPrice: "6.550.000đ",
-        promo: false 
+      van4tay: {
+        title: "⚙️ Combo Van 4 Tay", 
+        subtitle: "Điều khiển 4 xy lanh độc lập",
+        products: [
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749135217/Combo_van_4_tay_1_xylanh_nghi%C3%AAng_1_xylanh_gi%E1%BB%AFa_nh6gjh.jpg",
+            name: "Combo Van 4 tay + 2 xylanh",
+            desc: "Combo van 4 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+            price: "8.300.000đ",
+            promo: false 
+          }
+        ]
       },
-      { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749135217/Combo_van_4_tay_1_xylanh_nghi%C3%AAng_1_xylanh_gi%E1%BB%AFa_nh6gjh.jpg",
-        name: "Combo 6",
-        desc: "	Combo van 4 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
-        salePrice: "8.300.000đ",
-        originalPrice: "8.300.000đ",
-        promo: false 
-      },
-    ];
+      van5tay: {
+        title: "🔧 Combo Van 5 Tay",
+        subtitle: "Điều khiển 5 xy lanh chuyên nghiệp", 
+        products: [
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747537715/Combo_van_5_tay_2_xylanh_1_nghi%C3%AAng_1_gi%E1%BB%AFa_KTM_htd1au.jpg",
+            name: "Combo Van 5 tay + 2 xylanh",
+            desc: "Combo van 5 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+            price: "8.800.000đ",
+            promo: false 
+          },
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747539250/Combo_van_5_tay_1_xylanh_nghi%C3%AAng_KTM_kv6irg.jpg",
+            name: "Combo Van 5 tay + 1 xylanh",
+            desc: "Combo van 5 tay + 1 xylanh nghiêng (giữa) mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+            price: "6.550.000đ",
+            promo: false 
+          }
+        ]
+      }
+    };
+
+    const toggleGroup = (groupId) => {
+      const newExpanded = new Set();
+      if (!expandedGroups.has(groupId)) {
+        newExpanded.add(groupId);
+        // Scroll to the top of the opened combo after a short delay
+        setTimeout(() => {
+          const element = document.getElementById(`combo-${groupId}`);
+          if (element) {
+            element.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'start',
+              inline: 'nearest'
+            });
+          }
+        }, 100);
+      }
+      setExpandedGroups(newExpanded);
+    };
   
     return (
       <section className="py-5 position-relative">
@@ -311,61 +365,99 @@ function ProductList() {
             🎯 <strong>Chỉ còn chưa đầy 24h!</strong> Mua ngay kẻo lỡ khuyến mãi hấp dẫn!
           </div>
         )}
+        
         <div className="container">
-          <div className="text-center mb-4">
-            <h2 className="fw-bold">Combo sản phẩm nổi bật</h2>
+          <div className="text-center mb-5">
+            <h2 className="fw-bold">📦 Combo Sản Phẩm Nổi Bật</h2>
+            <p className="text-muted">Chọn combo phù hợp với nhu cầu của bạn</p>
           </div>
-          <div className="combo-carousel">
-            {products.map((item, i) => (
-              <div key={i} data-aos="fade"               // ✔ dùng hiệu ứng có sẵn
-              data-aos-delay={i * 200}
-              className="rotate-fade">
-                <div className="card h-100 shadow-sm mx-2 position-relative rotate-fade">
-                  {item.promo && !isPromoOver && (
-                    <span className="badge bg-danger position-absolute top-0 end-0 m-2"><span className='fire-icon'>🔥</span> Khuyến mãi</span>
-                  )}
-                  <div className="overflow-hidden">
-                    <img
-                      src={item.img}
-                      className="card-img-top zoom-on-hover"
-                      alt={item.name}
-                    />
-                  </div>
-                  <div className="card-body text-center">
-                    <h5 className="card-title fw-bold">{item.name}</h5>
-                    <p className="text-muted small">{item.desc}</p>
-                    {item.promo && !isPromoOver ? (
-                      <>
-                        <p className="mb-2">
-                          <span className="text-muted text-decoration-line-through me-2">{item.originalPrice}</span>
-                          <span className="fw-bold text-danger fs-5">{item.salePrice}</span>
-                        </p>
-                        <p className="text-warning small mb-2">{timeLeft}</p>
-                      </>
-                    ) : (
-                      <p className="fw-bold text-primary fs-5">{item.originalPrice}</p>
-                    )}
-                    {/* <a
-                      href="https://zalo.me/0966201140"
-                      target="_blank"
-                      rel="noopener"
-                      className="btn btn-cta-animate btn-outline-primary btn-sm mt-2"
-                    >
-                      Tư vấn combo này
-                    </a> */}
-                    <a
-                    href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn tư vấn về " + item.name + " – " + item.desc)}`}
-                    target="_blank"
-                    rel="noopener"
-                    className="btn btn-outline-primary btn-sm mt-2 btn-cta-animate"
-                    >
-                    Tư vấn combo này
-                    </a>
 
+          <div className="row g-4">
+            {Object.entries(productGroups).map(([groupId, group]) => (
+              <div key={groupId} className="col-12" id={`combo-${groupId}`}>
+                <div className="card border-0 shadow-sm">
+                  {/* Header của nhóm */}
+                  <div 
+                    className="card-header bg-primary text-white p-3 cursor-pointer"
+                    onClick={() => toggleGroup(groupId)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <h5 className="mb-1 fw-bold">{group.title}</h5>
+                        <small className="opacity-75">{group.subtitle}</small>
+                      </div>
+                      <div className="d-flex align-items-center">
+                        <span className="badge bg-light text-primary me-2">
+                          {group.products.length} combo
+                        </span>
+                        <i className={`fas fa-chevron-${expandedGroups.has(groupId) ? 'up' : 'down'}`}></i>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Nội dung nhóm */}
+                  {expandedGroups.has(groupId) && (
+                    <div className="card-body p-0">
+                      <div className="row g-0">
+                        {group.products.map((product, index) => (
+                          <div key={index} className="col-12 col-md-6 col-lg-4">
+                            <div className="border-end border-bottom p-3 h-100">
+                              <div className="text-center mb-3">
+                                <img 
+                                  src={product.img} 
+                                  alt={product.name}
+                                  className="img-fluid rounded shadow-sm"
+                                  style={{ maxHeight: '200px', objectFit: 'cover' }}
+                                />
+                              </div>
+                              
+                              <h6 className="fw-bold text-primary mb-2">{product.name}</h6>
+                              <p className="text-muted small mb-3" style={{ fontSize: '0.85rem' }}>
+                                {product.desc}
+                              </p>
+                              
+                              <div className="text-center">
+                                <div className="fw-bold text-danger fs-5 mb-3">
+                                  {product.price}
+                                </div>
+                                
+                                <a
+                                  href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn tư vấn về " + product.name + " – " + product.desc + " - " + product.price)}`}
+                                  target="_blank"
+                                  rel="noopener"
+                                  className="btn btn-primary btn-sm w-100"
+                                >
+                                  <i className="fas fa-phone-alt me-2"></i>
+                                  Tư vấn ngay
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Thông tin bổ sung */}
+          <div className="text-center mt-5">
+            <div className="alert alert-info">
+              <h6 className="fw-bold mb-2">💡 Không biết chọn combo nào?</h6>
+              <p className="mb-3">Hãy cho chúng tôi biết loại máy và nhu cầu của bạn để được tư vấn phù hợp nhất!</p>
+              <a 
+                href="https://zalo.me/0966201140" 
+                target="_blank" 
+                rel="noopener"
+                className="btn btn-success btn-lg"
+              >
+                <i className="fas fa-comments me-2"></i>
+                Tư vấn miễn phí
+              </a>
+            </div>
           </div>
         </div>
       </section>
