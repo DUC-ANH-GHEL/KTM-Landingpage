@@ -153,6 +153,7 @@ function ProductList() {
     const [isPromoOver, setIsPromoOver] = useState(false);
     const [showUrgencyPopup, setShowUrgencyPopup] = useState(false);
     const [expandedGroups, setExpandedGroups] = useState(new Set(['van1tay'])); // Mở sẵn nhóm đầu tiên
+    const [modalImage, setModalImage] = useState(null); // Thêm state cho modal ảnh
   
     const deadline = new Date("2025-05-07T18:20:00");
     deadline.setDate(deadline.getDate() + 15);
@@ -205,6 +206,40 @@ function ProductList() {
             desc: "Bộ van 1 tay KTM + 1 xylanh nghiêng hoặc giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp", 
             price: "4.750.000đ",
             promo: false 
+          },
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762522/COMBO_VAN_1_TAY_1_TY_GI%E1%BB%AEA_KTM_ulsy1c.jpg", 
+            name: "Combo Van 1 tay + 1 xylanh nghiêng/giữa",
+            desc: "Bộ van 1 tay KTM + 1 xylanh nghiêng hoặc giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp", 
+            price: "4.750.000đ",
+            promo: false 
+          }
+        ]
+      },
+      van2tay: {
+        title: "🔧 Combo Van 2 Tay",
+        subtitle: "Điều khiển linh hoạt, phù hợp mọi loại máy",
+        products: [
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762121/combo_van_2_tay_1_ty_nghi%C3%AAng_ktm_eumive.jpg",
+            name: "Combo van 2 tay 1 ty nghiêng ktm",
+            desc: "Bộ van 2 tay KTM + 1 xylanh nghiêng chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt", 
+            price: "5.080.000đ",
+            promo: false 
+          },
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762402/combo_van_2_tay_1_ty_gi%E1%BB%AFa_KTM_e6ssao.jpg",
+            name: "Combo van 2 tay 1 ty giữa ktm",
+            desc: "Bộ van 2 tay KTM + 1 xylanh giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt", 
+            price: "5.080.000đ",
+            promo: false 
+          },
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762120/combo_van_2_tay_2_ty_nghi%C3%AAng_gi%E1%BB%AFa_KTM_bwpf3o.jpg", 
+            name: "Combo van 2 tay 2 ty nghiêng giữa KTM",
+            desc: "Bộ van 2 tay KTM + 1 xylanh nghiêng + 1 xylanh giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp", 
+            price: "7.300.000đ",
+            promo: false 
           }
         ]
       },
@@ -245,6 +280,20 @@ function ProductList() {
             desc: "Combo van 4 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
             price: "8.300.000đ",
             promo: false 
+          },
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762675/combo_van_4_tay_1_ty_gi%E1%BB%AFa_ktm_auo6xo.jpg",
+            name: "Combo van 4 tay 1 ty giữa ktm",
+            desc: "Combo van 4 tay 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+            price: "6.050.000đ",
+            promo: false 
+          },
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762677/combo_van_4_tay_1_ty_nghi%C3%AAng_ktm_eyk6fr.jpg",
+            name: "Combo van 4 tay 1 ty nghiêng ktm",
+            desc: "Combo van 4 tay 1 xylanh nghiêng mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+            price: "6.050.000đ",
+            promo: false 
           }
         ]
       },
@@ -261,6 +310,13 @@ function ProductList() {
           },
           { 
             img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747539250/Combo_van_5_tay_1_xylanh_nghi%C3%AAng_KTM_kv6irg.jpg",
+            name: "Combo Van 5 tay + 1 xylanh",
+            desc: "Combo van 5 tay + 1 xylanh nghiêng (giữa) mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+            price: "6.550.000đ",
+            promo: false 
+          },
+          { 
+            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762831/combo_van_5_tay_1_ty_gi%E1%BB%AFa_KTM_l74ame.jpg",
             name: "Combo Van 5 tay + 1 xylanh",
             desc: "Combo van 5 tay + 1 xylanh nghiêng (giữa) mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
             price: "6.550.000đ",
@@ -338,8 +394,9 @@ function ProductList() {
                                 <img 
                                   src={product.img} 
                                   alt={product.name}
-                                  className="img-fluid rounded shadow-sm"
-                                  style={{ maxHeight: '200px', objectFit: 'cover' }}
+                                  className="img-fluid rounded shadow-sm clickable"
+                                  style={{ maxHeight: '200px', objectFit: 'cover', cursor: 'pointer' }}
+                                  onClick={() => setModalImage(product.img)}
                                 />
                               </div>
                               
@@ -391,6 +448,13 @@ function ProductList() {
             </div>
           </div>
         </div>
+
+        {/* Modal phóng to ảnh */}
+        {modalImage && (
+          <div className="modal-overlay" onClick={() => setModalImage(null)}>
+            <img src={modalImage} alt="Enlarged" className="img-fluid rounded"/>
+          </div>
+        )}
       </section>
     );
   }
