@@ -1,5 +1,5 @@
 // app.js
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
 function App() {
   const [showShortsModal, setShowShortsModal] = useState(false);
@@ -186,7 +186,7 @@ function ProductList() {
   
       return () => clearInterval(interval);
     }, []);
-
+  
     // Nhóm sản phẩm theo loại van
     const productGroups = {
       van1tay: {
@@ -198,8 +198,8 @@ function ProductList() {
             name: "Combo Van 1 tay + 1 xylanh ủi",
             desc: "Bộ van 1 tay KTM + 1 xylanh ủi chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt", 
             price: "5.000.000đ",
-            promo: false 
-          },
+        promo: false 
+      },
           { 
             img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1751807509/74.1_Combo_1_tay_xylanh_nghi%C3%AAng_thbmua.jpg", 
             name: "Combo Van 1 tay + 1 xylanh nghiêng/giữa",
@@ -247,26 +247,26 @@ function ProductList() {
         title: "🛠️ Combo Van 3 Tay",
         subtitle: "Phù hợp máy kéo 30-90hp",
         products: [
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300157/Combo_van_3_tay_xylanh_gi%E1%BB%AFa_mxdsth.jpg",
+      { 
+        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300157/Combo_van_3_tay_xylanh_gi%E1%BB%AFa_mxdsth.jpg",
             name: "Combo Van 3 tay + 1 xylanh giữa",
-            desc: "Bộ van 3 tay KTM có lọc mạt + 1 xylanh giữa chống tụt, 2 đầu táo 19 phù hợp máy kéo 30-90hp", 
+        desc: "Bộ van 3 tay KTM có lọc mạt + 1 xylanh giữa chống tụt, 2 đầu táo 19 phù hợp máy kéo 30-90hp", 
             price: "5.550.000đ",
-            promo: false 
-          },
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300461/combo_van_3_tay_3_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_%E1%BB%A7i_mgppxh.jpg", 
+        promo: false 
+      },
+      { 
+        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300461/combo_van_3_tay_3_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_%E1%BB%A7i_mgppxh.jpg", 
             name: "Combo Van 3 tay + 3 xylanh",
-            desc: "Bộ van 3 tay KTM có lọc mạt + 3 xylanh 1 Nghiêng 1 Giữa 1 nâng hạ rạch vạt + đủ phụ kiện bích dây ren giá đỡ chốt sẵn lắp.", 
+        desc: "Bộ van 3 tay KTM có lọc mạt + 3 xylanh 1 Nghiêng 1 Giữa 1 nâng hạ rạch vạt + đủ phụ kiện bích dây ren giá đỡ chốt sẵn lắp.", 
             price: "10.250.000đ",
             promo: false 
           },
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300324/Combo_Van_3_tay_2_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_evihrt.jpg", 
+      { 
+        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300324/Combo_Van_3_tay_2_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_evihrt.jpg", 
             name: "Combo Van 3 tay + 2 xylanh",
-            desc: "Bộ van 3 tay KTM có lọc mạt + 2 xylanh 1 nghiêng 1 giữa 1 tay chờ kép ren 1/4 lõm nhật - đủ phụ kiện dây ren giá đỡ sẵn lắp", 
+        desc: "Bộ van 3 tay KTM có lọc mạt + 2 xylanh 1 nghiêng 1 giữa 1 tay chờ kép ren 1/4 lõm nhật - đủ phụ kiện dây ren giá đỡ sẵn lắp", 
             price: "7.800.000đ",
-            promo: false 
+        promo: false 
           }
         ]
       },
@@ -274,13 +274,13 @@ function ProductList() {
         title: "⚙️ Combo Van 4 Tay", 
         subtitle: "Điều khiển 4 xy lanh độc lập",
         products: [
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749135217/Combo_van_4_tay_1_xylanh_nghi%C3%AAng_1_xylanh_gi%E1%BB%AFa_nh6gjh.jpg",
+      { 
+        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749135217/Combo_van_4_tay_1_xylanh_nghi%C3%AAng_1_xylanh_gi%E1%BB%AFa_nh6gjh.jpg",
             name: "Combo Van 4 tay + 2 xylanh",
             desc: "Combo van 4 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
             price: "8.300.000đ",
-            promo: false 
-          },
+        promo: false 
+      },
           { 
             img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762675/combo_van_4_tay_1_ty_gi%E1%BB%AFa_ktm_auo6xo.jpg",
             name: "Combo van 4 tay 1 ty giữa ktm",
@@ -397,8 +397,8 @@ function ProductList() {
                                   className="img-fluid rounded shadow-sm clickable"
                                   style={{ maxHeight: '200px', objectFit: 'cover', cursor: 'pointer' }}
                                   onClick={() => setModalImage(product.img)}
-                                />
-                              </div>
+                    />
+                  </div>
                               
                               <h6 className="fw-bold text-primary mb-2">{product.name}</h6>
                               <p className="text-muted small mb-3" style={{ fontSize: '0.85rem' }}>
@@ -412,8 +412,8 @@ function ProductList() {
                                 
                                 <a
                                   href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn tư vấn về " + product.name + " – " + product.desc + " - " + product.price)}`}
-                                  target="_blank"
-                                  rel="noopener"
+                      target="_blank"
+                      rel="noopener"
                                   className="btn btn-primary btn-sm w-100"
                                 >
                                   <i className="fas fa-phone-alt me-2"></i>
@@ -438,16 +438,16 @@ function ProductList() {
               <p className="mb-3">Hãy cho chúng tôi biết loại máy và nhu cầu của bạn để được tư vấn phù hợp nhất!</p>
               <a 
                 href="https://zalo.me/0966201140" 
-                target="_blank" 
-                rel="noopener"
+                    target="_blank"
+                    rel="noopener"
                 className="btn btn-success btn-lg"
-              >
+                    >
                 <i className="fas fa-comments me-2"></i>
                 Tư vấn miễn phí
-              </a>
-            </div>
-          </div>
-        </div>
+                    </a>
+                  </div>
+                </div>
+              </div>
 
         {/* Modal phóng to ảnh */}
         {modalImage && (
@@ -462,6 +462,8 @@ function ProductList() {
 
 
 function HydraulicBladeProducts() {
+  const [modalImage, setModalImage] = useState(null); // Thêm state cho modal ảnh
+  
   const allProducts = [
     { stt: 62, name: "Trang Trượt van 4 tay KTM 4 xylanh Lắp trên xới", code: "KTM-62", price: "21,200,000" },
     { stt: 63, name: "Trang Gập Van tay KTM 4 xylanh Lắp trên xới", code: "KTM-63", price: "23,200,000" },
@@ -477,11 +479,39 @@ function HydraulicBladeProducts() {
     { stt: 73, name: "Bộ trang KTM van 4 tay chuyển thêm 6 tay + 1.000.000", code: "KTM-73", price: "1,000,000" },
   ];
 
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const [selectedCategory, setSelectedCategory] = React.useState("trangTruotLapXoi");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("trangTruotLapXoi");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const searchInputRef = useRef(null);
 
   // Sử dụng toàn bộ data cho cả desktop và mobile
   const products = allProducts;
+
+  // Sync searchTerm với input value
+  useEffect(() => {
+    if (searchInputRef.current && searchTerm !== searchInputRef.current.value) {
+      searchInputRef.current.value = searchTerm;
+    }
+  }, [searchTerm]);
+
+  // Tắt dropdown khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+      }
+    };
+
+    if (showSuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSuggestions]);
 
   // Phân loại sản phẩm
   const categories = {
@@ -503,31 +533,194 @@ function HydraulicBladeProducts() {
   };
 
   // Hàm bỏ dấu tiếng Việt
-  const removeAccents = (str) =>
-    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const removeAccents = (str) =>
+  str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-  const filteredProducts = products.filter((prod) => {
-    // Lọc theo category
-    if (selectedCategory !== "all") {
+  // Logic tạo suggestions
+  const getSuggestions = () => {
+    if (!searchTerm || searchTerm.trim().length < 2) return [];
+    
+  const keywords = searchTerm.split(/[\s,]+/).map(k => removeAccents(k.trim())).filter(k => k !== "");
+    if (keywords.length === 0) return [];
+    
+    // Test case đơn giản - trả về tất cả sản phẩm nếu có từ khóa
+    if (searchTerm.toLowerCase().includes('ktm') || searchTerm.toLowerCase().includes('trang')) {
+      return products.slice(0, 3).map(prod => ({
+        name: prod.name,
+        code: prod.code,
+        stt: prod.stt,
+        price: prod.price
+      }));
+    }
+    
+    const suggestions = products
+      .map(prod => ({
+        name: prod.name,
+        code: prod.code,
+        stt: prod.stt,
+        price: prod.price
+      }))
+      .filter(prod => {
+  const searchable = [
+    prod.name,
+    prod.code,
+    prod.stt.toString()
+  ].map(removeAccents).join(" ");
+
+        return keywords.some(keyword => searchable.includes(keyword));
+      })
+      .slice(0, 3); // Chỉ lấy tối đa 3 gợi ý để không có scroll
+    
+    return suggestions;
+  };
+
+  const suggestions = getSuggestions();
+
+  // Handlers cho auto suggest
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setShowSuggestions(value.length >= 2);
+    setSelectedSuggestionIndex(-1);
+  };
+
+  // Tính toán vị trí dropdown ngay dưới search input
+  const getDropdownPosition = () => {
+    if (searchInputRef.current) {
+      const rect = searchInputRef.current.getBoundingClientRect();
+      return {
+        top: rect.bottom + 5,
+        left: rect.left,
+        width: rect.width
+      };
+    }
+    return { top: 200, left: 50, width: 400 };
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    console.log('Click suggestion:', suggestion);
+    // Đơn giản: chỉ cập nhật search term
+    setSearchTerm(suggestion.name);
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+    
+    // Force update input value với setTimeout
+    setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.value = suggestion.name;
+        // Trigger change event
+        const event = new Event('input', { bubbles: true });
+        searchInputRef.current.dispatchEvent(event);
+      }
+    }, 100);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev > 0 ? prev - 1 : suggestions.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedSuggestionIndex >= 0) {
+          handleSuggestionClick(suggestions[selectedSuggestionIndex]);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+        break;
+    }
+  };
+
+  const handleSearchFocus = () => {
+    if (suggestions.length > 0) {
+      setShowSuggestions(true);
+    }
+  };
+
+  const handleSearchBlur = () => {
+    // Delay để cho phép click vào suggestion
+    setTimeout(() => {
+      setShowSuggestions(false);
+      setSelectedSuggestionIndex(-1);
+    }, 500);
+  };
+
+  // Logic mới: Search độc lập với filter, ưu tiên kết quả filter
+  const filteredProducts = (() => {
+    // Nếu có search term, tìm trong toàn bộ sản phẩm
+    if (searchTerm.trim()) {
+      // Kiểm tra xem có phải tên sản phẩm đầy đủ không
+      const exactMatch = products.find(p => p.name === searchTerm.trim());
+      if (exactMatch) {
+        // Nếu là tên sản phẩm đầy đủ, chỉ hiển thị sản phẩm đó
+        return [exactMatch];
+      }
+      
+      // Nếu không phải tên đầy đủ, tìm kiếm bình thường
+      const keywords = searchTerm.split(/[\s,]+/).map(k => removeAccents(k.trim())).filter(k => k !== "");
+      
+      const searchResults = products.filter((prod) => {
+        const searchable = [
+          prod.name,
+          prod.code,
+          prod.stt.toString()
+        ].map(removeAccents).join(" ");
+        
+        // Tìm kiếm linh hoạt: chỉ cần một từ khóa match
+        return keywords.some(keyword => searchable.includes(keyword));
+      });
+
+      // Nếu có filter active, ưu tiên kết quả filter ở trên đầu
+      if (selectedCategory !== "all") {
+        const filterResults = searchResults.filter((prod) => {
+          if (selectedCategory === "trangTruotLapXoi" && (!prod.name.includes("Trượt") || (!prod.name.includes("xới") && !prod.name.includes("Lắp trên")))) return false;
+          if (selectedCategory === "trangTruotKhungDocLap" && (!prod.name.includes("Trượt") || !prod.name.includes("Khung độc lập"))) return false;
+          if (selectedCategory === "trangTruotBuaLan" && (!prod.name.includes("Trượt") || !prod.name.includes("bừa lăn"))) return false;
+          if (selectedCategory === "trangGap" && !prod.name.includes("Gập")) return false;
+          if (selectedCategory === "phuKien" && !prod.name.includes("thêm") && !prod.name.includes("chuyển")) return false;
+          return true;
+        });
+
+        const otherResults = searchResults.filter((prod) => {
+          if (selectedCategory === "trangTruotLapXoi" && (prod.name.includes("Trượt") && (prod.name.includes("xới") || prod.name.includes("Lắp trên")))) return false;
+          if (selectedCategory === "trangTruotKhungDocLap" && (prod.name.includes("Trượt") && prod.name.includes("Khung độc lập"))) return false;
+          if (selectedCategory === "trangTruotBuaLan" && (prod.name.includes("Trượt") && prod.name.includes("bừa lăn"))) return false;
+          if (selectedCategory === "trangGap" && prod.name.includes("Gập")) return false;
+          if (selectedCategory === "phuKien" && (prod.name.includes("thêm") || prod.name.includes("chuyển"))) return false;
+          return true;
+        });
+
+        return [...filterResults, ...otherResults];
+      }
+
+      return searchResults;
+    }
+
+    // Nếu không có search term, chỉ filter theo category
+    if (selectedCategory === "all") return products;
+    
+    return products.filter((prod) => {
       if (selectedCategory === "trangTruotLapXoi" && (!prod.name.includes("Trượt") || (!prod.name.includes("xới") && !prod.name.includes("Lắp trên")))) return false;
       if (selectedCategory === "trangTruotKhungDocLap" && (!prod.name.includes("Trượt") || !prod.name.includes("Khung độc lập"))) return false;
       if (selectedCategory === "trangTruotBuaLan" && (!prod.name.includes("Trượt") || !prod.name.includes("bừa lăn"))) return false;
       if (selectedCategory === "trangGap" && !prod.name.includes("Gập")) return false;
       if (selectedCategory === "phuKien" && !prod.name.includes("thêm") && !prod.name.includes("chuyển")) return false;
-    }
-
-    // Lọc theo search term
-    const keywords = searchTerm.split(/[\s,]+/).map(k => removeAccents(k.trim())).filter(k => k !== "");
-    if (keywords.length === 0) return true;
-
-    const searchable = [
-      prod.name,
-      prod.code,
-      prod.stt.toString()
-    ].map(removeAccents).join(" ");
-
-    return keywords.every(keyword => searchable.includes(keyword));
-  });
+      return true;
+    });
+  })();
 
   return (
     <section className="py-5 bg-light">
@@ -539,46 +732,214 @@ function HydraulicBladeProducts() {
 
         {/* Hình ảnh tham khảo - To hơn */}
         <div className="text-center mb-5">
-          <img
-            src="https://res.cloudinary.com/diwxfpt92/image/upload/v1749135668/trang_g%E1%BA%A1t_wleewb.jpg"
-            alt="Trang Gạt Thủy Lực KTM"
-            className="img-fluid rounded shadow-lg"
-            style={{ maxHeight: '500px', objectFit: 'contain', width: '100%' }}
-          />
+              <img
+                src="https://res.cloudinary.com/diwxfpt92/image/upload/v1749135668/trang_g%E1%BA%A1t_wleewb.jpg"
+                alt="Trang Gạt Thủy Lực KTM"
+            className="img-fluid rounded shadow-lg clickable"
+            style={{ maxHeight: '500px', objectFit: 'contain', width: '100%', cursor: 'pointer' }}
+            onClick={() => setModalImage("https://res.cloudinary.com/diwxfpt92/image/upload/v1749135668/trang_g%E1%BA%A1t_wleewb.jpg")}
+              />
           <small className="text-muted d-block mt-3">Hình ảnh thực tế các mẫu trang gạt lắp trên máy</small>
-        </div>
-
-        {/* Bộ lọc và tìm kiếm */}
-        <div className="row mb-4">
-          <div className="col-md-8">
-            <div className="btn-group w-100" role="group">
-              {Object.entries(categories).map(([key, category]) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`btn ${selectedCategory === key ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setSelectedCategory(key)}
-                >
-                  {category.name} ({category.count})
-                </button>
-              ))}
             </div>
+
+        {/* Bộ lọc và tìm kiếm - Giao diện đơn giản */}
+        <div className="row mb-4">
+          <div className="col-12">
+            <div className="card border-0 shadow-sm filter-card">
+              <div className="card-body">
+                <h6 className="fw-bold mb-3 text-primary">
+                  <i className="fas fa-filter me-2"></i>
+                  Chọn loại sản phẩm bạn cần:
+                </h6>
+                
+                {/* Dropdown filter đơn giản */}
+                <div className="row align-items-center">
+                  <div className="col-md-6 mb-3 mb-md-0">
+                    <label className="form-label fw-semibold">Loại trang gạt:</label>
+                    <select 
+                      className="form-select form-select-lg"
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                    >
+                      <option value="all">🔍 Tất cả sản phẩm ({categories.all.count})</option>
+                      <option value="trangTruotLapXoi">🚜 Trang Trượt Lắp Xới ({categories.trangTruotLapXoi.count})</option>
+                      <option value="trangTruotKhungDocLap">🏗️ Trang Trượt Khung Độc Lập ({categories.trangTruotKhungDocLap.count})</option>
+                      <option value="trangTruotBuaLan">🌾 Trang Trượt + Bừa Lăn ({categories.trangTruotBuaLan.count})</option>
+                      <option value="trangGap">📐 Trang Gập ({categories.trangGap.count})</option>
+                      <option value="phuKien">🔧 Phụ kiện ({categories.phuKien.count})</option>
+                    </select>
           </div>
-          <div className="col-md-4">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="🔍 Tìm kiếm sản phẩm..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+
+                  <div className="col-md-6 search-wrapper">
+                    <label className="form-label fw-semibold">Tìm kiếm theo tên:</label>
+                    <div className="input-group" style={{position: 'relative', zIndex: 10}}>
+                      <span className="input-group-text">
+                        <i className="fas fa-search text-muted"></i>
+                      </span>
+              <input
+                        ref={searchInputRef}
+                        id="searchInput"
+                type="text"
+                        className="form-control form-control-lg"
+                        placeholder="Nhập tên sản phẩm..."
+                value={searchTerm}
+                        onChange={handleSearchChange}
+                        onKeyDown={handleKeyDown}
+                        onFocus={handleSearchFocus}
+                        onBlur={handleSearchBlur}
+                        autoComplete="off"
+                      />
+                      {searchTerm && (
+                        <button 
+                          className="btn btn-outline-secondary"
+                          onClick={() => setSearchTerm("")}
+                          title="Xóa tìm kiếm"
+                        >
+                          <i className="fas fa-times"></i>
+                        </button>
+                      )}
+                      
+            </div>
+
+                    {/* Auto suggest dropdown - Ngay dưới search */}
+                    {searchTerm.length >= 2 && suggestions.length > 0 && showSuggestions && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: '0',
+                        right: '0',
+                        background: 'white',
+                        border: '2px solid #007bff',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        zIndex: 99999,
+                        marginTop: '5px'
+                      }}>
+                        {suggestions.map((suggestion, index) => (
+                          <div
+                            key={`${suggestion.stt}-${index}`}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setSearchTerm(suggestion.name);
+                              setShowSuggestions(false);
+                              setSelectedSuggestionIndex(-1);
+                            }}
+                            style={{
+                              padding: '10px 15px',
+                              cursor: 'pointer',
+                              borderBottom: index < suggestions.length - 1 ? '1px solid #eee' : 'none',
+                              backgroundColor: index === selectedSuggestionIndex ? '#f8f9fa' : 'white',
+                              pointerEvents: 'auto'
+                            }}
+                          >
+                            <div style={{fontWeight: 'bold', color: '#007bff'}}>{suggestion.name}</div>
+                            <div style={{fontSize: '12px', color: '#6c757d'}}>
+                              {suggestion.code} - {suggestion.price} VNĐ
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    
+                    
+                    
+                    {/* Auto suggest dropdown - Ngay dưới search */}
+                    {searchTerm.length >= 2 && suggestions.length > 0 && showSuggestions && (
+                      <div className="suggestions-dropdown" style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: '0',
+                        right: '0',
+                        background: 'white',
+                        border: '2px solid #007bff',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        zIndex: 9999,
+                        overflow: 'visible',
+                        maxHeight: 'none',
+                        height: 'auto',
+                        marginTop: '5px'
+                      }}>
+                        {suggestions.map((suggestion, index) => (
+                          <div
+                            key={`${suggestion.stt}-${index}`}
+                            className={`suggestion-item ${index === selectedSuggestionIndex ? 'active' : ''}`}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                          >
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div>
+                                <div className="fw-semibold text-primary">
+                                  #{suggestion.stt} - {suggestion.code}
+                                </div>
+                                <div className="text-muted small">
+                                  {suggestion.name}
+                                </div>
+                              </div>
+                              <div className="text-success fw-bold">
+                                {suggestion.price}₫
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="suggestion-footer">
+                          <small className="text-muted">
+                            <i className="fas fa-keyboard me-1"></i>
+                            Sử dụng ↑↓ để chọn, Enter để chọn, Esc để đóng
+                          </small>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Hiển thị kết quả và nút reset */}
+                <div className="mt-3 d-flex justify-content-between align-items-center">
+                  <small className="text-muted">
+                    <i className="fas fa-info-circle me-1"></i>
+                    {searchTerm ? (
+                      <>
+                        Tìm thấy <strong>{filteredProducts.length}</strong> sản phẩm cho từ khóa "<strong>{searchTerm}</strong>"
+                        {selectedCategory !== 'all' && (
+                          <span className="ms-2 text-primary">
+                            (ưu tiên {categories[selectedCategory].name})
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        Hiển thị <strong>{filteredProducts.length}</strong> sản phẩm
+                        {selectedCategory !== 'all' && (
+                          <span className="ms-2 text-primary">
+                            ({categories[selectedCategory].name})
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </small>
+                  
+                  {(selectedCategory !== 'all' || searchTerm) && (
+                    <button 
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => {
+                        setSelectedCategory('all');
+                        setSearchTerm('');
+                      }}
+                    >
+                      <i className="fas fa-refresh me-1"></i>
+                      Xem tất cả
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Grid sản phẩm */}
         <div className="row g-4">
-          {filteredProducts.length > 0 ? (
-            filteredProducts.map((prod, idx) => (
+                  {filteredProducts.length > 0 ? (
+                    filteredProducts.map((prod, idx) => (
               <div key={idx} className="col-12 col-md-6 col-lg-4">
                 <div className="card h-100 shadow-sm border-0 product-card">
                   <div className="card-header bg-primary text-white text-center py-2">
@@ -602,10 +963,10 @@ function HydraulicBladeProducts() {
                         </span>
                       </div>
                       
-                      <a
-                        href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn mua: " + prod.name + " - " + prod.price + "đ")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                          <a
+                            href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn mua: " + prod.name + " - " + prod.price + "đ")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                         className="btn btn-primary w-100"
                       >
                         <i className="fas fa-shopping-cart me-2"></i>
@@ -615,8 +976,8 @@ function HydraulicBladeProducts() {
                   </div>
                 </div>
               </div>
-            ))
-          ) : (
+                    ))
+                  ) : (
             <div className="col-12">
               <div className="text-center py-5">
                 <i className="fas fa-search fa-3x text-muted mb-3"></i>
@@ -634,7 +995,7 @@ function HydraulicBladeProducts() {
               </div>
             </div>
           )}
-        </div>
+            </div>
 
         {/* Thông tin bổ sung */}
         <div className="text-center mt-5">
@@ -653,6 +1014,13 @@ function HydraulicBladeProducts() {
           </div>
         </div>
       </div>
+
+      {/* Modal phóng to ảnh */}
+      {modalImage && (
+        <div className="modal-overlay" onClick={() => setModalImage(null)}>
+          <img src={modalImage} alt="Enlarged" className="img-fluid rounded"/>
+        </div>
+      )}
     </section>
   );
 }
