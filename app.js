@@ -24,6 +24,7 @@ function App() {
       <ProductList />
       <HydraulicBladeProducts />
       <ProductVanTay />
+      {/* <SparePartsComponent /> */}
       <InstructionVideos />
       <YoutubeShortsSection onOpen={() => setShowShortsModal(true)} />
       {showShortsModal && <YoutubeShortsModal onClose={() => setShowShortsModal(false)} />}
@@ -1025,7 +1026,416 @@ const removeAccents = (str) =>
   );
 }
 
+function SparePartsComponent() {
+  const spareParts = [
+    {
+      id: 1,
+      name: "Bộ lọc thủy lực",
+      price: "450.000",
+      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/filter_hydraulic.png",
+      description: "Lọc dầu thủy lực chính hãng, tương thích đa dòng máy",
+      category: "Lọc thủy lực"
+    },
+    {
+      id: 2,
+      name: "Xy lanh thủy lực",
+      price: "1.200.000",
+      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/cylinder_hydraulic.png",
+      description: "Xy lanh nâng hạ, gập trượt cho máy xúc, máy ủi",
+      category: "Xy lanh"
+    },
+    {
+      id: 3,
+      name: "Bơm thủy lực",
+      price: "2.500.000",
+      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/pump_hydraulic.png",
+      description: "Bơm thủy lực áp suất cao, hiệu suất ổn định",
+      category: "Bơm thủy lực"
+    },
+    {
+      id: 4,
+      name: "Van phân phối",
+      price: "800.000",
+      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/distribution_valve.png",
+      description: "Van điều khiển dòng thủy lực, độ bền cao",
+      category: "Van thủy lực"
+    },
+    {
+      id: 5,
+      name: "Ống dẫn thủy lực",
+      price: "350.000",
+      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/hydraulic_hose.png",
+      description: "Ống dẫn áp suất cao, chịu nhiệt tốt",
+      category: "Ống dẫn"
+    },
+    {
+      id: 6,
+      name: "Khớp nối thủy lực",
+      price: "180.000",
+      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/hydraulic_coupling.png",
+      description: "Khớp nối nhanh, kết nối an toàn",
+      category: "Khớp nối"
+    }
+  ];
 
+  const [selectedCategory, setSelectedCategory] = useState("Tất cả");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [modalImage, setModalImage] = useState(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const searchInputRef = useRef(null);
+
+  const categories = ["Tất cả", "Lọc thủy lực", "Xy lanh", "Bơm thủy lực", "Van thủy lực", "Ống dẫn", "Khớp nối"];
+
+  // Hàm bỏ dấu tiếng Việt
+  const removeAccents = (str) =>
+    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  // Logic tạo suggestions - search linh hoạt
+  const getSuggestions = () => {
+    if (!searchTerm || searchTerm.trim().length < 2) return [];
+    
+    // Filter theo category trước
+    let filteredByCategory = spareParts;
+    if (selectedCategory !== "Tất cả") {
+      filteredByCategory = spareParts.filter(part => part.category === selectedCategory);
+    }
+    
+    // Search linh hoạt - tìm kiếm trong tên và mô tả (có bỏ dấu)
+    const searchNormalized = removeAccents(searchTerm).toLowerCase();
+    const suggestions = filteredByCategory
+      .filter(part => {
+        const partNameNormalized = removeAccents(part.name).toLowerCase();
+        const partDescNormalized = removeAccents(part.description).toLowerCase();
+        return partNameNormalized.includes(searchNormalized) || partDescNormalized.includes(searchNormalized);
+      })
+      .slice(0, 5) // Giới hạn 5 suggestions
+      .map(part => ({
+        id: part.id,
+        name: part.name,
+        price: part.price,
+        category: part.category
+      }));
+    
+    return suggestions;
+  };
+
+  const suggestions = getSuggestions();
+
+  const filteredParts = spareParts.filter(part => {
+    const matchesCategory = selectedCategory === "Tất cả" || part.category === selectedCategory;
+    
+    if (!searchTerm || searchTerm.trim().length === 0) {
+      return matchesCategory;
+    }
+    
+    // Search linh hoạt - tìm kiếm trong tên và mô tả (có bỏ dấu)
+    const searchNormalized = removeAccents(searchTerm).toLowerCase();
+    const partNameNormalized = removeAccents(part.name).toLowerCase();
+    const partDescNormalized = removeAccents(part.description).toLowerCase();
+    const matchesSearch = partNameNormalized.includes(searchNormalized) || partDescNormalized.includes(searchNormalized);
+    
+    return matchesCategory && matchesSearch;
+  });
+
+  // Sync searchTerm với input value
+  useEffect(() => {
+    if (searchInputRef.current && searchTerm !== searchInputRef.current.value) {
+      searchInputRef.current.value = searchTerm;
+    }
+  }, [searchTerm]);
+
+  // Tắt dropdown khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Kiểm tra xem click có phải vào suggestion item không
+      const isSuggestionClick = event.target.closest('.suggestion-item');
+      if (searchInputRef.current && !searchInputRef.current.contains(event.target) && !isSuggestionClick) {
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+      }
+    };
+
+    if (showSuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSuggestions]);
+
+  // Handlers cho auto suggest
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setShowSuggestions(value.length >= 2);
+    setSelectedSuggestionIndex(-1);
+  };
+
+  // Xử lý keyboard navigation
+  const handleKeyDown = (e) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev > 0 ? prev - 1 : suggestions.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < suggestions.length) {
+          const selectedSuggestion = suggestions[selectedSuggestionIndex];
+          setSearchTerm(selectedSuggestion.name);
+          setShowSuggestions(false);
+          setSelectedSuggestionIndex(-1);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+        break;
+    }
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    console.log('SpareParts - Click suggestion:', suggestion);
+    setSearchTerm(suggestion.name);
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+    // Focus lại input để đảm bảo search term được set
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  };
+
+  return (
+    <section className="py-5 bg-white">
+      <div className="container">
+        <div className="text-center mb-5">
+          <h2 className="fw-bold text-primary mb-3">🔧 PHỤ TÙNG THỦY LỰC KTM</h2>
+          <p className="text-muted">Cung cấp đầy đủ phụ tùng thủy lực chính hãng, chất lượng cao</p>
+        </div>
+
+        {/* Bộ lọc và tìm kiếm */}
+        <div className="row mb-4 spare-parts-search-container" style={{ overflow: 'visible' }}>
+          <div className="col-md-6 mb-3" style={{ overflow: 'visible' }}>
+            <div className="input-group position-relative" style={{ overflow: 'visible' }}>
+              <span className="input-group-text">
+                <i className="fas fa-search"></i>
+              </span>
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="form-control"
+                placeholder="Tìm kiếm phụ tùng..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  if (searchTerm.length >= 2) {
+                    setShowSuggestions(true);
+                  }
+                }}
+              />
+              
+              {/* Debug info */}
+              {console.log('Auto suggest debug:', {
+                searchTerm: searchTerm,
+                searchTermLength: searchTerm.length,
+                suggestions: suggestions,
+                suggestionsLength: suggestions.length,
+                showSuggestions: showSuggestions,
+                shouldShow: searchTerm.length >= 2 && suggestions.length > 0 && showSuggestions
+              })}
+              
+              {/* Auto suggest dropdown */}
+              {searchTerm.length >= 2 && suggestions.length > 0 && showSuggestions && (
+                <div 
+                  className="suggestions-dropdown" 
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: '0',
+                    right: '0',
+                    background: 'white',
+                    border: '2px solid #007bff',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 99999,
+                    overflow: 'visible',
+                    maxHeight: 'none',
+                    height: 'auto',
+                    marginTop: '5px',
+                    display: 'block',
+                    visibility: 'visible',
+                    opacity: 1
+                  }}
+                >
+                  {suggestions.map((suggestion, index) => (
+                    <div
+                      key={`${suggestion.id}-${index}`}
+                      className={`suggestion-item ${index === selectedSuggestionIndex ? 'active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSuggestionClick(suggestion);
+                      }}
+                      style={{
+                        padding: '10px 15px',
+                        cursor: 'pointer',
+                        borderBottom: index < suggestions.length - 1 ? '1px solid #eee' : 'none',
+                        backgroundColor: index === selectedSuggestionIndex ? '#f8f9fa' : 'white',
+                        pointerEvents: 'auto'
+                      }}
+                    >
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <div className="fw-semibold text-primary">
+                            {suggestion.name}
+                          </div>
+                          <div className="text-muted small">
+                            {suggestion.category}
+                          </div>
+                        </div>
+                        <div className="text-success fw-bold">
+                          {suggestion.price}₫
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="suggestion-footer" style={{
+                    padding: '8px 15px',
+                    borderTop: '1px solid #eee',
+                    backgroundColor: '#f8f9fa',
+                    fontSize: '12px',
+                    color: '#6c757d'
+                  }}>
+                    <small>
+                      <i className="fas fa-keyboard me-1"></i>
+                      Sử dụng ↑↓ để chọn, Enter để chọn, Esc để đóng
+                    </small>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="col-md-6">
+            <select
+              className="form-select"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              {categories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Danh sách phụ tùng */}
+        <div className="row">
+          {filteredParts.map(part => (
+            <div key={part.id} className="col-lg-4 col-md-6 mb-4">
+              <div className="card h-100 shadow-sm border-0">
+                <div className="card-img-top-container" style={{ height: '200px', overflow: 'hidden' }}>
+                  <img
+                    src={part.image}
+                    className="card-img-top h-100 w-100"
+                    style={{ objectFit: 'cover', cursor: 'pointer' }}
+                    alt={part.name}
+                    onClick={() => setModalImage(part.image)}
+                  />
+                </div>
+                <div className="card-body d-flex flex-column">
+                  <div className="mb-2">
+                    <span className="badge bg-primary">{part.category}</span>
+                  </div>
+                  <h5 className="card-title text-primary fw-bold">{part.name}</h5>
+                  <p className="card-text text-muted small flex-grow-1">{part.description}</p>
+                  <div className="mt-auto">
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <span className="h5 text-success fw-bold mb-0">{part.price}₫</span>
+                    </div>
+                    <div className="d-grid gap-2">
+                      <a
+                        href={`https://zalo.me/0966201140?text=Tôi quan tâm đến ${part.name} - ${part.price}₫`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-success"
+                      >
+                        <i className="fas fa-shopping-cart me-2"></i>
+                        Đặt hàng ngay
+                      </a>
+                      <a
+                        href={`https://zalo.me/0966201140?text=Tôi cần tư vấn về ${part.name}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline-primary"
+                      >
+                        <i className="fas fa-comments me-2"></i>
+                        Tư vấn
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Thông báo khi không có kết quả */}
+        {filteredParts.length === 0 && (
+          <div className="text-center py-5">
+            <i className="fas fa-search fa-3x text-muted mb-3"></i>
+            <h5 className="text-muted">Không tìm thấy phụ tùng phù hợp</h5>
+            <p className="text-muted">Hãy thử từ khóa khác hoặc liên hệ để được tư vấn</p>
+            <a
+              href="https://zalo.me/0966201140"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary"
+            >
+              <i className="fas fa-phone me-2"></i>
+              Liên hệ tư vấn
+            </a>
+          </div>
+        )}
+
+        {/* Thông tin bổ sung */}
+        <div className="text-center mt-5">
+          <div className="alert alert-info">
+            <h6 className="fw-bold mb-2">💡 Cần tư vấn chọn phụ tùng phù hợp?</h6>
+            <p className="mb-3">Chúng tôi có đội ngũ kỹ thuật chuyên nghiệp, sẵn sàng tư vấn miễn phí!</p>
+            <a 
+              href="https://zalo.me/0966201140" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn btn-success btn-lg"
+            >
+              <i className="fas fa-comments me-2"></i>
+              Tư vấn miễn phí
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal phóng to ảnh */}
+      {modalImage && (
+        <div className="modal-overlay" onClick={() => setModalImage(null)}>
+          <img src={modalImage} alt="Enlarged" className="img-fluid rounded"/>
+        </div>
+      )}
+    </section>
+  );
+}
 
 function ProductVanTay() {
   const vans = [

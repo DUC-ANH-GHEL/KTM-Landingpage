@@ -639,4 +639,67 @@ body {
   }
 }
 
+/* CSS cho suggestion item trong SparePartsComponent */
+.suggestion-item {
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  margin: 2px;
+}
+
+.suggestion-item:hover {
+  background-color: #e3f2fd !important;
+  transform: translateX(2px);
+}
+
+.suggestion-item.active {
+  background-color: #f8f9fa !important;
+  border-left: 3px solid #007bff;
+}
+
+.suggestion-item .fw-semibold {
+  color: #007bff;
+  font-weight: 600;
+}
+
+.suggestion-item .text-success {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.suggestion-footer {
+  background-color: #f8f9fa !important;
+  border-top: 1px solid #dee2e6;
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.suggestion-footer i {
+  color: #007bff;
+}
+
+/* CSS đặc biệt cho SparePartsComponent auto suggest */
+.spare-parts-search-container {
+  overflow: visible !important;
+}
+
+.spare-parts-search-container .input-group {
+  overflow: visible !important;
+}
+
+.spare-parts-search-container .suggestions-dropdown {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 99999 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: white !important;
+  border: 2px solid #007bff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+  margin-top: 5px !important;
+}
+
 
