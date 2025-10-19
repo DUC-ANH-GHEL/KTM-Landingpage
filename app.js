@@ -24,7 +24,7 @@ function App() {
       <ProductList />
       <HydraulicBladeProducts />
       <ProductVanTay />
-      {/* <SparePartsComponent /> */}
+      <SparePartsComponent />
       <InstructionVideos />
       <YoutubeShortsSection onOpen={() => setShowShortsModal(true)} />
       {showShortsModal && <YoutubeShortsModal onClose={() => setShowShortsModal(false)} />}
@@ -1030,52 +1030,52 @@ function SparePartsComponent() {
   const spareParts = [
     {
       id: 1,
-      name: "Bộ lọc thủy lực",
-      price: "450.000",
-      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/filter_hydraulic.png",
-      description: "Lọc dầu thủy lực chính hãng, tương thích đa dòng máy",
-      category: "Lọc thủy lực"
+      name: "Bộ nối nhanh",
+      price: "400.000",
+      image: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760870151/9-1_n%E1%BB%91i_nhanh_KTM_gsouip.jpg",
+      description: "Bộ nối nhanh 3/8 đặc biệt chuyên dùng KTM - Lắp Trên Van KTM 1 đầu đực + 1 đầu cái",
+      category:"Khớp nối"
     },
-    {
-      id: 2,
-      name: "Xy lanh thủy lực",
-      price: "1.200.000",
-      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/cylinder_hydraulic.png",
-      description: "Xy lanh nâng hạ, gập trượt cho máy xúc, máy ủi",
-      category: "Xy lanh"
-    },
-    {
-      id: 3,
-      name: "Bơm thủy lực",
-      price: "2.500.000",
-      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/pump_hydraulic.png",
-      description: "Bơm thủy lực áp suất cao, hiệu suất ổn định",
-      category: "Bơm thủy lực"
-    },
-    {
-      id: 4,
-      name: "Van phân phối",
-      price: "800.000",
-      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/distribution_valve.png",
-      description: "Van điều khiển dòng thủy lực, độ bền cao",
-      category: "Van thủy lực"
-    },
-    {
-      id: 5,
-      name: "Ống dẫn thủy lực",
-      price: "350.000",
-      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/hydraulic_hose.png",
-      description: "Ống dẫn áp suất cao, chịu nhiệt tốt",
-      category: "Ống dẫn"
-    },
-    {
-      id: 6,
-      name: "Khớp nối thủy lực",
-      price: "180.000",
-      image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/hydraulic_coupling.png",
-      description: "Khớp nối nhanh, kết nối an toàn",
-      category: "Khớp nối"
-    }
+    // {
+    //   id: 2,
+    //   name: "Xy lanh thủy lực",
+    //   price: "1.200.000",
+    //   image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/cylinder_hydraulic.png",
+    //   description: "Xy lanh nâng hạ, gập trượt cho máy xúc, máy ủi",
+    //   category: "Xy lanh"
+    // },
+    // {
+    //   id: 3,
+    //   name: "Bơm thủy lực",
+    //   price: "2.500.000",
+    //   image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/pump_hydraulic.png",
+    //   description: "Bơm thủy lực áp suất cao, hiệu suất ổn định",
+    //   category: "Bơm thủy lực"
+    // },
+    // {
+    //   id: 4,
+    //   name: "Van phân phối",
+    //   price: "800.000",
+    //   image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/distribution_valve.png",
+    //   description: "Van điều khiển dòng thủy lực, độ bền cao",
+    //   category: "Van thủy lực"
+    // },
+    // {
+    //   id: 5,
+    //   name: "Ống dẫn thủy lực",
+    //   price: "350.000",
+    //   image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/hydraulic_hose.png",
+    //   description: "Ống dẫn áp suất cao, chịu nhiệt tốt",
+    //   category: "Ống dẫn"
+    // },
+    // {
+    //   id: 6,
+    //   name: "Khớp nối thủy lực",
+    //   price: "180.000",
+    //   image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/hydraulic_coupling.png",
+    //   description: "Khớp nối nhanh, kết nối an toàn",
+    //   category: "Khớp nối"
+    // }
   ];
 
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
@@ -1085,7 +1085,7 @@ function SparePartsComponent() {
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const searchInputRef = useRef(null);
 
-  const categories = ["Tất cả", "Lọc thủy lực", "Xy lanh", "Bơm thủy lực", "Van thủy lực", "Ống dẫn", "Khớp nối"];
+  const categories = ["Tất cả", "Khớp nối"];
 
   // Hàm bỏ dấu tiếng Việt
   const removeAccents = (str) =>
@@ -1311,7 +1311,7 @@ function SparePartsComponent() {
                       </div>
                     </div>
                   ))}
-                  <div className="suggestion-footer" style={{
+                  {/* <div className="suggestion-footer" style={{
                     padding: '8px 15px',
                     borderTop: '1px solid #eee',
                     backgroundColor: '#f8f9fa',
@@ -1322,7 +1322,7 @@ function SparePartsComponent() {
                       <i className="fas fa-keyboard me-1"></i>
                       Sử dụng ↑↓ để chọn, Enter để chọn, Esc để đóng
                     </small>
-                  </div>
+                  </div> */}
                 </div>
               )}
             </div>
