@@ -1036,14 +1036,14 @@ function SparePartsComponent() {
       description: "Bộ nối nhanh 3/8 đặc biệt chuyên dùng KTM - Lắp Trên Van KTM 1 đầu đực + 1 đầu cái",
       category:"Khớp nối"
     },
-    // {
-    //   id: 2,
-    //   name: "Xy lanh thủy lực",
-    //   price: "1.200.000",
-    //   image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/cylinder_hydraulic.png",
-    //   description: "Xy lanh nâng hạ, gập trượt cho máy xúc, máy ủi",
-    //   category: "Xy lanh"
-    // },
+    {
+      id: 2,
+      name: "Van chống tụt hình vuông",
+      price: "630.000",
+      image: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760870364/24_Van_ch%E1%BB%91ng_t%E1%BB%A5t_lo%E1%BA%A1i_vu%C3%B4ng_KTM_sdnjcd.jpg",
+      description: "Van chống tụt hình vuông lắp trên 2 đường ống 4 đầu ren ra 1/4 lõm nhật",
+      category: "Xy lanh"
+    },
     // {
     //   id: 3,
     //   name: "Bơm thủy lực",
@@ -1085,7 +1085,7 @@ function SparePartsComponent() {
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const searchInputRef = useRef(null);
 
-  const categories = ["Tất cả", "Khớp nối"];
+  const categories = ["Tất cả", "Khớp nối", "Xy lanh"];
 
   // Hàm bỏ dấu tiếng Việt
   const removeAccents = (str) =>
