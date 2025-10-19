@@ -1044,14 +1044,14 @@ function SparePartsComponent() {
       description: "Van chống tụt hình vuông lắp trên 2 đường ống 4 đầu ren ra 1/4 lõm nhật",
       category: "Xy lanh"
     },
-    // {
-    //   id: 3,
-    //   name: "Bơm thủy lực",
-    //   price: "2.500.000",
-    //   image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/pump_hydraulic.png",
-    //   description: "Bơm thủy lực áp suất cao, hiệu suất ổn định",
-    //   category: "Bơm thủy lực"
-    // },
+    {
+      id: 3,
+      name: "Mặt bích chia nhớt máy kéo",
+      price: "460.000",
+      // image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/pump_hydraulic.png",
+      description: "Mặt bích chia nhớt máy kéo",
+      category: "Xy lanh"
+    },
     // {
     //   id: 4,
     //   name: "Van phân phối",
