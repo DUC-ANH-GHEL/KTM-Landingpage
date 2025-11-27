@@ -548,6 +548,43 @@ body {
   -ms-overflow-style: none !important;
 }
 
+/* Ensure global search (inside .search-wrapper) dropdown is positioned under the input
+   Override any global fixed rules so it attaches to the input group */
+.search-wrapper .suggestions-dropdown {
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 99999 !important;
+  margin-top: 6px !important;
+  display: block !important;
+}
+
+/* Make dropdown self-limit height and only scroll when necessary */
+.search-wrapper .suggestions-dropdown {
+  max-height: 60vh !important; /* never taller than viewport */
+  overflow-y: auto !important; /* show scrollbar only if content exceeds max-height */
+  overflow-x: hidden !important;
+}
+
+/* Show normal scrollbars for search-wrapper dropdown (override hidden scrollbar rules) */
+.search-wrapper .suggestions-dropdown::-webkit-scrollbar { display: block !important; width: 10px !important; }
+.search-wrapper .suggestions-dropdown::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12) !important; border-radius: 8px !important; }
+
+/* Make card preview area wrap and constrain height */
+.search-wrapper .suggestion-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px !important;
+  box-sizing: border-box;
+  max-height: 48vh; /* keep preview area reasonable */
+  overflow-y: auto !important;
+}
+
+/* Make card size responsive so it won't overflow horizontally */
+.search-wrapper .suggestion-cards .card { flex: 1 1 180px; min-width: 160px; max-width: 240px; }
+
 /* Ẩn scrollbar cho mọi browser */
 .suggestions-dropdown::-webkit-scrollbar {
   display: none !important;
@@ -701,5 +738,78 @@ body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
   margin-top: 5px !important;
 }
+
+
+.global-search-container{
+  overflow-x: visible !important;
+}
+
+/* ================== STICKY HEADER + THANH SEARCH ON TOP ================== */
+
+/* Header dính trên cùng (luôn on top) */
+.sticky-header {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1200;
+  background: #ffffff;
+}
+
+/* Thanh search nằm ngay dưới header, cũng on top */
+.global-search-bar-section {
+  position: fixed !important;
+  top: 68px; /* tương ứng chiều cao header, cần thì chỉnh 60–72px */
+  left: 0;
+  right: 0;
+  z-index: 1190;
+  background: #f8f9fa;
+}
+
+/* Mobile chỉnh top nhỏ hơn chút cho dễ thở */
+@media (max-width: 768px) {
+  .global-search-bar-section {
+    top: 60px;
+  }
+}
+
+
+/* Đệm nội dung xuống dưới header + thanh search */
+body {
+  padding-top: 150px; /* nếu thấy thừa/thiếu thì chỉnh 140–170px */
+}
+
+/* Khung ảnh trong dropdown autosuggest (global search) */
+.suggestion-thumb {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
+
+.suggestion-thumb-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  display: block;
+  object-fit: contain; /* giữ nguyên tỉ lệ, không cắt ảnh */
+}
+
+
+/* Đưa tất cả overlay modal lên cao hơn header + thanh search */
+.modal-overlay,
+.video-modal-overlay,
+.modal-overlay-full {
+  z-index: 100000 !important;
+}
+
+
 
 

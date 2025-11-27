@@ -1,6 +1,250 @@
 // app.js
 const { useState, useEffect, useRef } = React;
 
+
+
+
+
+// ================== THANH SEARCH TỔNG CHO TOÀN TRANG ==================
+function GlobalSearchBar() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [dropdownStyle, setDropdownStyle] = useState({});
+  // prevent immediate re-opening of suggestions after selecting an item
+  const [suppressSuggestions, setSuppressSuggestions] = useState(false);
+
+  const inputRef = useRef(null);
+
+  // Hàm bỏ dấu tiếng Việt
+  const removeAccents = (str = "") =>
+    str
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+  const handleChange = (e) => {
+    setSearchTerm(e.target.value);
+    setSelectedIndex(-1);
+    setSelectedProduct(null);
+    // typing should cancel any temporary suppression
+    setSuppressSuggestions(false);
+  };
+
+  // Debounced suggestion computation (reactive to searchTerm)
+  useEffect(() => {
+    const minLen = 1; // allow 1+ chars for partial matches
+    if (suppressSuggestions) return; // if we just selected an item, skip producing suggestions
+    if (!searchTerm || searchTerm.trim().length < minLen) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const handler = setTimeout(() => {
+      const normalizedQuery = removeAccents(searchTerm.trim());
+      const keywords = normalizedQuery.split(/\s+/).filter(Boolean);
+
+      const results = SEARCH_PRODUCTS.filter((prod) => {
+        const searchable = removeAccents(
+          `${prod.name} ${prod.code || ""} ${prod.category || ""}`
+        );
+
+        if (keywords.length === 1) return searchable.includes(keywords[0]);
+        return keywords.every((kw) => searchable.includes(kw));
+      }).slice(0, 8);
+
+      // debug removed
+      setSuggestions(results);
+      setShowSuggestions(results.length > 0);
+    }, 120);
+
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // compute fixed position for dropdown so it sits above other sections (hero) and doesn't get covered
+  useEffect(() => {
+    if (!inputRef.current || suggestions.length === 0) {
+      setDropdownStyle({});
+      return;
+    }
+
+    const updatePos = () => {
+      const rect = inputRef.current.getBoundingClientRect();
+      // place directly under input (viewport coords)
+      setDropdownStyle({
+        position: 'fixed',
+        top: `${rect.bottom}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        zIndex: 999999
+      });
+    };
+
+    updatePos();
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, { passive: true });
+
+    return () => {
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos);
+    };
+  }, [suggestions]);
+
+  const handleSelectProduct = (prod) => {
+    setSelectedProduct(prod);
+    setSearchTerm(prod.name);
+    setShowSuggestions(false);
+    // also clear suggestions so the dropdown stops rendering instantly
+    setSuggestions([]);
+    // prevent the suggestions useEffect from re-populating immediately after setting searchTerm
+    setSuppressSuggestions(true);
+    setTimeout(() => setSuppressSuggestions(false), 300);
+    setSelectedIndex(-1);
+    if (inputRef.current) inputRef.current.focus();
+  };
+
+  const handleKeyDown = (e) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedIndex >= 0) handleSelectProduct(suggestions[selectedIndex]);
+      else if (suggestions.length === 1) handleSelectProduct(suggestions[0]);
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+    }
+  };
+
+  const handleBlur = () => setTimeout(() => setShowSuggestions(false), 150);
+  const handleFocus = () => suggestions.length > 0 && setShowSuggestions(true);
+
+  const clearSearch = () => {
+    setSearchTerm("");
+    setSuggestions([]);
+    setSelectedProduct(null);
+    setShowSuggestions(false);
+    setSelectedIndex(-1);
+    if (inputRef.current) inputRef.current.focus();
+  };
+
+  return (
+    <section className="py-3 bg-light border-bottom global-search-bar-section">
+      <div className="container global-search-container" >
+        <div className="row justify-content-center">
+          <div className="col-12 col-lg-8 search-wrapper">
+            <label className="form-label fw-semibold mb-2 d-flex align-items-center">
+              <i className="fas fa-search me-2 text-primary"></i>
+              Tìm nhanh giá sản phẩm KTM
+            </label>
+            <div className="input-group position-relative">
+              <span className="input-group-text">
+                <i className="fas fa-search text-primary"></i>
+              </span>
+              <input
+                ref={inputRef}
+                type="text"
+                className="form-control form-control-lg"
+                placeholder="Nhập tên sản phẩm (VD: van 3 tay, KTM-62, trang gập...)"
+                value={searchTerm}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                onBlur={handleBlur}
+                onFocus={handleFocus}
+                autoComplete="off"
+              />
+              {searchTerm && (
+                <button
+                  className="btn btn-outline-secondary"
+                  type="button"
+                  onClick={clearSearch}
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
+
+              {/* Dropdown gợi ý */}
+              {/* Render suggestions when we have results (don't strictly gate on showSuggestions) */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  className="suggestions-dropdown"
+                  style={{ ...dropdownStyle, maxHeight: '60vh', overflowY: 'auto', background: '#fff' }}
+                >
+                  {suggestions.map((prod, idx) => (
+                    <div
+                      key={prod.id}
+                      className={`suggestion-item ${idx === selectedIndex ? "active" : ""}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelectProduct(prod);
+                      }}
+                      style={{ padding: "8px 12px", cursor: "pointer", borderBottom: idx < suggestions.length - 1 ? "1px solid #eee" : "none" }}
+                    >
+                      {/* <div className="d-flex align-items-center gap-2">
+                        {prod.image && (
+                          <img src={prod.image} alt={prod.name} style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6 }} />
+                        )} */}
+                      <div className="d-flex align-items-center gap-2">
+                        {prod.image && (
+                          <div className="suggestion-thumb">
+                            <img
+                              src={prod.image}
+                              alt={prod.name}
+                              className="suggestion-thumb-img"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-grow-1">
+                          <div className="fw-semibold text-primary">{prod.name}</div>
+                          <div className="small text-muted">
+                            {prod.code && <span>{prod.code} · </span>}
+                            <span className="text-danger fw-bold">{prod.price}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {/* <div className="suggestion-footer px-2 py-1">
+                    <small className="text-muted"><i className="fas fa-keyboard me-1"></i> Dùng ↑↓ để chọn · Enter để xem · Esc để đóng</small>
+                  </div> */}
+                </div>
+              )}
+            </div>
+
+            {/* Kết quả sản phẩm đã chọn */}
+            {selectedProduct && (
+              <div className="card mt-3 shadow-sm">
+                <div className="card-body d-flex flex-column flex-md-row align-items-start gap-3">
+                  {selectedProduct.image && (
+                    <img src={selectedProduct.image} alt={selectedProduct.name} style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 8 }} />
+                  )}
+                  <div className="flex-grow-1">
+                    <h6 className="fw-bold text-primary mb-1">{selectedProduct.name}</h6>
+                    {selectedProduct.code && (<div className="mb-1 small text-muted">Mã: {selectedProduct.code}</div>)}
+                    <div className="mb-2"><span className="text-muted small me-2">Giá:</span><span className="fw-bold text-danger fs-5">{selectedProduct.price}</span></div>
+                    <a href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn hỏi về: " + selectedProduct.name + " - " + (selectedProduct.price || ""))}`} target="_blank" rel="noopener noreferrer" className="btn btn-success btn-sm">
+                      <i className="fas fa-comments me-1"></i> Hỏi nhanh Bá Đức qua Zalo
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function App() {
   const [showShortsModal, setShowShortsModal] = useState(false);
 
@@ -19,6 +263,7 @@ function App() {
   return (
     <>
       <Header />
+      <GlobalSearchBar />
       <HeroSection />
       <ProductShowcaseTabs />
       <ProductList />
@@ -35,19 +280,19 @@ function App() {
 }
 
 function Header() {
-    return (
-      <header className="bg-white shadow-sm py-3 position-relative" role="banner">
-        <div className="container d-flex justify-content-between align-items-center">
-          <h1 className="h4 m-0 text-primary fw-bold">Trang gạt - Xy lanh - KTM</h1>
-          <a href="tel:+84966201140" className="btn btn-outline-primary d-none d-md-block">
-           <i className="fas fa-phone-alt me-2" aria-hidden="true"></i>Hotline: 0966.201.140
-         </a>
-        </div>
-        <img src="https://res.cloudinary.com/diwxfpt92/image/upload/v1749052964/products/ppe92dmlfy1eticfpdam.jpg" alt="Logo nhỏ" className="position-absolute top-50 end-0 translate-middle-y d-block d-md-none me-3" style={{ height: '32px' }} />
-      </header>
-    );
-  }
-  
+  return (
+    <header className="bg-white shadow-sm py-3 position-relative sticky-header" role="banner">
+      <div className="container d-flex justify-content-between align-items-center">
+        <h1 className="h4 m-0 text-primary fw-bold">Trang gạt - Xy lanh - KTM</h1>
+        <a href="tel:+84966201140" className="btn btn-outline-primary d-none d-md-block">
+          <i className="fas fa-phone-alt me-2" aria-hidden="true"></i>Hotline: 0966.201.140
+        </a>
+      </div>
+      <img src="https://res.cloudinary.com/diwxfpt92/image/upload/v1749052964/products/ppe92dmlfy1eticfpdam.jpg" alt="Logo nhỏ" className="position-absolute top-50 end-0 translate-middle-y d-block d-md-none me-3" style={{ height: '32px' }} />
+    </header>
+  );
+}
+
 
 function HeroSection() {
   return (
@@ -92,7 +337,7 @@ function ProductShowcaseTabs() {
       title: "Xy lanh giữa",
       image: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538306/2_sxq2wa.jpg",
       price: "1.950.000đ",
-       aos: "fade-left"
+      aos: "fade-left"
     },
     {
       title: "Xy lanh nghiêng",
@@ -117,8 +362,8 @@ function ProductShowcaseTabs() {
         <div className="row">
           {products.map((prod, idx) => (
             <div className="col-4 mb-4 d-flex justify-content-center" key={idx}
-            onClick={() => setModalImage(prod.image)}
-            data-aos={prod.aos}
+              onClick={() => setModalImage(prod.image)}
+              data-aos={prod.aos}
               data-aos-delay={idx * 1000}
             >
               <div className="card border-0 text-center">
@@ -139,332 +384,332 @@ function ProductShowcaseTabs() {
 
         {modalImage && (
           <div className="modal-overlay" onClick={() => setModalImage(null)}>
-            <img src={modalImage} alt="Enlarged" className="img-fluid rounded"/>
+            <img src={modalImage} alt="Enlarged" className="img-fluid rounded" />
           </div>
         )}
       </div>
     </section>
   );
 }
-  
 
-  
+
+
 function ProductList() {
-    const [timeLeft, setTimeLeft] = useState("");
-    const [isPromoOver, setIsPromoOver] = useState(false);
-    const [showUrgencyPopup, setShowUrgencyPopup] = useState(false);
-    const [expandedGroups, setExpandedGroups] = useState(new Set(['van1tay'])); // Mở sẵn nhóm đầu tiên
-    const [modalImage, setModalImage] = useState(null); // Thêm state cho modal ảnh
-  
-    const deadline = new Date("2025-05-07T18:20:00");
-    deadline.setDate(deadline.getDate() + 15);
-  
-    useEffect(() => {
-      const interval = setInterval(() => {
-        const now = new Date();
-        const distance = deadline - now;
-  
-        if (distance <= 0) {
-          setTimeLeft("Đã hết khuyến mãi");
-          setIsPromoOver(true);
-          clearInterval(interval);
-          const beep = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-          beep.play();
-          return;
-        }
-  
-        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((distance / (1000 * 60 * 60)) % 24);
-        const minutes = Math.floor((distance / (1000 * 60)) % 60);
-        const seconds = Math.floor((distance / 1000) % 60);
-  
-        setTimeLeft(`⏰ Còn lại ${days} ngày ${hours} giờ ${minutes} phút ${seconds} giây`);
-  
-        if (distance <= 86400000) { // 24 giờ
-          setShowUrgencyPopup(true);
-        }
-      }, 1000);
-  
-      return () => clearInterval(interval);
-    }, []);
-  
-    // Nhóm sản phẩm theo loại van
-    const productGroups = {
-      van1tay: {
-        title: "🔧 Combo Van 1 Tay",
-        subtitle: "Điều khiển đơn giản, phù hợp máy nhỏ",
-        products: [
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1751807509/74_combo_van_1_tay_1_xylanh_%E1%BB%A7i_gvf1t1.jpg",
-            name: "Combo Van 1 tay + 1 xylanh ủi",
-            desc: "Bộ van 1 tay KTM + 1 xylanh ủi chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt", 
-            price: "5.000.000đ",
-        promo: false 
-      },
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1751807509/74.1_Combo_1_tay_xylanh_nghi%C3%AAng_thbmua.jpg", 
-            name: "Combo Van 1 tay + 1 xylanh nghiêng/giữa",
-            desc: "Bộ van 1 tay KTM + 1 xylanh nghiêng hoặc giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp", 
-            price: "4.750.000đ",
-            promo: false 
-          },
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762522/COMBO_VAN_1_TAY_1_TY_GI%E1%BB%AEA_KTM_ulsy1c.jpg", 
-            name: "Combo Van 1 tay + 1 xylanh nghiêng/giữa",
-            desc: "Bộ van 1 tay KTM + 1 xylanh nghiêng hoặc giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp", 
-            price: "4.750.000đ",
-            promo: false 
-          }
-        ]
-      },
-      van2tay: {
-        title: "🔧 Combo Van 2 Tay",
-        subtitle: "Điều khiển linh hoạt, phù hợp mọi loại máy",
-        products: [
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762121/combo_van_2_tay_1_ty_nghi%C3%AAng_ktm_eumive.jpg",
-            name: "Combo van 2 tay 1 ty nghiêng ktm",
-            desc: "Bộ van 2 tay KTM + 1 xylanh nghiêng chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt", 
-            price: "5.080.000đ",
-            promo: false 
-          },
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762402/combo_van_2_tay_1_ty_gi%E1%BB%AFa_KTM_e6ssao.jpg",
-            name: "Combo van 2 tay 1 ty giữa ktm",
-            desc: "Bộ van 2 tay KTM + 1 xylanh giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt", 
-            price: "5.080.000đ",
-            promo: false 
-          },
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762120/combo_van_2_tay_2_ty_nghi%C3%AAng_gi%E1%BB%AFa_KTM_bwpf3o.jpg", 
-            name: "Combo van 2 tay 2 ty nghiêng giữa KTM",
-            desc: "Bộ van 2 tay KTM + 1 xylanh nghiêng + 1 xylanh giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp", 
-            price: "7.300.000đ",
-            promo: false 
-          }
-        ]
-      },
-      van3tay: {
-        title: "🛠️ Combo Van 3 Tay",
-        subtitle: "Phù hợp máy kéo 30-90hp",
-        products: [
-      { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300157/Combo_van_3_tay_xylanh_gi%E1%BB%AFa_mxdsth.jpg",
-            name: "Combo Van 3 tay + 1 xylanh giữa",
-        desc: "Bộ van 3 tay KTM có lọc mạt + 1 xylanh giữa chống tụt, 2 đầu táo 19 phù hợp máy kéo 30-90hp", 
-            price: "5.550.000đ",
-        promo: false 
-      },
-      { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300461/combo_van_3_tay_3_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_%E1%BB%A7i_mgppxh.jpg", 
-            name: "Combo Van 3 tay + 3 xylanh",
-        desc: "Bộ van 3 tay KTM có lọc mạt + 3 xylanh 1 Nghiêng 1 Giữa 1 nâng hạ rạch vạt + đủ phụ kiện bích dây ren giá đỡ chốt sẵn lắp.", 
-            price: "10.250.000đ",
-            promo: false 
-          },
-      { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300324/Combo_Van_3_tay_2_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_evihrt.jpg", 
-            name: "Combo Van 3 tay + 2 xylanh",
-        desc: "Bộ van 3 tay KTM có lọc mạt + 2 xylanh 1 nghiêng 1 giữa 1 tay chờ kép ren 1/4 lõm nhật - đủ phụ kiện dây ren giá đỡ sẵn lắp", 
-            price: "7.800.000đ",
-        promo: false 
-          }
-        ]
-      },
-      van4tay: {
-        title: "⚙️ Combo Van 4 Tay", 
-        subtitle: "Điều khiển 4 xy lanh độc lập",
-        products: [
-      { 
-        img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749135217/Combo_van_4_tay_1_xylanh_nghi%C3%AAng_1_xylanh_gi%E1%BB%AFa_nh6gjh.jpg",
-            name: "Combo Van 4 tay + 2 xylanh",
-            desc: "Combo van 4 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
-            price: "8.300.000đ",
-        promo: false 
-      },
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762675/combo_van_4_tay_1_ty_gi%E1%BB%AFa_ktm_auo6xo.jpg",
-            name: "Combo van 4 tay 1 ty giữa ktm",
-            desc: "Combo van 4 tay 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
-            price: "6.050.000đ",
-            promo: false 
-          },
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762677/combo_van_4_tay_1_ty_nghi%C3%AAng_ktm_eyk6fr.jpg",
-            name: "Combo van 4 tay 1 ty nghiêng ktm",
-            desc: "Combo van 4 tay 1 xylanh nghiêng mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
-            price: "6.050.000đ",
-            promo: false 
-          }
-        ]
-      },
-      van5tay: {
-        title: "🔧 Combo Van 5 Tay",
-        subtitle: "Điều khiển 5 xy lanh chuyên nghiệp", 
-        products: [
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747537715/Combo_van_5_tay_2_xylanh_1_nghi%C3%AAng_1_gi%E1%BB%AFa_KTM_htd1au.jpg",
-            name: "Combo Van 5 tay + 2 xylanh",
-            desc: "Combo van 5 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
-            price: "8.800.000đ",
-            promo: false 
-          },
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747539250/Combo_van_5_tay_1_xylanh_nghi%C3%AAng_KTM_kv6irg.jpg",
-            name: "Combo Van 5 tay + 1 xylanh",
-            desc: "Combo van 5 tay + 1 xylanh nghiêng (giữa) mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
-            price: "6.550.000đ",
-            promo: false 
-          },
-          { 
-            img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762831/combo_van_5_tay_1_ty_gi%E1%BB%AFa_KTM_l74ame.jpg",
-            name: "Combo Van 5 tay + 1 xylanh",
-            desc: "Combo van 5 tay + 1 xylanh nghiêng (giữa) mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
-            price: "6.550.000đ",
-            promo: false 
-          }
-        ]
-      }
-    };
+  const [timeLeft, setTimeLeft] = useState("");
+  const [isPromoOver, setIsPromoOver] = useState(false);
+  const [showUrgencyPopup, setShowUrgencyPopup] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState(new Set(['van1tay'])); // Mở sẵn nhóm đầu tiên
+  const [modalImage, setModalImage] = useState(null); // Thêm state cho modal ảnh
 
-    const toggleGroup = (groupId) => {
-      const newExpanded = new Set();
-      if (!expandedGroups.has(groupId)) {
-        newExpanded.add(groupId);
-        // Scroll to the top of the opened combo after a short delay
-        setTimeout(() => {
-          const element = document.getElementById(`combo-${groupId}`);
-          if (element) {
-            element.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'start',
-              inline: 'nearest'
-            });
-          }
-        }, 100);
-      }
-      setExpandedGroups(newExpanded);
-    };
-  
-    return (
-      <section className="py-5 position-relative">
-        {showUrgencyPopup && !isPromoOver && (
-          <div className="alert alert-warning text-center position-absolute top-0 start-50 translate-middle-x mt-2 shadow" style={{ zIndex: 1000, maxWidth: '500px' }}>
-            🎯 <strong>Chỉ còn chưa đầy 24h!</strong> Mua ngay kẻo lỡ khuyến mãi hấp dẫn!
-          </div>
-        )}
-        
-        <div className="container">
-          <div className="text-center mb-5">
-            <h2 className="fw-bold">📦 Combo Sản Phẩm Nổi Bật</h2>
-            <p className="text-muted">Chọn combo phù hợp với nhu cầu của bạn</p>
-          </div>
+  const deadline = new Date("2025-05-07T18:20:00");
+  deadline.setDate(deadline.getDate() + 15);
 
-          <div className="row g-4">
-            {Object.entries(productGroups).map(([groupId, group]) => (
-              <div key={groupId} className="col-12" id={`combo-${groupId}`}>
-                <div className="card border-0 shadow-sm">
-                  {/* Header của nhóm */}
-                  <div 
-                    className="card-header bg-primary text-white p-3 cursor-pointer"
-                    onClick={() => toggleGroup(groupId)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <h5 className="mb-1 fw-bold">{group.title}</h5>
-                        <small className="opacity-75">{group.subtitle}</small>
-                      </div>
-                      <div className="d-flex align-items-center">
-                        <span className="badge bg-light text-primary me-2">
-                          {group.products.length} combo
-                        </span>
-                        <i className={`fas fa-chevron-${expandedGroups.has(groupId) ? 'up' : 'down'}`}></i>
-                      </div>
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      const distance = deadline - now;
+
+      if (distance <= 0) {
+        setTimeLeft("Đã hết khuyến mãi");
+        setIsPromoOver(true);
+        clearInterval(interval);
+        const beep = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+        beep.play();
+        return;
+      }
+
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((distance / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((distance / (1000 * 60)) % 60);
+      const seconds = Math.floor((distance / 1000) % 60);
+
+      setTimeLeft(`⏰ Còn lại ${days} ngày ${hours} giờ ${minutes} phút ${seconds} giây`);
+
+      if (distance <= 86400000) { // 24 giờ
+        setShowUrgencyPopup(true);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Nhóm sản phẩm theo loại van
+  const productGroups = {
+    van1tay: {
+      title: "🔧 Combo Van 1 Tay",
+      subtitle: "Điều khiển đơn giản, phù hợp máy nhỏ",
+      products: [
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1751807509/74_combo_van_1_tay_1_xylanh_%E1%BB%A7i_gvf1t1.jpg",
+          name: "Combo Van 1 tay + 1 xylanh ủi",
+          desc: "Bộ van 1 tay KTM + 1 xylanh ủi chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt",
+          price: "5.000.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1751807509/74.1_Combo_1_tay_xylanh_nghi%C3%AAng_thbmua.jpg",
+          name: "Combo Van 1 tay + 1 xylanh nghiêng/giữa",
+          desc: "Bộ van 1 tay KTM + 1 xylanh nghiêng hoặc giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp",
+          price: "4.750.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762522/COMBO_VAN_1_TAY_1_TY_GI%E1%BB%AEA_KTM_ulsy1c.jpg",
+          name: "Combo Van 1 tay + 1 xylanh nghiêng/giữa",
+          desc: "Bộ van 1 tay KTM + 1 xylanh nghiêng hoặc giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp",
+          price: "4.750.000đ",
+          promo: false
+        }
+      ]
+    },
+    van2tay: {
+      title: "🔧 Combo Van 2 Tay",
+      subtitle: "Điều khiển linh hoạt, phù hợp mọi loại máy",
+      products: [
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762121/combo_van_2_tay_1_ty_nghi%C3%AAng_ktm_eumive.jpg",
+          name: "Combo van 2 tay 1 ty nghiêng ktm",
+          desc: "Bộ van 2 tay KTM + 1 xylanh nghiêng chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt",
+          price: "5.080.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762402/combo_van_2_tay_1_ty_gi%E1%BB%AFa_KTM_e6ssao.jpg",
+          name: "Combo van 2 tay 1 ty giữa ktm",
+          desc: "Bộ van 2 tay KTM + 1 xylanh giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt",
+          price: "5.080.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762120/combo_van_2_tay_2_ty_nghi%C3%AAng_gi%E1%BB%AFa_KTM_bwpf3o.jpg",
+          name: "Combo van 2 tay 2 ty nghiêng giữa KTM",
+          desc: "Bộ van 2 tay KTM + 1 xylanh nghiêng + 1 xylanh giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp",
+          price: "7.300.000đ",
+          promo: false
+        }
+      ]
+    },
+    van3tay: {
+      title: "🛠️ Combo Van 3 Tay",
+      subtitle: "Phù hợp máy kéo 30-90hp",
+      products: [
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300157/Combo_van_3_tay_xylanh_gi%E1%BB%AFa_mxdsth.jpg",
+          name: "Combo Van 3 tay + 1 xylanh giữa",
+          desc: "Bộ van 3 tay KTM có lọc mạt + 1 xylanh giữa chống tụt, 2 đầu táo 19 phù hợp máy kéo 30-90hp",
+          price: "5.550.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300461/combo_van_3_tay_3_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_%E1%BB%A7i_mgppxh.jpg",
+          name: "Combo Van 3 tay + 3 xylanh",
+          desc: "Bộ van 3 tay KTM có lọc mạt + 3 xylanh 1 Nghiêng 1 Giữa 1 nâng hạ rạch vạt + đủ phụ kiện bích dây ren giá đỡ chốt sẵn lắp.",
+          price: "10.250.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749300324/Combo_Van_3_tay_2_xylanh_nghi%C3%AAng_gi%E1%BB%AFa_evihrt.jpg",
+          name: "Combo Van 3 tay + 2 xylanh",
+          desc: "Bộ van 3 tay KTM có lọc mạt + 2 xylanh 1 nghiêng 1 giữa 1 tay chờ kép ren 1/4 lõm nhật - đủ phụ kiện dây ren giá đỡ sẵn lắp",
+          price: "7.800.000đ",
+          promo: false
+        }
+      ]
+    },
+    van4tay: {
+      title: "⚙️ Combo Van 4 Tay",
+      subtitle: "Điều khiển 4 xy lanh độc lập",
+      products: [
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749135217/Combo_van_4_tay_1_xylanh_nghi%C3%AAng_1_xylanh_gi%E1%BB%AFa_nh6gjh.jpg",
+          name: "Combo Van 4 tay + 2 xylanh",
+          desc: "Combo van 4 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+          price: "8.300.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762675/combo_van_4_tay_1_ty_gi%E1%BB%AFa_ktm_auo6xo.jpg",
+          name: "Combo van 4 tay 1 ty giữa ktm",
+          desc: "Combo van 4 tay 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+          price: "6.050.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762677/combo_van_4_tay_1_ty_nghi%C3%AAng_ktm_eyk6fr.jpg",
+          name: "Combo van 4 tay 1 ty nghiêng ktm",
+          desc: "Combo van 4 tay 1 xylanh nghiêng mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+          price: "6.050.000đ",
+          promo: false
+        }
+      ]
+    },
+    van5tay: {
+      title: "🔧 Combo Van 5 Tay",
+      subtitle: "Điều khiển 5 xy lanh chuyên nghiệp",
+      products: [
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747537715/Combo_van_5_tay_2_xylanh_1_nghi%C3%AAng_1_gi%E1%BB%AFa_KTM_htd1au.jpg",
+          name: "Combo Van 5 tay + 2 xylanh",
+          desc: "Combo van 5 tay 2 xylanh: 1 xylanh nghiêng + 1 xylanh giữa mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+          price: "8.800.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747539250/Combo_van_5_tay_1_xylanh_nghi%C3%AAng_KTM_kv6irg.jpg",
+          name: "Combo Van 5 tay + 1 xylanh",
+          desc: "Combo van 5 tay + 1 xylanh nghiêng (giữa) mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+          price: "6.550.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762831/combo_van_5_tay_1_ty_gi%E1%BB%AFa_KTM_l74ame.jpg",
+          name: "Combo Van 5 tay + 1 xylanh",
+          desc: "Combo van 5 tay + 1 xylanh nghiêng (giữa) mới có chống tụt + đủ phụ kiện chi tiết hướng dẫn lắp đặt - Van có lọc mạt",
+          price: "6.550.000đ",
+          promo: false
+        }
+      ]
+    }
+  };
+
+  const toggleGroup = (groupId) => {
+    const newExpanded = new Set();
+    if (!expandedGroups.has(groupId)) {
+      newExpanded.add(groupId);
+      // Scroll to the top of the opened combo after a short delay
+      setTimeout(() => {
+        const element = document.getElementById(`combo-${groupId}`);
+        if (element) {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+            inline: 'nearest'
+          });
+        }
+      }, 100);
+    }
+    setExpandedGroups(newExpanded);
+  };
+
+  return (
+    <section className="py-5 position-relative">
+      {showUrgencyPopup && !isPromoOver && (
+        <div className="alert alert-warning text-center position-absolute top-0 start-50 translate-middle-x mt-2 shadow" style={{ zIndex: 1000, maxWidth: '500px' }}>
+          🎯 <strong>Chỉ còn chưa đầy 24h!</strong> Mua ngay kẻo lỡ khuyến mãi hấp dẫn!
+        </div>
+      )}
+
+      <div className="container">
+        <div className="text-center mb-5">
+          <h2 className="fw-bold">📦 Combo Sản Phẩm Nổi Bật</h2>
+          <p className="text-muted">Chọn combo phù hợp với nhu cầu của bạn</p>
+        </div>
+
+        <div className="row g-4">
+          {Object.entries(productGroups).map(([groupId, group]) => (
+            <div key={groupId} className="col-12" id={`combo-${groupId}`}>
+              <div className="card border-0 shadow-sm">
+                {/* Header của nhóm */}
+                <div
+                  className="card-header bg-primary text-white p-3 cursor-pointer"
+                  onClick={() => toggleGroup(groupId)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h5 className="mb-1 fw-bold">{group.title}</h5>
+                      <small className="opacity-75">{group.subtitle}</small>
+                    </div>
+                    <div className="d-flex align-items-center">
+                      <span className="badge bg-light text-primary me-2">
+                        {group.products.length} combo
+                      </span>
+                      <i className={`fas fa-chevron-${expandedGroups.has(groupId) ? 'up' : 'down'}`}></i>
                     </div>
                   </div>
+                </div>
 
-                  {/* Nội dung nhóm */}
-                  {expandedGroups.has(groupId) && (
-                    <div className="card-body p-0">
-                      <div className="row g-0">
-                        {group.products.map((product, index) => (
-                          <div key={index} className="col-12 col-md-6 col-lg-4">
-                            <div className="border-end border-bottom p-3 h-100">
-                              <div className="text-center mb-3">
-                                <img 
-                                  src={product.img} 
-                                  alt={product.name}
-                                  className="img-fluid rounded shadow-sm clickable"
-                                  style={{ maxHeight: '200px', objectFit: 'cover', cursor: 'pointer' }}
-                                  onClick={() => setModalImage(product.img)}
-                    />
-                  </div>
-                              
-                              <h6 className="fw-bold text-primary mb-2">{product.name}</h6>
-                              <p className="text-muted small mb-3" style={{ fontSize: '0.85rem' }}>
-                                {product.desc}
-                              </p>
-                              
-                              <div className="text-center">
-                                <div className="fw-bold text-danger fs-5 mb-3">
-                                  {product.price}
-                                </div>
-                                
-                                <a
-                                  href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn tư vấn về " + product.name + " – " + product.desc + " - " + product.price)}`}
-                      target="_blank"
-                      rel="noopener"
-                                  className="btn btn-primary btn-sm w-100"
-                                >
-                                  <i className="fas fa-phone-alt me-2"></i>
-                                  Tư vấn ngay
-                                </a>
+                {/* Nội dung nhóm */}
+                {expandedGroups.has(groupId) && (
+                  <div className="card-body p-0">
+                    <div className="row g-0">
+                      {group.products.map((product, index) => (
+                        <div key={index} className="col-12 col-md-6 col-lg-4">
+                          <div className="border-end border-bottom p-3 h-100">
+                            <div className="text-center mb-3">
+                              <img
+                                src={product.img}
+                                alt={product.name}
+                                className="img-fluid rounded shadow-sm clickable"
+                                style={{ maxHeight: '200px', objectFit: 'cover', cursor: 'pointer' }}
+                                onClick={() => setModalImage(product.img)}
+                              />
+                            </div>
+
+                            <h6 className="fw-bold text-primary mb-2">{product.name}</h6>
+                            <p className="text-muted small mb-3" style={{ fontSize: '0.85rem' }}>
+                              {product.desc}
+                            </p>
+
+                            <div className="text-center">
+                              <div className="fw-bold text-danger fs-5 mb-3">
+                                {product.price}
                               </div>
+
+                              <a
+                                href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn tư vấn về " + product.name + " – " + product.desc + " - " + product.price)}`}
+                                target="_blank"
+                                rel="noopener"
+                                className="btn btn-primary btn-sm w-100"
+                              >
+                                <i className="fas fa-phone-alt me-2"></i>
+                                Tư vấn ngay
+                              </a>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Thông tin bổ sung */}
-          <div className="text-center mt-5">
-            <div className="alert alert-info">
-              <h6 className="fw-bold mb-2">💡 Không biết chọn combo nào?</h6>
-              <p className="mb-3">Hãy cho chúng tôi biết loại máy và nhu cầu của bạn để được tư vấn phù hợp nhất!</p>
-              <a 
-                href="https://zalo.me/0966201140" 
-                    target="_blank"
-                    rel="noopener"
-                className="btn btn-success btn-lg"
-                    >
-                <i className="fas fa-comments me-2"></i>
-                Tư vấn miễn phí
-                    </a>
                   </div>
-                </div>
+                )}
               </div>
+            </div>
+          ))}
+        </div>
 
-        {/* Modal phóng to ảnh */}
-        {modalImage && (
-          <div className="modal-overlay" onClick={() => setModalImage(null)}>
-            <img src={modalImage} alt="Enlarged" className="img-fluid rounded"/>
+        {/* Thông tin bổ sung */}
+        <div className="text-center mt-5">
+          <div className="alert alert-info">
+            <h6 className="fw-bold mb-2">💡 Không biết chọn combo nào?</h6>
+            <p className="mb-3">Hãy cho chúng tôi biết loại máy và nhu cầu của bạn để được tư vấn phù hợp nhất!</p>
+            <a
+              href="https://zalo.me/0966201140"
+              target="_blank"
+              rel="noopener"
+              className="btn btn-success btn-lg"
+            >
+              <i className="fas fa-comments me-2"></i>
+              Tư vấn miễn phí
+            </a>
           </div>
-        )}
-      </section>
-    );
-  }
+        </div>
+      </div>
+
+      {/* Modal phóng to ảnh */}
+      {modalImage && (
+        <div className="modal-overlay" onClick={() => setModalImage(null)}>
+          <img src={modalImage} alt="Enlarged" className="img-fluid rounded" />
+        </div>
+      )}
+    </section>
+  );
+}
 
 
 
 function HydraulicBladeProducts() {
   const [modalImage, setModalImage] = useState(null); // Thêm state cho modal ảnh
-  
+
   const allProducts = [
     { stt: 62, name: "Trang Trượt van 4 tay KTM 4 xylanh Lắp trên xới", code: "KTM-62", price: "21,200,000" },
     { stt: 63, name: "Trang Gập Van tay KTM 4 xylanh Lắp trên xới", code: "KTM-63", price: "23,200,000" },
@@ -517,33 +762,33 @@ function HydraulicBladeProducts() {
   // Phân loại sản phẩm
   const categories = {
     all: { name: "Tất cả", count: products.length },
-    trangTruotLapXoi: { 
-      name: "Trang Trượt Lắp Xới", 
-      count: products.filter(p => p.name.includes("Trượt") && (p.name.includes("xới") || p.name.includes("Lắp trên"))).length 
+    trangTruotLapXoi: {
+      name: "Trang Trượt Lắp Xới",
+      count: products.filter(p => p.name.includes("Trượt") && (p.name.includes("xới") || p.name.includes("Lắp trên"))).length
     },
-    trangTruotKhungDocLap: { 
-      name: "Trang Trượt Khung Độc Lập", 
-      count: products.filter(p => p.name.includes("Trượt") && p.name.includes("Khung độc lập")).length 
+    trangTruotKhungDocLap: {
+      name: "Trang Trượt Khung Độc Lập",
+      count: products.filter(p => p.name.includes("Trượt") && p.name.includes("Khung độc lập")).length
     },
-    trangTruotBuaLan: { 
-      name: "Trang Trượt + Bừa Lăn", 
-      count: products.filter(p => p.name.includes("Trượt") && p.name.includes("bừa lăn")).length 
+    trangTruotBuaLan: {
+      name: "Trang Trượt + Bừa Lăn",
+      count: products.filter(p => p.name.includes("Trượt") && p.name.includes("bừa lăn")).length
     },
     trangGap: { name: "Trang Gập", count: products.filter(p => p.name.includes("Gập")).length },
     phuKien: { name: "Phụ kiện", count: products.filter(p => p.name.includes("thêm") || p.name.includes("chuyển")).length }
   };
 
   // Hàm bỏ dấu tiếng Việt
-const removeAccents = (str) =>
-  str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const removeAccents = (str) =>
+    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   // Logic tạo suggestions
   const getSuggestions = () => {
     if (!searchTerm || searchTerm.trim().length < 2) return [];
-    
-  const keywords = searchTerm.split(/[\s,]+/).map(k => removeAccents(k.trim())).filter(k => k !== "");
+
+    const keywords = searchTerm.split(/[\s,]+/).map(k => removeAccents(k.trim())).filter(k => k !== "");
     if (keywords.length === 0) return [];
-    
+
     // Test case đơn giản - trả về tất cả sản phẩm nếu có từ khóa
     if (searchTerm.toLowerCase().includes('ktm') || searchTerm.toLowerCase().includes('trang')) {
       return products.slice(0, 3).map(prod => ({
@@ -553,7 +798,7 @@ const removeAccents = (str) =>
         price: prod.price
       }));
     }
-    
+
     const suggestions = products
       .map(prod => ({
         name: prod.name,
@@ -562,16 +807,16 @@ const removeAccents = (str) =>
         price: prod.price
       }))
       .filter(prod => {
-  const searchable = [
-    prod.name,
-    prod.code,
-    prod.stt.toString()
-  ].map(removeAccents).join(" ");
+        const searchable = [
+          prod.name,
+          prod.code,
+          prod.stt.toString()
+        ].map(removeAccents).join(" ");
 
         return keywords.some(keyword => searchable.includes(keyword));
       })
       .slice(0, 3); // Chỉ lấy tối đa 3 gợi ý để không có scroll
-    
+
     return suggestions;
   };
 
@@ -604,7 +849,7 @@ const removeAccents = (str) =>
     setSearchTerm(suggestion.name);
     setShowSuggestions(false);
     setSelectedSuggestionIndex(-1);
-    
+
     // Force update input value với setTimeout
     setTimeout(() => {
       if (searchInputRef.current) {
@@ -622,13 +867,13 @@ const removeAccents = (str) =>
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedSuggestionIndex(prev => 
+        setSelectedSuggestionIndex(prev =>
           prev < suggestions.length - 1 ? prev + 1 : 0
         );
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setSelectedSuggestionIndex(prev => 
+        setSelectedSuggestionIndex(prev =>
           prev > 0 ? prev - 1 : suggestions.length - 1
         );
         break;
@@ -669,17 +914,17 @@ const removeAccents = (str) =>
         // Nếu là tên sản phẩm đầy đủ, chỉ hiển thị sản phẩm đó
         return [exactMatch];
       }
-      
+
       // Nếu không phải tên đầy đủ, tìm kiếm bình thường
       const keywords = searchTerm.split(/[\s,]+/).map(k => removeAccents(k.trim())).filter(k => k !== "");
-      
+
       const searchResults = products.filter((prod) => {
         const searchable = [
           prod.name,
           prod.code,
           prod.stt.toString()
         ].map(removeAccents).join(" ");
-        
+
         // Tìm kiếm linh hoạt: chỉ cần một từ khóa match
         return keywords.some(keyword => searchable.includes(keyword));
       });
@@ -712,7 +957,7 @@ const removeAccents = (str) =>
 
     // Nếu không có search term, chỉ filter theo category
     if (selectedCategory === "all") return products;
-    
+
     return products.filter((prod) => {
       if (selectedCategory === "trangTruotLapXoi" && (!prod.name.includes("Trượt") || (!prod.name.includes("xới") && !prod.name.includes("Lắp trên")))) return false;
       if (selectedCategory === "trangTruotKhungDocLap" && (!prod.name.includes("Trượt") || !prod.name.includes("Khung độc lập"))) return false;
@@ -733,15 +978,15 @@ const removeAccents = (str) =>
 
         {/* Hình ảnh tham khảo - To hơn */}
         <div className="text-center mb-5">
-              <img
-                src="https://res.cloudinary.com/diwxfpt92/image/upload/v1749135668/trang_g%E1%BA%A1t_wleewb.jpg"
-                alt="Trang Gạt Thủy Lực KTM"
+          <img
+            src="https://res.cloudinary.com/diwxfpt92/image/upload/v1749135668/trang_g%E1%BA%A1t_wleewb.jpg"
+            alt="Trang Gạt Thủy Lực KTM"
             className="img-fluid rounded shadow-lg clickable"
             style={{ maxHeight: '500px', objectFit: 'contain', width: '100%', cursor: 'pointer' }}
             onClick={() => setModalImage("https://res.cloudinary.com/diwxfpt92/image/upload/v1749135668/trang_g%E1%BA%A1t_wleewb.jpg")}
-              />
+          />
           <small className="text-muted d-block mt-3">Hình ảnh thực tế các mẫu trang gạt lắp trên máy</small>
-            </div>
+        </div>
 
         {/* Bộ lọc và tìm kiếm - Giao diện đơn giản */}
         <div className="row mb-4">
@@ -752,12 +997,12 @@ const removeAccents = (str) =>
                   <i className="fas fa-filter me-2"></i>
                   Chọn loại sản phẩm bạn cần:
                 </h6>
-                
+
                 {/* Dropdown filter đơn giản */}
                 <div className="row align-items-center">
                   <div className="col-md-6 mb-3 mb-md-0">
                     <label className="form-label fw-semibold">Loại trang gạt:</label>
-                    <select 
+                    <select
                       className="form-select form-select-lg"
                       value={selectedCategory}
                       onChange={(e) => setSelectedCategory(e.target.value)}
@@ -769,21 +1014,21 @@ const removeAccents = (str) =>
                       <option value="trangGap">📐 Trang Gập ({categories.trangGap.count})</option>
                       <option value="phuKien">🔧 Phụ kiện ({categories.phuKien.count})</option>
                     </select>
-          </div>
+                  </div>
 
                   <div className="col-md-6 search-wrapper">
                     <label className="form-label fw-semibold">Tìm kiếm theo tên:</label>
-                    <div className="input-group" style={{position: 'relative', zIndex: 10}}>
+                    <div className="input-group" style={{ position: 'relative', zIndex: 10 }}>
                       <span className="input-group-text">
                         <i className="fas fa-search text-muted"></i>
                       </span>
-              <input
+                      <input
                         ref={searchInputRef}
                         id="searchInput"
-                type="text"
+                        type="text"
                         className="form-control form-control-lg"
                         placeholder="Nhập tên sản phẩm..."
-                value={searchTerm}
+                        value={searchTerm}
                         onChange={handleSearchChange}
                         onKeyDown={handleKeyDown}
                         onFocus={handleSearchFocus}
@@ -791,7 +1036,7 @@ const removeAccents = (str) =>
                         autoComplete="off"
                       />
                       {searchTerm && (
-                        <button 
+                        <button
                           className="btn btn-outline-secondary"
                           onClick={() => setSearchTerm("")}
                           title="Xóa tìm kiếm"
@@ -799,8 +1044,8 @@ const removeAccents = (str) =>
                           <i className="fas fa-times"></i>
                         </button>
                       )}
-                      
-            </div>
+
+                    </div>
 
                     {/* Auto suggest dropdown - Ngay dưới search */}
                     {searchTerm.length >= 2 && suggestions.length > 0 && showSuggestions && (
@@ -833,8 +1078,8 @@ const removeAccents = (str) =>
                               pointerEvents: 'auto'
                             }}
                           >
-                            <div style={{fontWeight: 'bold', color: '#007bff'}}>{suggestion.name}</div>
-                            <div style={{fontSize: '12px', color: '#6c757d'}}>
+                            <div style={{ fontWeight: 'bold', color: '#007bff' }}>{suggestion.name}</div>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>
                               {suggestion.code} - {suggestion.price} VNĐ
                             </div>
                           </div>
@@ -842,9 +1087,9 @@ const removeAccents = (str) =>
                       </div>
                     )}
 
-                    
-                    
-                    
+
+
+
                     {/* Auto suggest dropdown - Ngay dưới search */}
                     {searchTerm.length >= 2 && suggestions.length > 0 && showSuggestions && (
                       <div className="suggestions-dropdown" style={{
@@ -893,7 +1138,7 @@ const removeAccents = (str) =>
                     )}
                   </div>
                 </div>
-                
+
                 {/* Hiển thị kết quả và nút reset */}
                 <div className="mt-3 d-flex justify-content-between align-items-center">
                   <small className="text-muted">
@@ -918,9 +1163,9 @@ const removeAccents = (str) =>
                       </>
                     )}
                   </small>
-                  
+
                   {(selectedCategory !== 'all' || searchTerm) && (
-                    <button 
+                    <button
                       className="btn btn-outline-primary btn-sm"
                       onClick={() => {
                         setSelectedCategory('all');
@@ -939,8 +1184,8 @@ const removeAccents = (str) =>
 
         {/* Grid sản phẩm */}
         <div className="row g-4">
-                  {filteredProducts.length > 0 ? (
-                    filteredProducts.map((prod, idx) => (
+          {filteredProducts.length > 0 ? (
+            filteredProducts.map((prod, idx) => (
               <div key={idx} className="col-12 col-md-6 col-lg-4">
                 <div className="card h-100 shadow-sm border-0 product-card">
                   <div className="card-header bg-primary text-white text-center py-2">
@@ -950,12 +1195,12 @@ const removeAccents = (str) =>
                       <span className="badge bg-warning text-dark">KTM</span>
                     </div>
                   </div>
-                  
+
                   <div className="card-body d-flex flex-column">
                     <h6 className="card-title fw-bold text-primary mb-3">
                       {prod.name}
                     </h6>
-                    
+
                     <div className="mt-auto">
                       <div className="d-flex justify-content-between align-items-center mb-3">
                         <span className="text-muted small">Giá bán:</span>
@@ -963,11 +1208,11 @@ const removeAccents = (str) =>
                           {prod.price} đ
                         </span>
                       </div>
-                      
-                          <a
-                            href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn mua: " + prod.name + " - " + prod.price + "đ")}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+
+                      <a
+                        href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn mua: " + prod.name + " - " + prod.price + "đ")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="btn btn-primary w-100"
                       >
                         <i className="fas fa-shopping-cart me-2"></i>
@@ -977,16 +1222,16 @@ const removeAccents = (str) =>
                   </div>
                 </div>
               </div>
-                    ))
-                  ) : (
+            ))
+          ) : (
             <div className="col-12">
               <div className="text-center py-5">
                 <i className="fas fa-search fa-3x text-muted mb-3"></i>
                 <h5 className="text-muted">Không tìm thấy sản phẩm phù hợp</h5>
                 <p className="text-muted">Vui lòng thử từ khóa khác hoặc liên hệ tư vấn</p>
-                <a 
-                  href="https://zalo.me/0966201140" 
-                  target="_blank" 
+                <a
+                  href="https://zalo.me/0966201140"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-primary"
                 >
@@ -996,16 +1241,16 @@ const removeAccents = (str) =>
               </div>
             </div>
           )}
-            </div>
+        </div>
 
         {/* Thông tin bổ sung */}
         <div className="text-center mt-5">
           <div className="alert alert-info">
             <h6 className="fw-bold mb-2">💡 Cần tư vấn chọn trang gạt phù hợp?</h6>
             <p className="mb-3">Hãy cho chúng tôi biết loại máy và nhu cầu để được tư vấn chính xác nhất!</p>
-            <a 
-              href="https://zalo.me/0966201140" 
-              target="_blank" 
+            <a
+              href="https://zalo.me/0966201140"
+              target="_blank"
               rel="noopener noreferrer"
               className="btn btn-success btn-lg"
             >
@@ -1019,7 +1264,7 @@ const removeAccents = (str) =>
       {/* Modal phóng to ảnh */}
       {modalImage && (
         <div className="modal-overlay" onClick={() => setModalImage(null)}>
-          <img src={modalImage} alt="Enlarged" className="img-fluid rounded"/>
+          <img src={modalImage} alt="Enlarged" className="img-fluid rounded" />
         </div>
       )}
     </section>
@@ -1034,7 +1279,7 @@ function SparePartsComponent() {
       price: "400.000",
       image: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760870151/9-1_n%E1%BB%91i_nhanh_KTM_gsouip.jpg",
       description: "Bộ nối nhanh 3/8 đặc biệt chuyên dùng KTM - Lắp Trên Van KTM 1 đầu đực + 1 đầu cái",
-      category:"Khớp nối"
+      category: "Khớp nối"
     },
     {
       id: 2,
@@ -1094,13 +1339,13 @@ function SparePartsComponent() {
   // Logic tạo suggestions - search linh hoạt
   const getSuggestions = () => {
     if (!searchTerm || searchTerm.trim().length < 2) return [];
-    
+
     // Filter theo category trước
     let filteredByCategory = spareParts;
     if (selectedCategory !== "Tất cả") {
       filteredByCategory = spareParts.filter(part => part.category === selectedCategory);
     }
-    
+
     // Search linh hoạt - tìm kiếm trong tên và mô tả (có bỏ dấu)
     const searchNormalized = removeAccents(searchTerm).toLowerCase();
     const suggestions = filteredByCategory
@@ -1116,7 +1361,7 @@ function SparePartsComponent() {
         price: part.price,
         category: part.category
       }));
-    
+
     return suggestions;
   };
 
@@ -1124,17 +1369,17 @@ function SparePartsComponent() {
 
   const filteredParts = spareParts.filter(part => {
     const matchesCategory = selectedCategory === "Tất cả" || part.category === selectedCategory;
-    
+
     if (!searchTerm || searchTerm.trim().length === 0) {
       return matchesCategory;
     }
-    
+
     // Search linh hoạt - tìm kiếm trong tên và mô tả (có bỏ dấu)
     const searchNormalized = removeAccents(searchTerm).toLowerCase();
     const partNameNormalized = removeAccents(part.name).toLowerCase();
     const partDescNormalized = removeAccents(part.description).toLowerCase();
     const matchesSearch = partNameNormalized.includes(searchNormalized) || partDescNormalized.includes(searchNormalized);
-    
+
     return matchesCategory && matchesSearch;
   });
 
@@ -1180,13 +1425,13 @@ function SparePartsComponent() {
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedSuggestionIndex(prev => 
+        setSelectedSuggestionIndex(prev =>
           prev < suggestions.length - 1 ? prev + 1 : 0
         );
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setSelectedSuggestionIndex(prev => 
+        setSelectedSuggestionIndex(prev =>
           prev > 0 ? prev - 1 : suggestions.length - 1
         );
         break;
@@ -1246,21 +1491,13 @@ function SparePartsComponent() {
                   }
                 }}
               />
-              
-              {/* Debug info */}
-              {console.log('Auto suggest debug:', {
-                searchTerm: searchTerm,
-                searchTermLength: searchTerm.length,
-                suggestions: suggestions,
-                suggestionsLength: suggestions.length,
-                showSuggestions: showSuggestions,
-                shouldShow: searchTerm.length >= 2 && suggestions.length > 0 && showSuggestions
-              })}
-              
+
+              {/* Debug info removed (cleaned up) */}
+
               {/* Auto suggest dropdown */}
               {searchTerm.length >= 2 && suggestions.length > 0 && showSuggestions && (
-                <div 
-                  className="suggestions-dropdown" 
+                <div
+                  className="suggestions-dropdown"
                   style={{
                     position: 'absolute',
                     top: '100%',
@@ -1414,9 +1651,9 @@ function SparePartsComponent() {
           <div className="alert alert-info">
             <h6 className="fw-bold mb-2">💡 Cần tư vấn chọn phụ tùng phù hợp?</h6>
             <p className="mb-3">Chúng tôi có đội ngũ kỹ thuật chuyên nghiệp, sẵn sàng tư vấn miễn phí!</p>
-            <a 
-              href="https://zalo.me/0966201140" 
-              target="_blank" 
+            <a
+              href="https://zalo.me/0966201140"
+              target="_blank"
               rel="noopener noreferrer"
               className="btn btn-success btn-lg"
             >
@@ -1430,7 +1667,7 @@ function SparePartsComponent() {
       {/* Modal phóng to ảnh */}
       {modalImage && (
         <div className="modal-overlay" onClick={() => setModalImage(null)}>
-          <img src={modalImage} alt="Enlarged" className="img-fluid rounded"/>
+          <img src={modalImage} alt="Enlarged" className="img-fluid rounded" />
         </div>
       )}
     </section>
@@ -1455,7 +1692,7 @@ function ProductVanTay() {
           <p className="text-muted">Điều khiển xy lanh nâng – hạ – gập – trượt phù hợp nhiều dòng máy</p>
         </div>
 
-         {/* ===== DESKTOP: show when ≥992px ===== */}
+        {/* ===== DESKTOP: show when ≥992px ===== */}
         <div className="d-none d-md-block">
           <div className="row align-items-center">
             {/* ảnh + nút Zalo */}
@@ -1494,7 +1731,7 @@ function ProductVanTay() {
                       {/* <button className="btn btn-outline-primary">
                         Mua
                       </button> */}
-                       <a
+                      <a
                         href="https://zalo.me/0966201140"
                         target="_blank"
                         rel="noopener noreferrer"
@@ -1508,7 +1745,7 @@ function ProductVanTay() {
               </div>
             </div>
           </div>
-        </div> 
+        </div>
 
         {/* ===== MOBILE ===== */}
         <div className="d-block d-lg-none">
@@ -1545,66 +1782,66 @@ function ProductVanTay() {
 }
 
 
-function CustomerReviews({innerRef } ) {
-    const reviews = [
-        {
-            name: "Nguyễn Văn Hùng",
-            role: "Kỹ sư cơ khí",
-            avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-            rating: 5,
-            comment: "Sản phẩm chất lượng cao, lắp vừa máy, không rò rỉ dầu. Đã mua và sử dụng trong 6 tháng, rất hài lòng."
-        },
-        {
-            name: "Trần Thị Mai",
-            role: "Chủ xưởng cơ khí",
-            avatar: "https://randomuser.me/api/portraits/women/45.jpg",
-            rating: 5,
-            comment: "Ty xy lanh KTM có độ bền cao, chịu áp lực tốt. Đội ngũ tư vấn nhiệt tình, giao hàng nhanh."
-        },
-        {
-            name: "Phạm Văn Lợi",
-            role: "Kỹ thuật viên",
-            avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-            rating: 4,
-            comment: "Sản phẩm tốt, giá cả hợp lý. Đã thay thế cho máy xúc đào và hoạt động ổn định trong điều kiện khắc nghiệt."
-        }
-    ];
-    
-    return (
-        <section ref={innerRef} className="py-5 bg-light">
-            <div className="container">
-                <div className="text-center mb-5 fade-up">
-                    <h2 className="fw-bold">Khách hàng đánh giá</h2>
-                    <p className="text-muted">Những ý kiến từ khách hàng đã sử dụng sản phẩm</p>
+function CustomerReviews({ innerRef }) {
+  const reviews = [
+    {
+      name: "Nguyễn Văn Hùng",
+      role: "Kỹ sư cơ khí",
+      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+      rating: 5,
+      comment: "Sản phẩm chất lượng cao, lắp vừa máy, không rò rỉ dầu. Đã mua và sử dụng trong 6 tháng, rất hài lòng."
+    },
+    {
+      name: "Trần Thị Mai",
+      role: "Chủ xưởng cơ khí",
+      avatar: "https://randomuser.me/api/portraits/women/45.jpg",
+      rating: 5,
+      comment: "Ty xy lanh KTM có độ bền cao, chịu áp lực tốt. Đội ngũ tư vấn nhiệt tình, giao hàng nhanh."
+    },
+    {
+      name: "Phạm Văn Lợi",
+      role: "Kỹ thuật viên",
+      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+      rating: 4,
+      comment: "Sản phẩm tốt, giá cả hợp lý. Đã thay thế cho máy xúc đào và hoạt động ổn định trong điều kiện khắc nghiệt."
+    }
+  ];
+
+  return (
+    <section ref={innerRef} className="py-5 bg-light">
+      <div className="container">
+        <div className="text-center mb-5 fade-up">
+          <h2 className="fw-bold">Khách hàng đánh giá</h2>
+          <p className="text-muted">Những ý kiến từ khách hàng đã sử dụng sản phẩm</p>
+        </div>
+
+        <div className="row g-4">
+          {reviews.map((review, index) => (
+            <div key={index} className="col-md-4 fade-up" style={{ transitionDelay: `${0.1 * index}s` }}>
+              <div className="customer-review card p-4 h-100">
+                <div className="d-flex align-items-center mb-3">
+                  <img src={review.avatar} alt={review.name} className="avatar me-3" />
+                  <div>
+                    <h5 className="mb-0">{review.name}</h5>
+                    <p className="text-muted small mb-0">{review.role}</p>
+                  </div>
                 </div>
-                
-                <div className="row g-4">
-                    {reviews.map((review, index) => (
-                        <div key={index} className="col-md-4 fade-up" style={{transitionDelay: `${0.1 * index}s`}}>
-                            <div className="customer-review card p-4 h-100">
-                                <div className="d-flex align-items-center mb-3">
-                                    <img src={review.avatar} alt={review.name} className="avatar me-3" />
-                                    <div>
-                                        <h5 className="mb-0">{review.name}</h5>
-                                        <p className="text-muted small mb-0">{review.role}</p>
-                                    </div>
-                                </div>
-                                <div className="mb-2">
-                                    {[...Array(5)].map((_, i) => (
-                                        <i 
-                                            key={i} 
-                                            className={`fas fa-star ${i < review.rating ? 'text-warning' : 'text-muted'}`}
-                                        ></i>
-                                    ))}
-                                </div>
-                                <p className="mb-0">{review.comment}</p>
-                            </div>
-                        </div>
-                    ))}
+                <div className="mb-2">
+                  {[...Array(5)].map((_, i) => (
+                    <i
+                      key={i}
+                      className={`fas fa-star ${i < review.rating ? 'text-warning' : 'text-muted'}`}
+                    ></i>
+                  ))}
                 </div>
+                <p className="mb-0">{review.comment}</p>
+              </div>
             </div>
-        </section>
-    );
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 
@@ -1890,25 +2127,25 @@ function MiniGameModal() {
   //   const { name, phone } = formData;
   //   if (!name || !phone) return setError("Vui lòng nhập đủ thông tin");
   //   if (!validatePhone(phone)) return setError("Số điện thoại không hợp lệ");
-  
-    // try {
-    //   // Gửi dữ liệu lên Google Sheet thông qua SheetDB
-    //   const response = await fetch("https://sheetdb.io/api/v1/br3yxz6v6al06", {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({
-    //       data: {
-    //         Name: name,
-    //         Phone: phone,
-    //       },
-    //     }),
-    //   });
-      
-  
-    //   if (!response.ok) {
-    //     throw new Error("Gửi dữ liệu thất bại");
-    //   }
-  
+
+  // try {
+  //   // Gửi dữ liệu lên Google Sheet thông qua SheetDB
+  //   const response = await fetch("https://sheetdb.io/api/v1/br3yxz6v6al06", {
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json" },
+  //     body: JSON.stringify({
+  //       data: {
+  //         Name: name,
+  //         Phone: phone,
+  //       },
+  //     }),
+  //   });
+
+
+  //   if (!response.ok) {
+  //     throw new Error("Gửi dữ liệu thất bại");
+  //   }
+
   //     // Nếu thành công, tiếp tục game
   //     setError("");
   //     setStep(2); // sang bước puzzle
@@ -1917,7 +2154,7 @@ function MiniGameModal() {
   //     setError("Có lỗi xảy ra, vui lòng thử lại sau.");
   //   }
   // };
-  
+
 
   // const handlePuzzleComplete = () => {
   //   const codes = ["KM10%", "KM5%", "FREESHIP", "QUA-TANG", "SALE2025"];
@@ -1928,13 +2165,13 @@ function MiniGameModal() {
   const getRandomCode = () => {
     return discountCodes[Math.floor(Math.random() * discountCodes.length)];
   };
-  
+
   const handlePuzzleComplete = () => {
     const random = getRandomCode();
     setCode(random);
     setStep(3);
   };
-  
+
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
@@ -1944,19 +2181,19 @@ function MiniGameModal() {
   return (
     step !== null && (
       <div className="modal-overlay-full">
-         {/* ✅ Canvas pháo hoa full màn */}
-      <canvas
-        id="confetti-canvas"
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          pointerEvents: "none",
-          zIndex: 9999,
-        }}
-      ></canvas>
+        {/* ✅ Canvas pháo hoa full màn */}
+        <canvas
+          id="confetti-canvas"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            pointerEvents: "none",
+            zIndex: 9999,
+          }}
+        ></canvas>
         <div className="modal-box p-4 bg-white rounded shadow position-relative">
           <button className=" btn-sm btn-danger position-absolute top-0 end-0 button-close-margin" onClick={() => setStep(null)}>&times;</button>
 
@@ -1989,7 +2226,7 @@ function MiniGameModal() {
 
           {step === 3 && (
             <ScratchCard code={code} onDone={() => setScratchDone(true)} />
-             // <SlotMachine />
+            // <SlotMachine />
             //  <LuckyWheel />
           )}
 
@@ -2325,7 +2562,7 @@ function MemoryMatchGame({ onWin }) {
 //     if (platform === "fb") window.open("https://facebook.com/profile.php?id=61574648098644", "_blank");
 //     if (platform === "tiktok") window.open("https://www.tiktok.com/@nongcubaduc", "_blank");
 //     if (platform === "youtube") window.open("https://www.youtube.com/@nongcubaduc", "_blank");
-  
+
 //   };
 
 //   return (
@@ -2412,15 +2649,15 @@ function SlotMachine({ setStep, formData }) {
       const shuffled = images.sort(() => 0.5 - Math.random());
       final = [shuffled[0], shuffled[1], shuffled[2]];
     }
-  
+
     setSlots(final);
     setSpinsUsed((prev) => prev + 1);
     setSpinning(false);
-  
+
     if (final[0].name === final[1].name && final[1].name === final[2].name) {
       const gift = final[0].prize;
       setResult(`🎉 Xin chúc mừng bạn đã trúng: ${gift}! Vui lòng liên hệ fb hoặc zalo để nhận thưởng nhé bạn`);
-  
+
       // Bắn pháo hoa
       const canvas = document.getElementById("confetti-canvas");
       if (canvas) {
@@ -2435,7 +2672,7 @@ function SlotMachine({ setStep, formData }) {
           }, i * 1000);
         }
       }
-  
+
       try {
         await fetch("https://sheetdb.io/api/v1/br3yxz6v6al06", {
           method: "POST",
@@ -2451,13 +2688,13 @@ function SlotMachine({ setStep, formData }) {
       } catch (error) {
         console.error("Lỗi khi lưu vào sheet:", error);
       }
-  
+
       setTimeout(() => setStep(null), 25000);
     } else {
       setResult("💔 Không trúng thưởng, thử lại nhé!");
     }
   };
-  
+
   const spin = () => {
     if (spinning || spinsLeft <= 0) return;
 
@@ -2539,7 +2776,7 @@ function SlotMachine({ setStep, formData }) {
         //     } catch (error) {
         //       console.error("Lỗi khi lưu vào sheet:", error);
         //     }
-          
+
         //   setTimeout(() => setStep(null), 25000); // đóng modal
         // } else {
         //   setResult("💔 Không trúng thưởng, thử lại nhé!");
@@ -2622,7 +2859,7 @@ function SlotMachine({ setStep, formData }) {
                 <i className="fab fa-youtube"></i> YouTube
               </button>
             )}
-             {!bonusClaimed.tiktok && (
+            {!bonusClaimed.tiktok && (
               <button
                 className="btn btn-outline-dark"
                 onClick={() => claimBonus("tiktok")}
@@ -2662,26 +2899,26 @@ function LuckyWheel() {
 
   const spinWheel = () => {
     if (isSpinning) return;
-  
+
     const newIndex = getRandomIndexWithWeight(prizes.length);
     const anglePerSlice = 360 / prizes.length;
-  
+
     // Góc cần quay sao cho trung tâm slice trúng nằm tại 270° (trên đầu)
     const sliceCenterAngle = newIndex * anglePerSlice + anglePerSlice / 2;
     const baseAngle = 270; // mũi tên nằm ở top
     const totalRotation = 360 * 5 + (baseAngle - sliceCenterAngle);
-  
+
     setPrizeIndex(newIndex);
     setRotation((prev) => prev + totalRotation);
     setIsSpinning(true);
-  
+
     setTimeout(() => {
       setResult(prizes[newIndex].label);
       setIsSpinning(false);
     }, 4000);
   };
-  
-  
+
+
 
   const getRandomIndexWithWeight = (length) => {
     const weights = [2, 10, 1, 1, 2, 1];
@@ -3002,7 +3239,7 @@ function FooterCompany() {
 
           <div style={{ marginTop: "20px" }}>
             <span style={{ color: "#0000ff", fontWeight: "bold" }}>Kythuatmay.vn</span>
-            <br/>
+            <br />
             <span style={{ color: "#0000ff", fontWeight: "bold" }}>Thuyluc.shop</span>
           </div>
 
