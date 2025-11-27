@@ -168,7 +168,7 @@ function GlobalSearchBar() {
                   type="button"
                   onClick={clearSearch}
                 >
-                  <i className="fas fa-times"></i>
+                  <i className="fas fa-trash text-danger"></i>
                 </button>
               )}
 
