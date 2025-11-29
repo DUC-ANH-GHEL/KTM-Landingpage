@@ -25,13 +25,6 @@ const SEARCH_PRODUCTS = [
 
   // ================== COMBO VAN 1 TAY ==================
   {
-    id: 'combo-van1-1',
-    name: 'Combo Van 1 tay + 1 xylanh ủi',
-    price: '5.000.000đ',
-    image: 'https://res.cloudinary.com/diwxfpt92/image/upload/v1751807509/74_combo_van_1_tay_1_xylanh_%E1%BB%A7i_gvf1t1.jpg',
-    category: 'Combo Van 1 tay'
-  },
-  {
     id: 'combo-van1-2',
     name: 'Combo Van 1 tay + 1 xylanh nghiêng/giữa',
     price: '4.750.000đ',
@@ -45,8 +38,22 @@ const SEARCH_PRODUCTS = [
     image: 'https://res.cloudinary.com/diwxfpt92/image/upload/v1760762522/COMBO_VAN_1_TAY_1_TY_GI%E1%BB%AEA_KTM_ulsy1c.jpg',
     category: 'Combo Van 1 tay'
   },
+  {
+    id: 'combo-van1-1',
+    name: 'Combo Van 1 tay + 1 xylanh ủi',
+    price: '5.000.000đ',
+    image: 'https://res.cloudinary.com/diwxfpt92/image/upload/v1751807509/74_combo_van_1_tay_1_xylanh_%E1%BB%A7i_gvf1t1.jpg',
+    category: 'Combo Van 1 tay'
+  },
 
   // ================== COMBO VAN 2 TAY ==================
+  {
+    id: 'combo-van2-3',
+    name: 'Combo van 2 tay 2 ty nghiêng giữa KTM',
+    price: '7.300.000đ',
+    image: 'https://res.cloudinary.com/diwxfpt92/image/upload/v1760762120/combo_van_2_tay_2_ty_nghi%C3%AAng_gi%E1%BB%AFa_KTM_bwpf3o.jpg',
+    category: 'Combo Van 2 tay'
+  },
   {
     id: 'combo-van2-1',
     name: 'Combo van 2 tay 1 ty nghiêng ktm',
@@ -59,13 +66,6 @@ const SEARCH_PRODUCTS = [
     name: 'Combo van 2 tay 1 ty giữa ktm',
     price: '5.080.000đ',
     image: 'https://res.cloudinary.com/diwxfpt92/image/upload/v1760762402/combo_van_2_tay_1_ty_gi%E1%BB%AFa_KTM_e6ssao.jpg',
-    category: 'Combo Van 2 tay'
-  },
-  {
-    id: 'combo-van2-3',
-    name: 'Combo van 2 tay 2 ty nghiêng giữa KTM',
-    price: '7.300.000đ',
-    image: 'https://res.cloudinary.com/diwxfpt92/image/upload/v1760762120/combo_van_2_tay_2_ty_nghi%C3%AAng_gi%E1%BB%AFa_KTM_bwpf3o.jpg',
     category: 'Combo Van 2 tay'
   },
 
