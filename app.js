@@ -265,8 +265,8 @@ function App() {
       <Header />
       <GlobalSearchBar />
       <HeroSection />
-      <ProductShowcaseTabs />
       <ProductList />
+      <ProductShowcaseTabs />
       <HydraulicBladeProducts />
       <ProductVanTay />
       <SparePartsComponent />
@@ -398,7 +398,7 @@ function ProductList() {
   const [timeLeft, setTimeLeft] = useState("");
   const [isPromoOver, setIsPromoOver] = useState(false);
   const [showUrgencyPopup, setShowUrgencyPopup] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState(new Set(['van1tay'])); // Mở sẵn nhóm đầu tiên
+  const [expandedGroups, setExpandedGroups] = useState(new Set(['van2tay'])); // Mở sẵn nhóm đầu tiên
   const [modalImage, setModalImage] = useState(null); // Thêm state cho modal ảnh
 
   const deadline = new Date("2025-05-07T18:20:00");
@@ -435,6 +435,34 @@ function ProductList() {
 
   // Nhóm sản phẩm theo loại van
   const productGroups = {
+    
+    van2tay: {
+      title: "🔧 Combo Van 2 Tay",
+      subtitle: "Điều khiển linh hoạt, phù hợp mọi loại máy",
+      products: [
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762120/combo_van_2_tay_2_ty_nghi%C3%AAng_gi%E1%BB%AFa_KTM_bwpf3o.jpg",
+          name: "Combo van 2 tay 2 ty nghiêng giữa KTM",
+          desc: "Bộ van 2 tay KTM + 1 xylanh nghiêng + 1 xylanh giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp",
+          price: "7.300.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762121/combo_van_2_tay_1_ty_nghi%C3%AAng_ktm_eumive.jpg",
+          name: "Combo van 2 tay 1 ty nghiêng ktm",
+          desc: "Bộ van 2 tay KTM + 1 xylanh nghiêng chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt",
+          price: "5.080.000đ",
+          promo: false
+        },
+        {
+          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762402/combo_van_2_tay_1_ty_gi%E1%BB%AFa_KTM_e6ssao.jpg",
+          name: "Combo van 2 tay 1 ty giữa ktm",
+          desc: "Bộ van 2 tay KTM + 1 xylanh giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt",
+          price: "5.080.000đ",
+          promo: false
+        }
+      ]
+    },
     van1tay: {
       title: "🔧 Combo Van 1 Tay",
       subtitle: "Điều khiển đơn giản, phù hợp máy nhỏ",
@@ -458,33 +486,6 @@ function ProductList() {
           name: "Combo Van 1 tay + 1 xylanh nghiêng/giữa",
           desc: "Bộ van 1 tay KTM + 1 xylanh nghiêng hoặc giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp",
           price: "4.750.000đ",
-          promo: false
-        }
-      ]
-    },
-    van2tay: {
-      title: "🔧 Combo Van 2 Tay",
-      subtitle: "Điều khiển linh hoạt, phù hợp mọi loại máy",
-      products: [
-        {
-          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762121/combo_van_2_tay_1_ty_nghi%C3%AAng_ktm_eumive.jpg",
-          name: "Combo van 2 tay 1 ty nghiêng ktm",
-          desc: "Bộ van 2 tay KTM + 1 xylanh nghiêng chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt",
-          price: "5.080.000đ",
-          promo: false
-        },
-        {
-          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762402/combo_van_2_tay_1_ty_gi%E1%BB%AFa_KTM_e6ssao.jpg",
-          name: "Combo van 2 tay 1 ty giữa ktm",
-          desc: "Bộ van 2 tay KTM + 1 xylanh giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp - Van có lọc mạt",
-          price: "5.080.000đ",
-          promo: false
-        },
-        {
-          img: "https://res.cloudinary.com/diwxfpt92/image/upload/v1760762120/combo_van_2_tay_2_ty_nghi%C3%AAng_gi%E1%BB%AFa_KTM_bwpf3o.jpg",
-          name: "Combo van 2 tay 2 ty nghiêng giữa KTM",
-          desc: "Bộ van 2 tay KTM + 1 xylanh nghiêng + 1 xylanh giữa chống tụt + đủ phụ kiện dây ren giá đỡ sẵn lắp",
-          price: "7.300.000đ",
           promo: false
         }
       ]
