@@ -810,6 +810,108 @@ body {
   z-index: 100000 !important;
 }
 
+/* ================== AI CHAT WIDGET ================== */
+
+/* Nút chat AI (bubble trên Zalo) */
+.btn-ai-chat {
+  background: linear-gradient(135deg, #6a11cb, #2575fc);
+  color: #fff;
+  border: none;
+}
+
+.btn-ai-chat i {
+  color: #fff;
+}
+
+/* Widget chat AI */
+.ai-chat-widget {
+  position: fixed;
+  bottom: 90px;          /* cao hơn cụm icon Zalo/Messenger */
+  right: 20px;
+  width: 320px;
+  max-width: 95vw;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  z-index: 1100;         /* cao hơn .floating-social (999) */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 0.9rem;
+}
+
+/* Header chat */
+.ai-chat-header {
+  background: linear-gradient(135deg, #6a11cb, #2575fc);
+  color: #fff;
+}
+
+.ai-chat-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Body chat */
+.ai-chat-body {
+  max-height: 260px;
+  overflow-y: auto;
+  padding-bottom: 8px;
+  background: #f8f9fa;
+}
+
+/* Bố cục tin nhắn */
+.ai-chat-message {
+  display: flex;
+  margin-bottom: 6px;
+}
+
+.ai-chat-message-assistant {
+  justify-content: flex-start;
+}
+
+.ai-chat-message-user {
+  justify-content: flex-end;
+}
+
+.ai-chat-bubble {
+  border-radius: 12px;
+  padding: 6px 10px;
+  max-width: 90%;
+  line-height: 1.4;
+  font-size: 0.88rem;
+  white-space: pre-wrap;
+}
+
+.ai-chat-message-assistant .ai-chat-bubble {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.ai-chat-message-user .ai-chat-bubble {
+  background: #0d6efd;
+  color: #ffffff;
+}
+
+/* Khu nhập liệu */
+.ai-chat-input textarea {
+  resize: none;
+  max-height: 80px;
+}
+
+/* Mobile tối ưu */
+@media (max-width: 768px) {
+  .ai-chat-widget {
+    width: 95vw;
+    right: 2.5vw;
+    bottom: 80px;
+  }
+}
+
 
 
 
