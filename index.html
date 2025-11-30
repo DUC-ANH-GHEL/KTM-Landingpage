@@ -74,8 +74,20 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.10/babel.min.js"></script>
 
-  <!-- React App Code -->
+  <!-- Data -->
   <script type="text/babel" src="searchData.js"></script>
+  
+  <!-- Components (load order matters) -->
+  <script type="text/babel" src="components/ImageModal.js"></script>
+  <script type="text/babel" src="components/AiChatWidget.js"></script>
+  <script type="text/babel" src="components/GlobalSearchBar.js"></script>
+  <script type="text/babel" src="components/Layout.js"></script>
+  <script type="text/babel" src="components/ProductShowcase.js"></script>
+  <script type="text/babel" src="components/ProductComponents.js"></script>
+  <script type="text/babel" src="components/MediaComponents.js"></script>
+  <script type="text/babel" src="components/MiniGame.js"></script>
+  
+  <!-- Main App (uses all components above) -->
   <script type="text/babel" src="app.js"></script>
   
   <!-- Animation Libraries -->
