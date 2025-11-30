@@ -7,8 +7,16 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// Middleware
-app.use(cors());
+// Middleware - CORS mở rộng cho phép mọi origin
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Handle preflight requests
+app.options('*', cors());
+
 app.use(express.json());
 
 // Helper: build prompt từ products + question
