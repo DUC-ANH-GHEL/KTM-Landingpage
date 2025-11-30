@@ -128,7 +128,10 @@ function AiChatWidget({ onClose }) {
 
 // Gọi backend Vercel serverless để chat AI
 async function callGeminiWithProducts(question) {
-  const API_URL = "/api/chat-ai"; // Relative path cho Vercel
+  // Local: http://localhost:4000/api/chat-ai
+  // Production: /api/chat-ai
+  const API_URL =  "http://localhost:4000/api/chat-ai" ;
+  // const API_URL = "/api/chat-ai";
 
   const payload = {
     question,
