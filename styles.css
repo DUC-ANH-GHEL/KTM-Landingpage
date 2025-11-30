@@ -971,6 +971,81 @@ body {
   }
 }
 
+/* AlbumGallery styles */
+.album-preview { cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+.album-preview:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+
+/* Folder card in modal */
+.album-folder-card { cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+.album-folder-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.12); border-color: #ffc107; }
+
+.album-modal-overlay {
+  position: fixed;
+  z-index: 2000;
+  left: 0; top: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.album-modal-content {
+  width: 95%;
+  max-width: 1100px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+}
+
+@media (max-width: 576px) {
+  .album-modal-overlay {
+    padding: 10px;
+    align-items: flex-start;
+  }
+  .album-modal-content {
+    width: 100%;
+    max-height: none;
+    min-height: auto;
+    padding: 12px;
+    border-radius: 8px;
+  }
+}
+
+/* Masonry-like columns */
+.album-masonry {
+  column-count: 3;
+  column-gap: 12px;
+}
+@media (max-width: 992px) { .album-masonry { column-count: 2; } }
+@media (max-width: 576px) { 
+  .album-masonry { 
+    column-count: 1; 
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  } 
+}
+
+.album-masonry-item {
+  break-inside: avoid;
+  margin-bottom: 12px;
+  background: #fff;
+  padding: 0;
+}
+.album-masonry-item img { width: 100%; display: block; border-radius: 8px; cursor: zoom-in; }
+
+/* image fallback modal */
+.image-fallback-modal {
+  position: fixed; inset: 0; display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.7);z-index:2100;
+}
+.image-fallback-modal img { max-width: 95%; max-height: 85%; }
+.image-fallback-modal .btn-close { position:absolute; top:12px; right:12px; background:#fff; border-radius:20px; padding:6px 10px; border:0; font-size:20px; cursor:pointer; }
+
 
 
 

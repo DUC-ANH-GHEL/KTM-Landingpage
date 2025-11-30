@@ -567,8 +567,9 @@ function App() {
       <ProductList />
       <ProductShowcaseTabs />
       <HydraulicBladeProducts />
-      <ProductVanTay />
-      <SparePartsComponent />
+      {/* <ProductVanTay /> */}
+      {/* <SparePartsComponent /> */}
+      <AlbumGallery />
       <InstructionVideos />
       <YoutubeShortsSection onOpen={() => setShowShortsModal(true)} />
       {showShortsModal && <YoutubeShortsModal onClose={() => setShowShortsModal(false)} />}
