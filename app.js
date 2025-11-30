@@ -130,8 +130,8 @@ function AiChatWidget({ onClose }) {
 async function callGeminiWithProducts(question) {
   // Local: http://localhost:4000/api/chat-ai
   // Production: /api/chat-ai
-  const API_URL =  "http://localhost:4000/api/chat-ai" ;
-  // const API_URL = "/api/chat-ai";
+  // const API_URL =  "http://localhost:4000/api/chat-ai" ;
+  const API_URL = "/api/chat-ai";
 
   const payload = {
     question,
