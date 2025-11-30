@@ -901,6 +901,7 @@ body {
 .ai-chat-input textarea {
   resize: none;
   max-height: 80px;
+  font-size: 16px; /* Ngăn mobile auto-zoom khi focus */
 }
 
 /* Mobile tối ưu */
@@ -909,6 +910,12 @@ body {
     width: 95vw;
     right: 2.5vw;
     bottom: 80px;
+  }
+  
+  /* Fix mobile zoom khi focus input */
+  .ai-chat-input textarea,
+  .ai-chat-input input {
+    font-size: 16px !important;
   }
 }
 
