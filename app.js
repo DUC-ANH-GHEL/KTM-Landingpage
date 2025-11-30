@@ -126,17 +126,13 @@ function AiChatWidget({ onClose }) {
   );
 }
 
-// Gọi backend Node/Express để chat AI (backend sẽ gọi Gemini)
+// Gọi backend Vercel serverless để chat AI
 async function callGeminiWithProducts(question) {
-  // Nếu backend chạy cùng domain, cùng server với web:
-  // const API_URL = "http://localhost:4000/api/chat-ai"; 
-  const API_URL = "https://thuyluc.shop/api/chat-ai"; 
-  // Khi deploy thật, đổi thành domain backend của bạn,
-  // hoặc nếu reverse proxy /api/chat-ai về backend thì chỉ cần "/api/chat-ai"
+  const API_URL = "/api/chat-ai"; // Relative path cho Vercel
 
   const payload = {
     question,
-    products: SEARCH_PRODUCTS // gửi toàn bộ data sản phẩm sang backend để build prompt
+    products: SEARCH_PRODUCTS
   };
 
   const res = await fetch(API_URL, {
