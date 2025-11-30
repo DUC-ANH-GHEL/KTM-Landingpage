@@ -4,9 +4,9 @@ const fetch = require('node-fetch');
 const { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_API_URL } = require('../config');
 
 /**
- * Build prompt từ câu hỏi và danh sách sản phẩm
+ * Build system prompt với danh sách sản phẩm
  */
-function buildPrompt(question, products = []) {
+function buildSystemPrompt(products = []) {
   const productLines = products.map((p) => {
     const codePart = p.code ? ` (mã ${p.code})` : '';
     const pricePart = p.price ? ` - giá ${p.price}` : ' - chưa có giá';
@@ -14,42 +14,75 @@ function buildPrompt(question, products = []) {
   });
 
   return `
-Bạn là trợ lý bán hàng cho Thủy Lực KTM.
+Bạn là trợ lý bán hàng AI cho Thủy Lực KTM - chuyên thiết bị thủy lực.
 
-NHIỆM VỤ:
-- Trả lời 100% dựa trên danh sách sản phẩm & giá bên dưới (KHÔNG bịa thêm sản phẩm / giá).
-- Nếu khách hỏi giá 1 sản phẩm: trả lời rõ tên + giá.
-- Nếu khách hỏi tổng tiền nhiều sản phẩm: 
-  + Nêu rõ từng sản phẩm + giá.
-  + Viết phép cộng (vd: 5.000.000đ + 7.300.000đ = 12.300.000đ).
-- Nếu không tìm thấy sản phẩm trong danh sách: nói thẳng là hiện chưa có sản phẩm đó trong data.
-- Luôn trả lời ngắn gọn, dễ hiểu, tiếng Việt.
+QUY TẮC BẮT BUỘC:
+1. Trả lời 100% dựa trên danh sách sản phẩm bên dưới (KHÔNG bịa thêm sản phẩm / giá).
+2. Nếu không tìm thấy chính xác, hãy gợi ý sản phẩm có tên TƯƠNG TỰ hoặc LIÊN QUAN.
+3. Luôn trả lời ngắn gọn, dễ hiểu, bằng tiếng Việt.
 
-DANH SÁCH SẢN PHẨM (tên + mã (nếu có) + giá):
+KỸ NĂNG TÌM KIẾM THÔNG MINH:
+- Hiểu từ viết tắt và từ không đầy đủ: "xy" = "xy lanh", "ben" = "ben thủy lực", "bơm" = có thể là "bơm tay" hoặc "bơm điện"
+- Hiểu từ đồng nghĩa: "giá" = "bao nhiêu tiền", "mua" = "đặt hàng"
+- Khi khách hỏi mơ hồ (vd: "xy" hoặc "van"), liệt kê TẤT CẢ sản phẩm có chứa từ đó.
+
+CÁCH TRẢ LỜI:
+- Hỏi giá 1 sản phẩm: trả lời rõ tên + giá.
+- Hỏi tổng tiền nhiều sản phẩm: nêu từng sản phẩm + giá, rồi viết phép cộng.
+- Nếu không tìm thấy: nói rõ "Không tìm thấy sản phẩm [X] trong danh sách. Có thể bạn muốn hỏi về [gợi ý]?"
+
+NHỚ LỊCH SỬ CHAT:
+- Dựa vào ngữ cảnh cuộc trò chuyện trước đó để hiểu câu hỏi hiện tại.
+- Nếu khách nói "cái đó", "sản phẩm đó", "nó" → hiểu là sản phẩm vừa nhắc đến.
+- Nếu khách nói "thêm cái này", "tổng lại" → cộng dồn với sản phẩm đã hỏi trước.
+
+DANH SÁCH SẢN PHẨM:
 ${productLines.join('\n')}
-
-CÂU HỎI CỦA KHÁCH: "${question}"
 `.trim();
 }
 
 /**
  * Gọi Gemini API để lấy câu trả lời
  */
-async function askGemini(question, products = []) {
+async function askGemini(question, products = [], history = []) {
   if (!GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is missing');
   }
 
-  const prompt = buildPrompt(question, products);
+  const systemPrompt = buildSystemPrompt(products);
   const url = `${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
+  // Build contents với system prompt + lịch sử chat
+  const contents = [];
+  
+  // System instruction
+  contents.push({
+    role: 'user',
+    parts: [{ text: systemPrompt + '\n\nHãy trả lời theo hướng dẫn trên. Bắt đầu cuộc trò chuyện.' }]
+  });
+  contents.push({
+    role: 'model',
+    parts: [{ text: 'Đã hiểu! Tôi là trợ lý bán hàng KTM, sẵn sàng hỗ trợ bạn về sản phẩm thủy lực.' }]
+  });
+
+  // Thêm lịch sử chat (nếu có)
+  if (history && Array.isArray(history)) {
+    for (const msg of history) {
+      contents.push({
+        role: msg.role === 'model' ? 'model' : 'user',
+        parts: [{ text: msg.text }]
+      });
+    }
+  }
+
+  // Thêm câu hỏi hiện tại
+  contents.push({
+    role: 'user',
+    parts: [{ text: question }]
+  });
+
   const body = {
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: prompt }]
-      }
-    ],
+    contents,
     generationConfig: {
       temperature: 0.7,
       maxOutputTokens: 1024
@@ -78,6 +111,6 @@ async function askGemini(question, products = []) {
 }
 
 module.exports = {
-  buildPrompt,
+  buildSystemPrompt,
   askGemini
 };

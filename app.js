@@ -30,7 +30,12 @@ function AiChatWidget({ onClose }) {
     setLoading(true);
 
     try {
-      const reply = await callGeminiWithProducts(question);
+      // Gửi kèm lịch sử chat (bỏ tin nhắn đầu tiên - greeting)
+      const historyToSend = newMessages.slice(1).map(m => ({
+        role: m.role === "assistant" ? "model" : "user",
+        text: m.text
+      }));
+      const reply = await callGeminiWithProducts(question, historyToSend);
       setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
     } catch (err) {
       console.error(err);
@@ -105,7 +110,7 @@ function AiChatWidget({ onClose }) {
       <div className="ai-chat-input px-2 py-2 border-top">
         <div className="input-group input-group-sm">
           <textarea
-            rows={1}
+            rows={2}
             className="form-control"
             placeholder="Nhập câu hỏi (vd: tổng 3 combo này bao nhiêu tiền?)"
             value={input}
@@ -127,7 +132,7 @@ function AiChatWidget({ onClose }) {
 }
 
 // Gọi backend Vercel serverless để chat AI
-async function callGeminiWithProducts(question) {
+async function callGeminiWithProducts(question, chatHistory = []) {
   // Local: http://localhost:4000/api/chat-ai
   // Production: /api/chat-ai
   // const API_URL =  "http://localhost:4000/api/chat-ai" ;
@@ -135,7 +140,8 @@ async function callGeminiWithProducts(question) {
 
   const payload = {
     question,
-    products: SEARCH_PRODUCTS
+    products: SEARCH_PRODUCTS,
+    history: chatHistory
   };
 
   const res = await fetch(API_URL, {

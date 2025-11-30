@@ -7,17 +7,17 @@ const router = express.Router();
 
 /**
  * POST /api/chat-ai
- * Body: { question: string, products: array }
+ * Body: { question: string, products: array, history: array }
  */
 router.post('/chat-ai', async (req, res) => {
   try {
-    const { question, products } = req.body || {};
+    const { question, products, history } = req.body || {};
 
     if (!question) {
       return res.status(400).json({ error: 'Missing "question" in body' });
     }
 
-    const reply = await askGemini(question, products || []);
+    const reply = await askGemini(question, products || [], history || []);
     res.json({ reply });
 
   } catch (err) {
