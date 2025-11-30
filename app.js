@@ -154,6 +154,136 @@ async function callGeminiWithProducts(question) {
   return data.reply || "Không nhận được phản hồi từ AI.";
 }
 
+// ================== IMAGE MODAL VỚI LONG-PRESS DOWNLOAD ==================
+function ImageModal({ src, onClose }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const longPressTimer = useRef(null);
+  const touchStartPos = useRef({ x: 0, y: 0 });
+
+  // Xử lý download ảnh
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(src);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      // Lấy tên file từ URL hoặc đặt tên mặc định
+      const fileName = src.split('/').pop().split('?')[0] || 'image.jpg';
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      setShowMenu(false);
+    } catch (err) {
+      console.error('Download error:', err);
+      // Fallback: mở ảnh trong tab mới
+      window.open(src, '_blank');
+    }
+  };
+
+  // Long press start (touch)
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    
+    longPressTimer.current = setTimeout(() => {
+      setMenuPosition({ x: touch.clientX, y: touch.clientY });
+      setShowMenu(true);
+    }, 500); // 500ms long press
+  };
+
+  // Long press end
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+    }
+  };
+
+  // Cancel nếu di chuyển ngón tay
+  const handleTouchMove = (e) => {
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - touchStartPos.current.x);
+    const dy = Math.abs(touch.clientY - touchStartPos.current.y);
+    
+    if (dx > 10 || dy > 10) {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+      }
+    }
+  };
+
+  // Right click cho desktop
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    setMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowMenu(true);
+  };
+
+  // Đóng menu khi click ra ngoài
+  const handleOverlayClick = (e) => {
+    if (showMenu) {
+      setShowMenu(false);
+    } else {
+      onClose();
+    }
+  };
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="modal-overlay" onClick={handleOverlayClick}>
+      <div className="image-modal-container" onClick={(e) => e.stopPropagation()}>
+        <img 
+          src={src} 
+          alt="Enlarged" 
+          className="img-fluid rounded image-modal-img"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchMove={handleTouchMove}
+          onContextMenu={handleContextMenu}
+        />
+        
+        {/* Nút đóng */}
+        <button className="image-modal-close" onClick={onClose}>
+          <i className="fas fa-times"></i>
+        </button>
+
+        {/* Menu context (long press / right click) */}
+        {showMenu && (
+          <div 
+            className="image-modal-menu"
+            style={{ 
+              left: Math.min(menuPosition.x, window.innerWidth - 150),
+              top: Math.min(menuPosition.y, window.innerHeight - 50)
+            }}
+          >
+            <button onClick={handleDownload}>
+              <i className="fas fa-download me-2"></i>
+              Tải ảnh xuống
+            </button>
+          </div>
+        )}
+
+        {/* Hint cho mobile */}
+        <div className="image-modal-hint">
+          <i className="fas fa-hand-pointer me-1"></i>
+          Nhấn giữ để tải ảnh
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ================== THANH SEARCH TỔNG CHO TOÀN TRANG ==================
 function GlobalSearchBar() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -566,9 +696,7 @@ function ProductShowcaseTabs() {
         </div>
 
         {modalImage && (
-          <div className="modal-overlay" onClick={() => setModalImage(null)}>
-            <img src={modalImage} alt="Enlarged" className="img-fluid rounded" />
-          </div>
+          <ImageModal src={modalImage} onClose={() => setModalImage(null)} />
         )}
       </div>
     </section>
@@ -881,9 +1009,7 @@ function ProductList() {
 
       {/* Modal phóng to ảnh */}
       {modalImage && (
-        <div className="modal-overlay" onClick={() => setModalImage(null)}>
-          <img src={modalImage} alt="Enlarged" className="img-fluid rounded" />
-        </div>
+        <ImageModal src={modalImage} onClose={() => setModalImage(null)} />
       )}
     </section>
   );
@@ -1447,9 +1573,7 @@ function HydraulicBladeProducts() {
 
       {/* Modal phóng to ảnh */}
       {modalImage && (
-        <div className="modal-overlay" onClick={() => setModalImage(null)}>
-          <img src={modalImage} alt="Enlarged" className="img-fluid rounded" />
-        </div>
+        <ImageModal src={modalImage} onClose={() => setModalImage(null)} />
       )}
     </section>
   );
@@ -1850,9 +1974,7 @@ function SparePartsComponent() {
 
       {/* Modal phóng to ảnh */}
       {modalImage && (
-        <div className="modal-overlay" onClick={() => setModalImage(null)}>
-          <img src={modalImage} alt="Enlarged" className="img-fluid rounded" />
-        </div>
+        <ImageModal src={modalImage} onClose={() => setModalImage(null)} />
       )}
     </section>
   );
