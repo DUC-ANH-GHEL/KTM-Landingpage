@@ -70,7 +70,19 @@ function InstructionVideos() {
   const [activeVideo, setActiveVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAllFolders, setShowAllFolders] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
   const DISPLAY_LIMIT = 6;
+
+  // Copy link helper
+  const copyVideoLink = (e, video) => {
+    e.stopPropagation();
+    const youtubeId = video.youtubeId || video.url?.match(/embed\/([^?]+)/)?.[1];
+    const url = `https://www.youtube.com/watch?v=${youtubeId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(video.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  };
 
   // Fallback data nếu API fail
   const fallbackFolders = [{
@@ -247,6 +259,15 @@ function InstructionVideos() {
                 <div className="position-absolute bottom-0 start-0 end-0 p-2 text-white small" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
                   {v.title || `Video ${i + 1}`}
                 </div>
+                {/* Copy link button */}
+                <button 
+                  className={`btn btn-sm position-absolute top-0 end-0 m-1 ${copiedId === v.id ? 'btn-success' : 'btn-light'}`}
+                  onClick={(e) => copyVideoLink(e, v)}
+                  title="Copy link YouTube"
+                  style={{ opacity: 0.9 }}
+                >
+                  <i className={`fas ${copiedId === v.id ? 'fa-check' : 'fa-link'}`}></i>
+                </button>
               </div>
             </div>
           ))}
@@ -299,6 +320,15 @@ function InstructionVideos() {
                   <div className="position-absolute bottom-0 start-0 end-0 p-2 text-white small" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
                     {v.title || `Video ${i + 1}`}
                   </div>
+                  {/* Copy link button */}
+                  <button 
+                    className={`btn btn-sm position-absolute top-0 end-0 m-1 ${copiedId === v.id ? 'btn-success' : 'btn-light'}`}
+                    onClick={(e) => copyVideoLink(e, v)}
+                    title="Copy link YouTube"
+                    style={{ opacity: 0.9 }}
+                  >
+                    <i className={`fas ${copiedId === v.id ? 'fa-check' : 'fa-link'}`}></i>
+                  </button>
                 </div>
               </div>
             ))}
