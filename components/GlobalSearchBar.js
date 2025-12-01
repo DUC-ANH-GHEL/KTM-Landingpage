@@ -50,7 +50,7 @@ function GlobalSearchBar() {
 
         if (keywords.length === 1) return searchable.includes(keywords[0]);
         return keywords.every((kw) => searchable.includes(kw));
-      }).slice(0, 8);
+      });
 
       setSuggestions(results);
       setShowSuggestions(results.length > 0);
@@ -170,6 +170,10 @@ function GlobalSearchBar() {
                   className="suggestions-dropdown"
                   style={{ ...dropdownStyle, maxHeight: '60vh', overflowY: 'auto', background: '#fff' }}
                 >
+                  <div className="px-3 py-2 bg-light border-bottom small text-muted">
+                    <i className="fas fa-list me-1"></i>
+                    Tìm thấy <strong className="text-primary">{suggestions.length}</strong> sản phẩm
+                  </div>
                   {suggestions.map((prod, idx) => (
                     <div
                       key={prod.id}

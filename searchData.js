@@ -176,52 +176,52 @@ const SEARCH_PRODUCTS = [
 
   // ================== Van tay ===================
   {
-  id: 'van-1',
-  name: 'Van 1 tay',
-  code: 'V-01',
-  price: '1.900.000 đ',
-  image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/van1_sjzm7p.png',
-  category: 'Van điều khiển'
-},
-{
-  id: 'van-2',
-  name: 'Van 2 tay',
-  code: 'V-02',
-  price: '2.200.000 đ',
-  image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/van2_hogp0r.png',
-  category: 'Van điều khiển'
-},
-{
-  id: 'van-3',
-  name: 'Van 3 tay',
-  code: 'V-03',
-  price: '2.700.000 đ',
-  image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/van3_qettd5.png',
-  category: 'Van điều khiển'
-},
-{
-  id: 'van-4',
-  name: 'Van 4 tay',
-  code: 'V-04',
-  price: '3.200.000 đ',
-  image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538311/van4_bxu8ry.png',
-  category: 'Van điều khiển'
-},
-{
-  id: 'van-5',
-  name: 'Van 5 tay',
-  code: 'V-05',
-  price: '3.600.000 đ',
-  image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/van5_pjllmw.png',
-  category: 'Van điều khiển'
-},
-{
-  id: 'van-6',
-  name: 'Van 6 tay',
-  code: 'V-06',
-  price: '4.100.000 đ',
-  image: 'https://img.icons8.com/color/48/settings.png',
-  category: 'Van điều khiển'
-}
+    id: 'van-1',
+    name: 'Van 1 tay',
+    code: 'V-01',
+    price: '1.900.000 đ',
+    image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/van1_sjzm7p.png',
+    category: 'Van điều khiển'
+  },
+  {
+    id: 'van-2',
+    name: 'Van 2 tay',
+    code: 'V-02',
+    price: '2.200.000 đ',
+    image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/van2_hogp0r.png',
+    category: 'Van điều khiển'
+  },
+  {
+    id: 'van-3',
+    name: 'Van 3 tay',
+    code: 'V-03',
+    price: '2.700.000 đ',
+    image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/van3_qettd5.png',
+    category: 'Van điều khiển'
+  },
+  {
+    id: 'van-4',
+    name: 'Van 4 tay',
+    code: 'V-04',
+    price: '3.200.000 đ',
+    image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538311/van4_bxu8ry.png',
+    category: 'Van điều khiển'
+  },
+  {
+    id: 'van-5',
+    name: 'Van 5 tay',
+    code: 'V-05',
+    price: '3.600.000 đ',
+    image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/van5_pjllmw.png',
+    category: 'Van điều khiển'
+  },
+  {
+    id: 'van-6',
+    name: 'Van 6 tay',
+    code: 'V-06',
+    price: '4.100.000 đ',
+    image: 'https://img.icons8.com/color/48/settings.png',
+    category: 'Van điều khiển'
+  }
 
 ];
