@@ -378,6 +378,7 @@
     function Sidebar({ activeMenu, onMenuChange, onLogout, currentUser }) {
       const menus = [
         { id: 'albums', icon: 'fa-images', label: 'Quản lý Album' },
+        { id: 'videos', icon: 'fa-video', label: 'Quản lý Video' },
         { id: 'products', icon: 'fa-box', label: 'Sản phẩm', disabled: true },
         { id: 'orders', icon: 'fa-shopping-cart', label: 'Đơn hàng', disabled: true },
         { id: 'settings', icon: 'fa-cog', label: 'Cài đặt', disabled: true },
@@ -823,6 +824,333 @@
       );
     }
 
+    // ==================== VIDEO MANAGEMENT ====================
+    
+    // Video List View
+    function VideoList({ onRefresh, showToast }) {
+      const [videos, setVideos] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [showModal, setShowModal] = useState(false);
+      const [editingVideo, setEditingVideo] = useState(null);
+      const [activeCategory, setActiveCategory] = useState('all');
+
+      useEffect(() => {
+        loadVideos();
+      }, []);
+
+      const loadVideos = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`${API_BASE}/api/videos`);
+          const data = await res.json();
+          setVideos(Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.error(err);
+          showToast('Lỗi tải danh sách video', 'danger');
+        }
+        setLoading(false);
+      };
+
+      const handleCreate = () => {
+        setEditingVideo(null);
+        setShowModal(true);
+      };
+
+      const handleEdit = (video) => {
+        setEditingVideo(video);
+        setShowModal(true);
+      };
+
+      const handleSave = async (formData) => {
+        try {
+          const url = editingVideo 
+            ? `${API_BASE}/api/videos/${editingVideo.id}`
+            : `${API_BASE}/api/videos`;
+          
+          const res = await fetch(url, {
+            method: editingVideo ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+          });
+
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Lỗi lưu video');
+          }
+
+          showToast(editingVideo ? 'Cập nhật thành công!' : 'Thêm video thành công!', 'success');
+          setShowModal(false);
+          loadVideos();
+        } catch (err) {
+          showToast(err.message, 'danger');
+        }
+      };
+
+      const handleDelete = async (video) => {
+        if (!confirm(`Xóa video "${video.title}"?`)) return;
+
+        try {
+          await fetch(`${API_BASE}/api/videos/${video.id}`, { method: 'DELETE' });
+          showToast('Đã xóa video', 'success');
+          loadVideos();
+        } catch (err) {
+          showToast('Lỗi xóa video', 'danger');
+        }
+      };
+
+      const copyLink = (video) => {
+        const url = `https://www.youtube.com/watch?v=${video.youtubeId}`;
+        navigator.clipboard.writeText(url).then(() => {
+          showToast('Đã copy link!', 'success');
+        }).catch(() => {
+          showToast('Không thể copy link', 'danger');
+        });
+      };
+
+      const filteredVideos = activeCategory === 'all' 
+        ? videos 
+        : videos.filter(v => v.category === activeCategory);
+
+      const categories = [
+        { id: 'all', label: 'Tất cả', icon: 'fa-list' },
+        { id: 'instruction', label: 'Hướng dẫn', icon: 'fa-book' },
+        { id: 'shorts', label: 'Shorts', icon: 'fa-bolt' }
+      ];
+
+      return (
+        <div>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h4 className="m-0"><i className="fas fa-video me-2 text-warning"></i>Quản lý Video</h4>
+            <button className="btn btn-warning" onClick={handleCreate}>
+              <i className="fas fa-plus me-2"></i>Thêm Video
+            </button>
+          </div>
+
+          {/* Category tabs */}
+          <div className="btn-group mb-4">
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                className={`btn ${activeCategory === cat.id ? 'btn-warning' : 'btn-outline-secondary'}`}
+                onClick={() => setActiveCategory(cat.id)}
+              >
+                <i className={`fas ${cat.icon} me-1`}></i>
+                {cat.label}
+                <span className="badge bg-dark ms-2">
+                  {cat.id === 'all' ? videos.length : videos.filter(v => v.category === cat.id).length}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div className="text-center py-5">
+              <div className="spinner-border text-warning"></div>
+            </div>
+          ) : filteredVideos.length === 0 ? (
+            <div className="text-center py-5">
+              <i className="fas fa-video fa-3x text-muted mb-3"></i>
+              <p className="text-muted">Chưa có video nào</p>
+            </div>
+          ) : (
+            <div className="row g-4">
+              {filteredVideos.map(video => (
+                <div key={video.id} className="col-md-4 col-lg-3">
+                  <div className="card h-100">
+                    <div className="position-relative">
+                      <img 
+                        src={video.thumb} 
+                        className="card-img-top" 
+                        alt={video.title}
+                        style={{ height: '150px', objectFit: 'cover' }}
+                      />
+                      <a 
+                        href={`https://www.youtube.com/watch?v=${video.youtubeId}`}
+                        target="_blank"
+                        className="position-absolute top-50 start-50 translate-middle"
+                      >
+                        <i className="fas fa-play-circle fa-3x text-white" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}></i>
+                      </a>
+                      <span className={`position-absolute top-0 end-0 m-2 badge ${video.category === 'shorts' ? 'bg-danger' : 'bg-primary'}`}>
+                        {video.category === 'shorts' ? 'Short' : 'Video'}
+                      </span>
+                    </div>
+                    <div className="card-body py-2">
+                      <h6 className="card-title small mb-1 text-truncate" title={video.title}>{video.title}</h6>
+                      <small className="text-muted">{video.youtubeId}</small>
+                    </div>
+                    <div className="card-footer bg-transparent border-0 pt-0">
+                      <div className="btn-group btn-group-sm w-100">
+                        <button className="btn btn-outline-primary" onClick={() => copyLink(video)} title="Copy link">
+                          <i className="fas fa-link"></i>
+                        </button>
+                        <button className="btn btn-outline-secondary" onClick={() => handleEdit(video)} title="Sửa">
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        <button className="btn btn-outline-danger" onClick={() => handleDelete(video)} title="Xóa">
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <VideoModal
+            show={showModal}
+            video={editingVideo}
+            onClose={() => setShowModal(false)}
+            onSave={handleSave}
+          />
+        </div>
+      );
+    }
+
+    // Video Modal (Create/Edit)
+    function VideoModal({ show, video, onClose, onSave }) {
+      const [formData, setFormData] = useState({
+        title: '',
+        youtube_url: '',
+        thumbnail_url: '',
+        category: 'instruction',
+        sort_order: 0
+      });
+      const [saving, setSaving] = useState(false);
+      const [previewThumb, setPreviewThumb] = useState('');
+
+      useEffect(() => {
+        if (video) {
+          setFormData({
+            title: video.title || '',
+            youtube_url: `https://www.youtube.com/watch?v=${video.youtubeId}`,
+            thumbnail_url: video.thumb || '',
+            category: video.category || 'instruction',
+            sort_order: video.sortOrder || 0
+          });
+          setPreviewThumb(video.thumb);
+        } else {
+          setFormData({
+            title: '',
+            youtube_url: '',
+            thumbnail_url: '',
+            category: 'instruction',
+            sort_order: 0
+          });
+          setPreviewThumb('');
+        }
+      }, [video, show]);
+
+      const extractYoutubeId = (url) => {
+        const match = url.match(/(?:youtube\.com\/(?:embed\/|watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        return match ? match[1] : null;
+      };
+
+      const handleUrlChange = (url) => {
+        setFormData({ ...formData, youtube_url: url });
+        const videoId = extractYoutubeId(url);
+        if (videoId) {
+          setPreviewThumb(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
+        }
+      };
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        await onSave(formData);
+        setSaving(false);
+      };
+
+      if (!show) return null;
+
+      return (
+        <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">{video ? 'Sửa Video' : 'Thêm Video mới'}</h5>
+                <button type="button" className="btn-close" onClick={onClose}></button>
+              </div>
+              <form onSubmit={handleSubmit}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label">Link YouTube *</label>
+                    <input
+                      type="url"
+                      className="form-control"
+                      value={formData.youtube_url}
+                      onChange={(e) => handleUrlChange(e.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=... hoặc shorts/..."
+                      required
+                    />
+                    <small className="text-muted">Hỗ trợ: youtube.com/watch, youtu.be, youtube.com/shorts</small>
+                  </div>
+
+                  {previewThumb && (
+                    <div className="mb-3 text-center">
+                      <img src={previewThumb} alt="Preview" className="img-fluid rounded" style={{ maxHeight: '150px' }} />
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <label className="form-label">Tiêu đề *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="row">
+                    <div className="col-6 mb-3">
+                      <label className="form-label">Danh mục</label>
+                      <select
+                        className="form-select"
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      >
+                        <option value="instruction">Video hướng dẫn</option>
+                        <option value="shorts">Shorts</option>
+                      </select>
+                    </div>
+                    <div className="col-6 mb-3">
+                      <label className="form-label">Thứ tự</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={formData.sort_order}
+                        onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Thumbnail tùy chỉnh (tùy chọn)</label>
+                    <input
+                      type="url"
+                      className="form-control"
+                      value={formData.thumbnail_url}
+                      onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+                      placeholder="Để trống sẽ dùng thumbnail mặc định của YouTube"
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
+                  <button type="submit" className="btn btn-warning" disabled={saving}>
+                    {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu...</> : 'Lưu'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ==================== MAIN APP ====================
     function AdminApp() {
       const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -1003,6 +1331,12 @@
                 album={selectedAlbum}
                 onBack={() => setSelectedAlbum(null)}
                 onRefresh={loadAlbums}
+                showToast={showToast}
+              />
+            )}
+
+            {activeMenu === 'videos' && (
+              <VideoList
                 showToast={showToast}
               />
             )}

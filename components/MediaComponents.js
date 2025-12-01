@@ -64,10 +64,13 @@ function CustomerReviews({ innerRef }) {
 }
 
 function InstructionVideos() {
-  const { useState } = React;
+  const { useState, useEffect } = React;
   const [activeVideo, setActiveVideo] = useState(null);
+  const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const videos = [
+  // Fallback data nếu API fail
+  const fallbackVideos = [
     { id: 1, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749269320/bao-gia-trang-gat-doc-lap_exzhpm.jpg", url: "https://www.youtube.com/embed/U9v6y7kIJ9A?si=LUUh8N05b5fhXo4I" },
     { id: 2, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749269576/bao-gia-trang-gat-tren-xoi_u9jocc.jpg", url: "https://www.youtube.com/embed/oLC34LfasrI?si=zDNi3tsbEh0d-nH7" },
     { id: 3, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749277751/Trang-gat_fmkuqw.jpg", url: "https://www.youtube.com/embed/GEt7NB5GwIU?si=yMh6SCJgKUckIEQy" },
@@ -76,22 +79,51 @@ function InstructionVideos() {
     { id: 6, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube5_dy8uj1.jpg", url: "https://www.youtube.com/embed/_M6O7gCgdAc?si=nt8RATetDmGp5_3f" },
   ];
 
+  useEffect(() => {
+    const loadVideos = async () => {
+      try {
+        const res = await fetch('/api/videos?category=instruction');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.length > 0) {
+            setVideos(data);
+          } else {
+            setVideos(fallbackVideos);
+          }
+        } else {
+          setVideos(fallbackVideos);
+        }
+      } catch (err) {
+        console.error('Error loading videos:', err);
+        setVideos(fallbackVideos);
+      }
+      setLoading(false);
+    };
+    loadVideos();
+  }, []);
+
   return (
     <section className="py-5">
       <div className="container text-center">
         <h2 className="fw-bold mb-4">Video hướng dẫn</h2>
-        <div className="row g-3">
-          {videos.map((v, i) => (
-            <div key={i} className="col-6 col-md-4">
-              <div className="position-relative video-thumb" onClick={() => setActiveVideo(v.url)} style={{ cursor: "pointer" }}>
-                <img src={v.thumb} alt={`video ${i + 1}`} className="img-fluid rounded shadow" />
-                <div className="position-absolute top-50 start-50 translate-middle">
-                  <i className="fas fa-play-circle fa-2x text-white"></i>
+        {loading ? (
+          <div className="py-4">
+            <div className="spinner-border text-warning"></div>
+          </div>
+        ) : (
+          <div className="row g-3">
+            {videos.map((v, i) => (
+              <div key={v.id || i} className="col-6 col-md-4">
+                <div className="position-relative video-thumb" onClick={() => setActiveVideo(v.url)} style={{ cursor: "pointer" }}>
+                  <img src={v.thumb} alt={v.title || `video ${i + 1}`} className="img-fluid rounded shadow" />
+                  <div className="position-absolute top-50 start-50 translate-middle">
+                    <i className="fas fa-play-circle fa-2x text-white"></i>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {activeVideo && (
           <div className="video-modal-overlay" onClick={() => setActiveVideo(null)}>
@@ -147,13 +179,35 @@ function YoutubeShortsSection({ onOpen }) {
 }
 
 function YoutubeShortsModal({ onClose }) {
-  const shorts = [
+  const { useState, useEffect, useRef } = React;
+  
+  // Fallback shorts
+  const fallbackShorts = [
     "UCreMHzob5c", "X7KeEUeH08s", "aRGJaryWCZM",
     "1jUJZ3JVYrE", "P4B9jBiCumw", "FEDQpcHVzEA",
     "sg45zTOzlr8", "VuPrPSkBtNE", "7aGK8dR8pK0"
   ];
-  const containerRef = React.useRef(null);
-  const iframeRefs = React.useRef([]);
+  
+  const [shorts, setShorts] = useState(fallbackShorts);
+  const containerRef = useRef(null);
+  const iframeRefs = useRef([]);
+
+  useEffect(() => {
+    const loadShorts = async () => {
+      try {
+        const res = await fetch('/api/videos?category=shorts');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.length > 0) {
+            setShorts(data.map(v => v.youtubeId));
+          }
+        }
+      } catch (err) {
+        console.error('Error loading shorts:', err);
+      }
+    };
+    loadShorts();
+  }, []);
 
   const handleIntersection = (entries) => {
     entries.forEach((entry) => {
@@ -169,13 +223,13 @@ function YoutubeShortsModal({ onClose }) {
     });
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     const observer = new IntersectionObserver(handleIntersection, { threshold: 0.6 });
-    const items = containerRef.current.querySelectorAll(".short-item");
-    items.forEach((el) => observer.observe(el));
+    const items = containerRef.current?.querySelectorAll(".short-item");
+    items?.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
-  }, []);
+  }, [shorts]);
 
   return (
     <div className="modal-overlay-full bg-black text-white" style={{ zIndex: 9999 }}>
