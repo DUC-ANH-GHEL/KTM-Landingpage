@@ -1,32 +1,86 @@
 // components/AlbumGallery.js
 // Component: Thư viện lắp đặt thực tế (Album Gallery)
 // Tương thích với project React global (function components như các file hiện tại)
+// Data fetched from API: /api/albums
+
+// API Base URL - thay đổi theo môi trường
+// const ALBUM_API_BASE = 'http://localhost:4000';
+const ALBUM_API_BASE =  ''; // production: same origin hoặc set URL backend
 
 function AlbumGallery() {
   const { useState, useEffect, useRef } = React;
 
-  // === DỮ LIỆU MẪU ===
-  // Bạn thay/extend array này bởi dữ liệu thật (url, title, category, caption)
-  const albums = [
-    {
-      id: "Yanmar-351",
-      title: "Máy cày Yanmar 351",
-      count: 8,
-      cover: "https://www.yanmar.com/ltc/th/agri/products/tractor/ym351a_ym357a/img/6ea9f1742e/img_mainvisual_ym357a-l1_01_sp.jpg",
-      images: [
-        { src: "https://res.cloudinary.com/diwxfpt92/image/upload/v1764518195/yanmar-351-combo-3-tay-2-ty_cdxghj.jpg", caption: "Combo van 3 tay 2 ty" },
-        // ...
-      ]
-    },
-    
-  ];
-
   // === STATE ===
+  const [albums, setAlbums] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedAlbumId, setSelectedAlbumId] = useState(null); // null = show folder list, có value = show images
+  const [currentAlbum, setCurrentAlbum] = useState(null); // album đang xem (với images đầy đủ)
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [lightboxCaption, setLightboxCaption] = useState("");
   const [showModal, setShowModal] = useState(false); // show modal overlay
   const [filterText, setFilterText] = useState(""); // search within album
+  const [loadingAlbum, setLoadingAlbum] = useState(false);
+
+  // Fetch danh sách albums khi component mount
+  useEffect(() => {
+    let mounted = true;
+    async function loadAlbums() {
+      try {
+        setLoading(true);
+        const res = await fetch(`${ALBUM_API_BASE}/api/albums`);
+        if (!res.ok) throw new Error('Không thể tải danh sách album');
+        const data = await res.json();
+        if (mounted) {
+          setAlbums(data);
+          setError(null);
+        }
+      } catch (err) {
+        console.error('Load albums error:', err);
+        if (mounted) {
+          setError('Không thể tải thư viện ảnh');
+          // Fallback data khi API lỗi
+          setAlbums([]);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    loadAlbums();
+    return () => { mounted = false; };
+  }, []);
+
+  // Fetch album chi tiết khi chọn album
+  useEffect(() => {
+    if (!selectedAlbumId) {
+      setCurrentAlbum(null);
+      return;
+    }
+    
+    let mounted = true;
+    async function loadAlbumDetail() {
+      try {
+        setLoadingAlbum(true);
+        const res = await fetch(`${ALBUM_API_BASE}/api/albums/${selectedAlbumId}`);
+        if (!res.ok) throw new Error('Không thể tải album');
+        const data = await res.json();
+        if (mounted) {
+          setCurrentAlbum(data);
+        }
+      } catch (err) {
+        console.error('Load album detail error:', err);
+        if (mounted) {
+          // Fallback: tìm trong albums đã load
+          const fallback = albums.find(a => a.id === selectedAlbumId);
+          setCurrentAlbum(fallback || null);
+        }
+      } finally {
+        if (mounted) setLoadingAlbum(false);
+      }
+    }
+    loadAlbumDetail();
+    return () => { mounted = false; };
+  }, [selectedAlbumId, albums]);
 
   useEffect(() => {
     // accessibility: esc to close lightbox or go back
@@ -45,14 +99,47 @@ function AlbumGallery() {
     return () => window.removeEventListener("keydown", onKey);
   }, [lightboxSrc, selectedAlbumId]);
 
-  // find current album object
-  const currentAlbum = selectedAlbumId ? albums.find(a => a.id === selectedAlbumId) : null;
-
   // thumbnails to show on section: previews of other albums (cover)
   const previewAlbums = albums.slice(0, 4);
 
-  // Layout: Masonry via CSS columns inside modal
-  // Lazy loading for imgs via loading="lazy"
+  // Loading state
+  if (loading) {
+    return (
+      <section className="album-gallery-section py-5 bg-white">
+        <div className="container text-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Đang tải...</span>
+          </div>
+          <p className="mt-2 text-muted">Đang tải thư viện ảnh...</p>
+        </div>
+      </section>
+    );
+  }
+
+  // Error state (nhưng vẫn cho phép hiện nếu có data)
+  if (error && albums.length === 0) {
+    return (
+      <section className="album-gallery-section py-5 bg-white">
+        <div className="container text-center">
+          <div className="alert alert-warning">
+            <i className="fas fa-exclamation-triangle me-2"></i>
+            {error}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // No albums
+  if (albums.length === 0) {
+    return (
+      <section className="album-gallery-section py-5 bg-white">
+        <div className="container text-center">
+          <p className="text-muted">Chưa có album nào trong thư viện.</p>
+        </div>
+      </section>
+    );
+  }
 
   // === RENDER ===
   return (
@@ -74,7 +161,7 @@ function AlbumGallery() {
                 <div className="card-body py-2 px-3">
                   <div className="d-flex justify-content-between align-items-center">
                     <div className="small fw-semibold">{alb.title}</div>
-                    <div className="badge bg-primary">{alb.images.length}</div>
+                    <div className="badge bg-primary">{alb.count || alb.images?.length || 0}</div>
                   </div>
                   <div className="small text-muted">Click để xem</div>
                 </div>
@@ -114,7 +201,7 @@ function AlbumGallery() {
                           </div>
                           <div className="card-body py-2 px-3 text-center">
                             <div className="fw-semibold"><i className="fas fa-folder text-warning me-2"></i>{alb.title}</div>
-                            <div className="small text-muted">{alb.images.length} ảnh</div>
+                            <div className="small text-muted">{alb.count || alb.images?.length || 0} ảnh</div>
                           </div>
                         </div>
                       </div>
@@ -124,7 +211,16 @@ function AlbumGallery() {
               )}
 
               {/* === VIEW: Images List (khi đã chọn album) === */}
-              {selectedAlbumId && currentAlbum && (
+              {selectedAlbumId && loadingAlbum && (
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Đang tải...</span>
+                  </div>
+                  <p className="mt-2 text-muted">Đang tải ảnh...</p>
+                </div>
+              )}
+
+              {selectedAlbumId && !loadingAlbum && currentAlbum && (
                 <>
                   <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                     <div className="d-flex gap-2 align-items-center flex-wrap">

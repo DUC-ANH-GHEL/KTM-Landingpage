@@ -2,6 +2,7 @@
 
 const express = require('express');
 const chatRoutes = require('./chat');
+const albumsRoutes = require('./albums');
 
 const router = express.Router();
 
@@ -16,5 +17,6 @@ router.get('/', (req, res) => {
 
 // API routes
 router.use('/api', chatRoutes);
+router.use('/api', albumsRoutes);
 
 module.exports = router;
