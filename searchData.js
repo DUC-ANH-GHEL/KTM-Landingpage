@@ -175,6 +175,14 @@ const SEARCH_PRODUCTS = [
     image: 'https://res.cloudinary.com/diwxfpt92/image/upload/v1760870364/24_Van_ch%E1%BB%91ng_t%E1%BB%A5t_lo%E1%BA%A1i_vu%C3%B4ng_KTM_sdnjcd.jpg',
     category: 'Phụ kiện'
   },
+  {
+    id: 'mat-bich',
+    name: 'Mặt bích',
+    price: '550.000 đ',
+    // image: 'https://img.icons8.com/color/48/settings.png',
+    category: 'Phụ kiện',
+    note: 'có freeship',
+  },
 
   // ================== Van tay ===================
   {
