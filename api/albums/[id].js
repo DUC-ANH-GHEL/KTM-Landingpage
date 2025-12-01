@@ -51,6 +51,7 @@ export default async function handler(req, res) {
         cover: album.cover_url,
         count: imageRows.length,
         images: imageRows.map(img => ({
+          id: img.id,
           src: img.url,
           caption: img.caption || ''
         }))
