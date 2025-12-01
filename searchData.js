@@ -6,14 +6,16 @@ const SEARCH_PRODUCTS = [
     name: 'Xy lanh giữa',
     price: '1.950.000đ',
     image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538306/2_sxq2wa.jpg',
-    category: 'Ty xy lanh'
+    category: 'Ty xy lanh',
+    note: 'Thêm dây là 2.150.000đ'
   },
   {
     id: 'xylanh-nghieng',
     name: 'Xy lanh nghiêng',
     price: '1.950.000đ',
     image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538307/3_nxbqyo.jpg',
-    category: 'Ty xy lanh'
+    category: 'Ty xy lanh',
+    note: 'Thêm dây là 2.150.000đ'
   },
   {
     id: 'xylanh-ui',
