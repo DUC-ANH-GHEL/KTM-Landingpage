@@ -565,8 +565,8 @@ function App() {
       <GlobalSearchBar />
       <HeroSection />
       <ProductList />
-      <ProductShowcaseTabs />
       <HydraulicBladeProducts />
+      <ProductShowcaseTabs />
       {/* <ProductVanTay /> */}
       {/* <SparePartsComponent /> */}
       <AlbumGallery />
