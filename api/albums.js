@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'DATABASE_URL not configured' });
   }
 
-  // Tạo SQL client inside handler
+  // Create SQL client
   const sql = neon(process.env.DATABASE_URL);
 
   // GET /api/albums - Lấy danh sách albums
