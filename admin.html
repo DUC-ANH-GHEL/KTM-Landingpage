@@ -826,7 +826,7 @@
 
     // ==================== VIDEO MANAGEMENT ====================
     
-    // Video List View - Tổ chức theo Folder
+    // Video List View - Tổ chức theo Folder với Drag & Drop
     function VideoList({ onRefresh, showToast }) {
       const [folders, setFolders] = useState([]);
       const [videos, setVideos] = useState([]);
@@ -836,6 +836,8 @@
       const [editingFolder, setEditingFolder] = useState(null);
       const [showVideoModal, setShowVideoModal] = useState(false);
       const [editingVideo, setEditingVideo] = useState(null);
+      const [draggedItem, setDraggedItem] = useState(null);
+      const [dragOverItem, setDragOverItem] = useState(null);
 
       useEffect(() => {
         loadFolders();
@@ -862,6 +864,110 @@
         } catch (err) {
           console.error(err);
         }
+      };
+
+      // Drag & Drop for Folders
+      const handleFolderDragStart = (e, folder, index) => {
+        setDraggedItem({ type: 'folder', item: folder, index });
+        e.dataTransfer.effectAllowed = 'move';
+        e.target.style.opacity = '0.5';
+      };
+
+      const handleFolderDragEnd = (e) => {
+        e.target.style.opacity = '1';
+        setDraggedItem(null);
+        setDragOverItem(null);
+      };
+
+      const handleFolderDragOver = (e, index) => {
+        e.preventDefault();
+        if (draggedItem?.type === 'folder' && draggedItem.index !== index) {
+          setDragOverItem(index);
+        }
+      };
+
+      const handleFolderDrop = async (e, targetIndex) => {
+        e.preventDefault();
+        if (!draggedItem || draggedItem.type !== 'folder') return;
+
+        const sourceIndex = draggedItem.index;
+        if (sourceIndex === targetIndex) return;
+
+        // Reorder folders locally
+        const newFolders = [...folders];
+        const [removed] = newFolders.splice(sourceIndex, 1);
+        newFolders.splice(targetIndex, 0, removed);
+        setFolders(newFolders);
+
+        // Update sort_order in DB
+        try {
+          await Promise.all(newFolders.map((folder, idx) => 
+            fetch(`${API_BASE}/api/video-folders/${folder.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sortOrder: idx })
+            })
+          ));
+          showToast('Đã cập nhật thứ tự!', 'success');
+        } catch (err) {
+          showToast('Lỗi cập nhật thứ tự', 'danger');
+          loadFolders(); // Reload on error
+        }
+
+        setDraggedItem(null);
+        setDragOverItem(null);
+      };
+
+      // Drag & Drop for Videos
+      const handleVideoDragStart = (e, video, index) => {
+        setDraggedItem({ type: 'video', item: video, index });
+        e.dataTransfer.effectAllowed = 'move';
+        e.target.style.opacity = '0.5';
+      };
+
+      const handleVideoDragEnd = (e) => {
+        e.target.style.opacity = '1';
+        setDraggedItem(null);
+        setDragOverItem(null);
+      };
+
+      const handleVideoDragOver = (e, index) => {
+        e.preventDefault();
+        if (draggedItem?.type === 'video' && draggedItem.index !== index) {
+          setDragOverItem(index);
+        }
+      };
+
+      const handleVideoDrop = async (e, targetIndex) => {
+        e.preventDefault();
+        if (!draggedItem || draggedItem.type !== 'video') return;
+
+        const sourceIndex = draggedItem.index;
+        if (sourceIndex === targetIndex) return;
+
+        // Reorder videos locally
+        const newVideos = [...videos];
+        const [removed] = newVideos.splice(sourceIndex, 1);
+        newVideos.splice(targetIndex, 0, removed);
+        setVideos(newVideos);
+
+        // Update sort_order in DB
+        try {
+          await Promise.all(newVideos.map((video, idx) => 
+            fetch(`${API_BASE}/api/videos/${video.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sort_order: idx })
+            })
+          ));
+          showToast('Đã cập nhật thứ tự!', 'success');
+        } catch (err) {
+          showToast('Lỗi cập nhật thứ tự', 'danger');
+          loadVideosInFolder(selectedFolder.id);
+        }
+
+        setDraggedItem(null);
+        setDragOverItem(null);
       };
 
       // Folder handlers
@@ -992,6 +1098,11 @@
               </button>
             </div>
 
+            <p className="text-muted small mb-3">
+              <i className="fas fa-info-circle me-1"></i>
+              Kéo thả để sắp xếp thứ tự folders
+            </p>
+
             {loading ? (
               <div className="text-center py-5">
                 <div className="spinner-border text-warning"></div>
@@ -1006,12 +1117,27 @@
               </div>
             ) : (
               <div className="row g-4">
-                {folders.map(folder => (
-                  <div key={folder.id} className="col-md-4 col-lg-3">
-                    <div className="card h-100 folder-card" style={{ cursor: 'pointer' }}>
+                {folders.map((folder, index) => (
+                  <div 
+                    key={folder.id} 
+                    className="col-md-4 col-lg-3"
+                    draggable
+                    onDragStart={(e) => handleFolderDragStart(e, folder, index)}
+                    onDragEnd={handleFolderDragEnd}
+                    onDragOver={(e) => handleFolderDragOver(e, index)}
+                    onDrop={(e) => handleFolderDrop(e, index)}
+                  >
+                    <div 
+                      className={`card h-100 folder-card ${dragOverItem === index ? 'border-warning border-2' : ''}`} 
+                      style={{ cursor: 'grab' }}
+                    >
+                      <div className="card-header bg-transparent py-1 text-center">
+                        <i className="fas fa-grip-lines text-muted"></i>
+                      </div>
                       <div 
-                        className="card-body text-center py-4"
+                        className="card-body text-center py-3"
                         onClick={() => handleSelectFolder(folder)}
+                        style={{ cursor: 'pointer' }}
                       >
                         <i className={`fas fa-folder fa-3x mb-3 ${folder.slug === 'shorts' ? 'text-danger' : 'text-warning'}`}></i>
                         <h5 className="card-title">{folder.name}</h5>
@@ -1064,6 +1190,11 @@
             </button>
           </div>
 
+          <p className="text-muted small mb-3">
+            <i className="fas fa-info-circle me-1"></i>
+            Kéo thả để sắp xếp thứ tự videos
+          </p>
+
           {videos.length === 0 ? (
             <div className="text-center py-5">
               <i className="fas fa-video fa-3x text-muted mb-3"></i>
@@ -1071,9 +1202,20 @@
             </div>
           ) : (
             <div className="row g-4">
-              {videos.map(video => (
-                <div key={video.id} className="col-md-4 col-lg-3">
-                  <div className="card h-100">
+              {videos.map((video, index) => (
+                <div 
+                  key={video.id} 
+                  className="col-md-4 col-lg-3"
+                  draggable
+                  onDragStart={(e) => handleVideoDragStart(e, video, index)}
+                  onDragEnd={handleVideoDragEnd}
+                  onDragOver={(e) => handleVideoDragOver(e, index)}
+                  onDrop={(e) => handleVideoDrop(e, index)}
+                >
+                  <div className={`card h-100 ${dragOverItem === index ? 'border-warning border-2' : ''}`} style={{ cursor: 'grab' }}>
+                    <div className="card-header bg-transparent py-1 text-center">
+                      <i className="fas fa-grip-lines text-muted"></i>
+                    </div>
                     <div className="position-relative">
                       <img 
                         src={video.thumb} 
