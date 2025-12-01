@@ -153,9 +153,6 @@ function InstructionVideos() {
                     {folder.videos?.length || folder.videoCount || 0} video
                   </small>
                 </div>
-                <div className="position-absolute top-50 start-50 translate-middle">
-                  <i className="fas fa-folder-open fa-2x text-warning"></i>
-                </div>
               </div>
             </div>
           ))}
@@ -207,9 +204,6 @@ function InstructionVideos() {
                           <i className="fas fa-video me-1"></i>
                           {folder.videos?.length || folder.videoCount || 0} video
                         </small>
-                      </div>
-                      <div className="position-absolute top-50 start-50 translate-middle">
-                        <i className="fas fa-folder-open fa-2x text-warning"></i>
                       </div>
                     </div>
                   </div>
