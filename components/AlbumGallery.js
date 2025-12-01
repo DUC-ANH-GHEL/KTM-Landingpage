@@ -3,9 +3,8 @@
 // Tương thích với project React global (function components như các file hiện tại)
 // Data fetched from API: /api/albums
 
-// API Base URL - thay đổi theo môi trường
-// const ALBUM_API_BASE = 'http://localhost:4000';
-const ALBUM_API_BASE =  'https://thuyluc.shop'; // production: same origin hoặc set URL backend
+// API Base URL - Vercel serverless sử dụng relative path
+const ALBUM_API_BASE = ''; // empty = same origin (works for both local and production)
 
 function AlbumGallery() {
   const { useState, useEffect, useRef } = React;
