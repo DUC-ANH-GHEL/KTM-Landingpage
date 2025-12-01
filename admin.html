@@ -190,6 +190,44 @@
         margin-left: 0;
       }
     }
+
+    /* Login Page Styles */
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      padding: 20px;
+    }
+
+    .login-box {
+      background: #fff;
+      border-radius: 15px;
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .login-box .input-group-text {
+      background: #f8f9fa;
+      border-right: none;
+    }
+
+    .login-box .form-control {
+      border-left: none;
+    }
+
+    .login-box .form-control:focus {
+      box-shadow: none;
+      border-color: #ced4da;
+    }
+
+    .login-box .input-group:focus-within .input-group-text,
+    .login-box .input-group:focus-within .form-control {
+      border-color: var(--primary);
+    }
   </style>
 </head>
 <body>
@@ -213,6 +251,97 @@
 
     // API Base
     const API_BASE = '';
+
+    // ==================== LOGIN COMPONENT ====================
+    function LoginPage({ onLogin, error }) {
+      const [username, setUsername] = useState('');
+      const [password, setPassword] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [showPassword, setShowPassword] = useState(false);
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        await onLogin(username, password);
+        setLoading(false);
+      };
+
+      return (
+        <div className="login-page">
+          <div className="login-box">
+            <div className="text-center mb-4">
+              <i className="fas fa-tractor fa-3x text-warning mb-3"></i>
+              <h4 className="text-dark">KTM Admin</h4>
+              <p className="text-muted small">Đăng nhập để quản lý</p>
+            </div>
+
+            {error && (
+              <div className="alert alert-danger py-2 small">
+                <i className="fas fa-exclamation-circle me-2"></i>{error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              <div className="mb-3">
+                <label className="form-label small">Tên đăng nhập</label>
+                <div className="input-group">
+                  <span className="input-group-text"><i className="fas fa-user"></i></span>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="admin"
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="form-label small">Mật khẩu</label>
+                <div className="input-group">
+                  <span className="input-group-text"><i className="fas fa-lock"></i></span>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    className="form-control"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    className="btn btn-outline-secondary"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    <i className={`fas fa-eye${showPassword ? '-slash' : ''}`}></i>
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                type="submit" 
+                className="btn btn-warning w-100"
+                disabled={loading}
+              >
+                {loading ? (
+                  <><span className="spinner-border spinner-border-sm me-2"></span>Đang đăng nhập...</>
+                ) : (
+                  <><i className="fas fa-sign-in-alt me-2"></i>Đăng nhập</>
+                )}
+              </button>
+            </form>
+
+            <div className="text-center mt-4">
+              <a href="/" className="text-muted small text-decoration-none">
+                <i className="fas fa-arrow-left me-1"></i>Về trang chủ
+              </a>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     // ==================== COMPONENTS ====================
 
@@ -246,7 +375,7 @@
     }
 
     // Sidebar
-    function Sidebar({ activeMenu, onMenuChange }) {
+    function Sidebar({ activeMenu, onMenuChange, onLogout, currentUser }) {
       const menus = [
         { id: 'albums', icon: 'fa-images', label: 'Quản lý Album' },
         { id: 'products', icon: 'fa-box', label: 'Sản phẩm', disabled: true },
@@ -273,9 +402,20 @@
             ))}
           </nav>
           <div className="position-absolute bottom-0 w-100 p-3 border-top border-secondary">
-            <a href="/" className="text-white-50 text-decoration-none">
-              <i className="fas fa-arrow-left me-2"></i> Về trang chủ
-            </a>
+            <div className="d-flex justify-content-between align-items-center">
+              <a href="/" className="text-white-50 text-decoration-none small">
+                <i className="fas fa-home me-1"></i> Trang chủ
+              </a>
+              {onLogout && (
+                <button 
+                  className="btn btn-sm btn-outline-danger"
+                  onClick={onLogout}
+                  title="Đăng xuất"
+                >
+                  <i className="fas fa-sign-out-alt"></i>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -685,6 +825,9 @@
 
     // ==================== MAIN APP ====================
     function AdminApp() {
+      const [isLoggedIn, setIsLoggedIn] = useState(false);
+      const [loginError, setLoginError] = useState('');
+      const [currentUser, setCurrentUser] = useState(null);
       const [activeMenu, setActiveMenu] = useState('albums');
       const [albums, setAlbums] = useState([]);
       const [selectedAlbum, setSelectedAlbum] = useState(null);
@@ -693,9 +836,69 @@
       const [loading, setLoading] = useState(true);
       const [toasts, setToasts] = useState([]);
 
+      // Check session on mount
       useEffect(() => {
-        loadAlbums();
+        const session = localStorage.getItem('ktm_admin_session');
+        if (session) {
+          try {
+            const data = JSON.parse(session);
+            // Check if session expired (24 hours)
+            if (data.expiry > Date.now()) {
+              setIsLoggedIn(true);
+              setCurrentUser(data.user);
+            } else {
+              localStorage.removeItem('ktm_admin_session');
+            }
+          } catch (e) {
+            localStorage.removeItem('ktm_admin_session');
+          }
+        }
       }, []);
+
+      useEffect(() => {
+        if (isLoggedIn) {
+          loadAlbums();
+        }
+      }, [isLoggedIn]);
+
+      const handleLogin = async (username, password) => {
+        setLoginError('');
+        
+        try {
+          const res = await fetch(`${API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.error || 'Đăng nhập thất bại');
+          }
+
+          // Save session
+          const session = {
+            user: data.user,
+            token: data.token,
+            expiry: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+          };
+          localStorage.setItem('ktm_admin_session', JSON.stringify(session));
+          
+          setCurrentUser(data.user);
+          setIsLoggedIn(true);
+        } catch (err) {
+          setLoginError(err.message);
+        }
+      };
+
+      const handleLogout = () => {
+        localStorage.removeItem('ktm_admin_session');
+        setIsLoggedIn(false);
+        setCurrentUser(null);
+        setAlbums([]);
+        setSelectedAlbum(null);
+      };
 
       const showToast = (message, type = 'success') => {
         const id = Date.now();
@@ -757,16 +960,31 @@
         }
       };
 
+      // Show login page if not logged in
+      if (!isLoggedIn) {
+        return <LoginPage onLogin={handleLogin} error={loginError} />;
+      }
+
       return (
         <div>
-          <Sidebar activeMenu={activeMenu} onMenuChange={setActiveMenu} />
+          <Sidebar 
+            activeMenu={activeMenu} 
+            onMenuChange={setActiveMenu} 
+            onLogout={handleLogout}
+            currentUser={currentUser}
+          />
           
           <div className="main-content">
             {/* Mobile header */}
             <div className="d-md-none bg-dark text-white p-3 mb-3 rounded">
               <div className="d-flex justify-content-between align-items-center">
                 <span className="text-warning fw-bold"><i className="fas fa-tractor me-2"></i>KTM Admin</span>
-                <a href="/" className="text-white-50"><i className="fas fa-home"></i></a>
+                <div>
+                  <a href="/" className="text-white-50 me-3"><i className="fas fa-home"></i></a>
+                  <button className="btn btn-sm btn-outline-danger" onClick={handleLogout}>
+                    <i className="fas fa-sign-out-alt"></i>
+                  </button>
+                </div>
               </div>
             </div>
 
