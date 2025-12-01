@@ -43,17 +43,68 @@ function GlobalSearchBar() {
       const normalizedQuery = removeAccents(searchTerm.trim());
       const keywords = normalizedQuery.split(/\s+/).filter(Boolean);
 
-      const results = SEARCH_PRODUCTS.filter((prod) => {
-        const searchable = removeAccents(
-          `${prod.name} ${prod.code || ""} ${prod.category || ""}`
-        );
+      // Tính điểm ưu tiên cho mỗi sản phẩm
+      const scoredResults = SEARCH_PRODUCTS.map((prod) => {
+        const name = removeAccents(prod.name || "");
+        const code = removeAccents(prod.code || "");
+        const category = removeAccents(prod.category || "");
+        const searchable = `${name} ${code} ${category}`;
 
-        if (keywords.length === 1) return searchable.includes(keywords[0]);
-        return keywords.every((kw) => searchable.includes(kw));
-      });
+        // Kiểm tra có match không
+        let isMatch = false;
+        if (keywords.length === 1) {
+          isMatch = searchable.includes(keywords[0]);
+        } else {
+          isMatch = keywords.every((kw) => searchable.includes(kw));
+        }
 
-      setSuggestions(results);
-      setShowSuggestions(results.length > 0);
+        if (!isMatch) return null;
+
+        // Tính điểm ưu tiên (cao hơn = tốt hơn)
+        let score = 0;
+
+        // 1. Khớp chính xác toàn bộ query trong tên: +1000
+        if (name.includes(normalizedQuery)) {
+          score += 1000;
+        }
+
+        // 2. Tên bắt đầu bằng query: +500
+        if (name.startsWith(normalizedQuery)) {
+          score += 500;
+        }
+
+        // 3. Tên bắt đầu bằng từ khóa đầu tiên: +200
+        if (name.startsWith(keywords[0])) {
+          score += 200;
+        }
+
+        // 4. Mỗi từ khóa xuất hiện trong tên: +50
+        keywords.forEach((kw) => {
+          if (name.includes(kw)) score += 50;
+        });
+
+        // 5. Khớp mã sản phẩm: +100
+        if (code && code.includes(normalizedQuery)) {
+          score += 100;
+        }
+
+        // 6. Tên ngắn hơn thường chính xác hơn: +bonus nhỏ
+        score += Math.max(0, 50 - name.length);
+
+        // 7. Vị trí xuất hiện của query trong tên (càng đầu càng tốt)
+        const pos = name.indexOf(normalizedQuery);
+        if (pos >= 0) {
+          score += Math.max(0, 100 - pos * 5);
+        }
+
+        return { ...prod, _score: score };
+      }).filter(Boolean);
+
+      // Sắp xếp theo điểm giảm dần
+      scoredResults.sort((a, b) => b._score - a._score);
+
+      setSuggestions(scoredResults);
+      setShowSuggestions(scoredResults.length > 0);
     }, 120);
 
     return () => clearTimeout(handler);
