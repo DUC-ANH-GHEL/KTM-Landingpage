@@ -5,7 +5,7 @@
 
 // API Base URL - thay đổi theo môi trường
 // const ALBUM_API_BASE = 'http://localhost:4000';
-const ALBUM_API_BASE =  ''; // production: same origin hoặc set URL backend
+const ALBUM_API_BASE =  'https://thuyluc.shop'; // production: same origin hoặc set URL backend
 
 function AlbumGallery() {
   const { useState, useEffect, useRef } = React;
