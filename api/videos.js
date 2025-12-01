@@ -22,19 +22,37 @@ export default async function handler(req, res) {
   // GET /api/videos - Lấy danh sách videos
   if (req.method === 'GET') {
     try {
-      const { category } = req.query;
+      const { category, folderId, limit } = req.query;
       
       let rows;
-      if (category) {
+      if (folderId) {
+        // Filter by folder
+        if (limit) {
+          rows = await sql`
+            SELECT v.id, v.title, v.youtube_id, v.thumbnail_url, v.category, v.folder_id, v.sort_order, v.created_at
+            FROM videos v
+            WHERE v.folder_id = ${folderId}::uuid
+            ORDER BY v.sort_order ASC, v.created_at DESC
+            LIMIT ${parseInt(limit)}
+          `;
+        } else {
+          rows = await sql`
+            SELECT v.id, v.title, v.youtube_id, v.thumbnail_url, v.category, v.folder_id, v.sort_order, v.created_at
+            FROM videos v
+            WHERE v.folder_id = ${folderId}::uuid
+            ORDER BY v.sort_order ASC, v.created_at DESC
+          `;
+        }
+      } else if (category) {
         rows = await sql`
-          SELECT id, title, youtube_id, thumbnail_url, category, sort_order, created_at
+          SELECT id, title, youtube_id, thumbnail_url, category, folder_id, sort_order, created_at
           FROM videos
           WHERE category = ${category}
           ORDER BY sort_order ASC, created_at DESC
         `;
       } else {
         rows = await sql`
-          SELECT id, title, youtube_id, thumbnail_url, category, sort_order, created_at
+          SELECT id, title, youtube_id, thumbnail_url, category, folder_id, sort_order, created_at
           FROM videos
           ORDER BY category, sort_order ASC, created_at DESC
         `;
@@ -48,6 +66,7 @@ export default async function handler(req, res) {
         thumb: row.thumbnail_url || `https://img.youtube.com/vi/${row.youtube_id}/hqdefault.jpg`,
         url: `https://www.youtube.com/embed/${row.youtube_id}`,
         category: row.category,
+        folderId: row.folder_id,
         sortOrder: row.sort_order
       }));
       
@@ -61,7 +80,7 @@ export default async function handler(req, res) {
   // POST /api/videos - Tạo video mới
   if (req.method === 'POST') {
     try {
-      const { title, youtube_id, youtube_url, thumbnail_url, category, sort_order } = req.body || {};
+      const { title, youtube_id, youtube_url, thumbnail_url, category, folder_id, sort_order } = req.body || {};
       
       // Extract youtube_id from URL if provided
       let videoId = youtube_id;
@@ -76,12 +95,13 @@ export default async function handler(req, res) {
       }
       
       const rows = await sql`
-        INSERT INTO videos (title, youtube_id, thumbnail_url, category, sort_order) 
+        INSERT INTO videos (title, youtube_id, thumbnail_url, category, folder_id, sort_order) 
         VALUES (
           ${title || 'Video'}, 
           ${videoId}, 
           ${thumbnail_url || null}, 
           ${category || 'instruction'},
+          ${folder_id || null},
           ${sort_order || 0}
         ) 
         RETURNING *

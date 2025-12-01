@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   // PUT /api/videos/[id] - Cập nhật video
   if (req.method === 'PUT') {
     try {
-      const { title, youtube_id, youtube_url, thumbnail_url, category, sort_order } = req.body || {};
+      const { title, youtube_id, youtube_url, thumbnail_url, category, folder_id, sort_order } = req.body || {};
       
       // Extract youtube_id from URL if provided
       let videoId = youtube_id;
@@ -62,6 +62,7 @@ export default async function handler(req, res) {
           youtube_id = COALESCE(${videoId}, youtube_id),
           thumbnail_url = COALESCE(${thumbnail_url}, thumbnail_url),
           category = COALESCE(${category}, category),
+          folder_id = COALESCE(${folder_id}, folder_id),
           sort_order = COALESCE(${sort_order}, sort_order),
           updated_at = NOW()
         WHERE id = ${id}

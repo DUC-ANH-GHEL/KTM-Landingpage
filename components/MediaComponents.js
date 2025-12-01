@@ -67,40 +67,63 @@ function InstructionVideos() {
   const { useState, useEffect } = React;
   const [activeVideo, setActiveVideo] = useState(null);
   const [videos, setVideos] = useState([]);
+  const [allVideos, setAllVideos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAllModal, setShowAllModal] = useState(false);
+  const DISPLAY_LIMIT = 6;
 
   // Fallback data nếu API fail
   const fallbackVideos = [
-    { id: 1, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749269320/bao-gia-trang-gat-doc-lap_exzhpm.jpg", url: "https://www.youtube.com/embed/U9v6y7kIJ9A?si=LUUh8N05b5fhXo4I" },
-    { id: 2, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749269576/bao-gia-trang-gat-tren-xoi_u9jocc.jpg", url: "https://www.youtube.com/embed/oLC34LfasrI?si=zDNi3tsbEh0d-nH7" },
-    { id: 3, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749277751/Trang-gat_fmkuqw.jpg", url: "https://www.youtube.com/embed/GEt7NB5GwIU?si=yMh6SCJgKUckIEQy" },
-    { id: 4, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/youtube1_y63sbd.jpg", url: "https://www.youtube.com/embed/2MLY9YJrroU?si=qvuJDHHp3bmNcIWY" },
-    { id: 5, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube4_ykmqip.jpg", url: "https://www.youtube.com/embed/x2TQKWooJEQ?si=n-cUkEEnpIqwx_iY" },
-    { id: 6, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube5_dy8uj1.jpg", url: "https://www.youtube.com/embed/_M6O7gCgdAc?si=nt8RATetDmGp5_3f" },
+    { id: 1, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749269320/bao-gia-trang-gat-doc-lap_exzhpm.jpg", url: "https://www.youtube.com/embed/U9v6y7kIJ9A?si=LUUh8N05b5fhXo4I", title: "Báo giá trang gạt độc lập" },
+    { id: 2, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749269576/bao-gia-trang-gat-tren-xoi_u9jocc.jpg", url: "https://www.youtube.com/embed/oLC34LfasrI?si=zDNi3tsbEh0d-nH7", title: "Báo giá trang gạt trên xới" },
+    { id: 3, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749277751/Trang-gat_fmkuqw.jpg", url: "https://www.youtube.com/embed/GEt7NB5GwIU?si=yMh6SCJgKUckIEQy", title: "Trang gạt" },
+    { id: 4, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/youtube1_y63sbd.jpg", url: "https://www.youtube.com/embed/2MLY9YJrroU?si=qvuJDHHp3bmNcIWY", title: "Hướng dẫn lắp đặt" },
+    { id: 5, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube4_ykmqip.jpg", url: "https://www.youtube.com/embed/x2TQKWooJEQ?si=n-cUkEEnpIqwx_iY", title: "Video hướng dẫn 5" },
+    { id: 6, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube5_dy8uj1.jpg", url: "https://www.youtube.com/embed/_M6O7gCgdAc?si=nt8RATetDmGp5_3f", title: "Video hướng dẫn 6" },
   ];
 
   useEffect(() => {
     const loadVideos = async () => {
       try {
-        const res = await fetch('/api/videos?category=instruction');
+        // Fetch folder "huong-dan" videos
+        const res = await fetch('/api/video-folders?slug=huong-dan');
         if (res.ok) {
           const data = await res.json();
-          if (data.length > 0) {
-            setVideos(data);
+          if (data.videos && data.videos.length > 0) {
+            setAllVideos(data.videos);
+            setVideos(data.videos.slice(0, DISPLAY_LIMIT));
           } else {
-            setVideos(fallbackVideos);
+            setAllVideos(fallbackVideos);
+            setVideos(fallbackVideos.slice(0, DISPLAY_LIMIT));
           }
         } else {
-          setVideos(fallbackVideos);
+          // Fallback to category-based fetch
+          const res2 = await fetch('/api/videos?category=instruction');
+          if (res2.ok) {
+            const data2 = await res2.json();
+            if (data2.length > 0) {
+              setAllVideos(data2);
+              setVideos(data2.slice(0, DISPLAY_LIMIT));
+            } else {
+              setAllVideos(fallbackVideos);
+              setVideos(fallbackVideos.slice(0, DISPLAY_LIMIT));
+            }
+          } else {
+            setAllVideos(fallbackVideos);
+            setVideos(fallbackVideos.slice(0, DISPLAY_LIMIT));
+          }
         }
       } catch (err) {
         console.error('Error loading videos:', err);
-        setVideos(fallbackVideos);
+        setAllVideos(fallbackVideos);
+        setVideos(fallbackVideos.slice(0, DISPLAY_LIMIT));
       }
       setLoading(false);
     };
     loadVideos();
   }, []);
+
+  const hasMore = allVideos.length > DISPLAY_LIMIT;
 
   return (
     <section className="py-5">
@@ -111,20 +134,33 @@ function InstructionVideos() {
             <div className="spinner-border text-warning"></div>
           </div>
         ) : (
-          <div className="row g-3">
-            {videos.map((v, i) => (
-              <div key={v.id || i} className="col-6 col-md-4">
-                <div className="position-relative video-thumb" onClick={() => setActiveVideo(v.url)} style={{ cursor: "pointer" }}>
-                  <img src={v.thumb} alt={v.title || `video ${i + 1}`} className="img-fluid rounded shadow" />
-                  <div className="position-absolute top-50 start-50 translate-middle">
-                    <i className="fas fa-play-circle fa-2x text-white"></i>
+          <>
+            <div className="row g-3">
+              {videos.map((v, i) => (
+                <div key={v.id || i} className="col-6 col-md-4">
+                  <div className="position-relative video-thumb" onClick={() => setActiveVideo(v.url)} style={{ cursor: "pointer" }}>
+                    <img src={v.thumb} alt={v.title || `video ${i + 1}`} className="img-fluid rounded shadow" />
+                    <div className="position-absolute top-50 start-50 translate-middle">
+                      <i className="fas fa-play-circle fa-2x text-white"></i>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {hasMore && (
+              <button 
+                className="btn btn-warning mt-4 px-4 py-2 rounded-pill"
+                onClick={() => setShowAllModal(true)}
+              >
+                <i className="fas fa-video me-2"></i>
+                Xem tất cả {allVideos.length} video
+              </button>
+            )}
+          </>
         )}
 
+        {/* Video Player Modal */}
         {activeVideo && (
           <div className="video-modal-overlay" onClick={() => setActiveVideo(null)}>
             <div className="video-modal-content" onClick={(e) => e.stopPropagation()}>
@@ -139,6 +175,42 @@ function InstructionVideos() {
                   allow="autoplay; fullscreen"
                   allowFullScreen
                 ></iframe>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* All Videos Modal */}
+        {showAllModal && (
+          <div className="modal-overlay-full" style={{ zIndex: 9998 }} onClick={() => setShowAllModal(false)}>
+            <div className="container py-4" onClick={(e) => e.stopPropagation()}>
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h3 className="text-white mb-0">
+                  <i className="fas fa-video me-2 text-warning"></i>
+                  Tất cả video hướng dẫn ({allVideos.length})
+                </h3>
+                <button className="btn btn-light" onClick={() => setShowAllModal(false)}>
+                  <i className="fas fa-times"></i> Đóng
+                </button>
+              </div>
+              <div className="row g-3" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+                {allVideos.map((v, i) => (
+                  <div key={v.id || i} className="col-6 col-md-4 col-lg-3">
+                    <div 
+                      className="position-relative video-thumb bg-dark rounded overflow-hidden" 
+                      onClick={() => { setShowAllModal(false); setActiveVideo(v.url); }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <img src={v.thumb} alt={v.title || `video ${i + 1}`} className="img-fluid w-100" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
+                      <div className="position-absolute top-50 start-50 translate-middle">
+                        <i className="fas fa-play-circle fa-2x text-white"></i>
+                      </div>
+                      <div className="position-absolute bottom-0 start-0 end-0 p-2 text-white small" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
+                        {v.title || `Video ${i + 1}`}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -195,11 +267,21 @@ function YoutubeShortsModal({ onClose }) {
   useEffect(() => {
     const loadShorts = async () => {
       try {
-        const res = await fetch('/api/videos?category=shorts');
+        // Try folder-based fetch first
+        const res = await fetch('/api/video-folders?slug=shorts');
         if (res.ok) {
           const data = await res.json();
-          if (data.length > 0) {
-            setShorts(data.map(v => v.youtubeId));
+          if (data.videos && data.videos.length > 0) {
+            setShorts(data.videos.map(v => v.youtubeId));
+            return;
+          }
+        }
+        // Fallback to category-based
+        const res2 = await fetch('/api/videos?category=shorts');
+        if (res2.ok) {
+          const data2 = await res2.json();
+          if (data2.length > 0) {
+            setShorts(data2.map(v => v.youtubeId));
           }
         }
       } catch (err) {

@@ -826,43 +826,111 @@
 
     // ==================== VIDEO MANAGEMENT ====================
     
-    // Video List View
+    // Video List View - Tổ chức theo Folder
     function VideoList({ onRefresh, showToast }) {
+      const [folders, setFolders] = useState([]);
       const [videos, setVideos] = useState([]);
       const [loading, setLoading] = useState(true);
-      const [showModal, setShowModal] = useState(false);
+      const [selectedFolder, setSelectedFolder] = useState(null);
+      const [showFolderModal, setShowFolderModal] = useState(false);
+      const [editingFolder, setEditingFolder] = useState(null);
+      const [showVideoModal, setShowVideoModal] = useState(false);
       const [editingVideo, setEditingVideo] = useState(null);
-      const [activeCategory, setActiveCategory] = useState('all');
 
       useEffect(() => {
-        loadVideos();
+        loadFolders();
       }, []);
 
-      const loadVideos = async () => {
+      const loadFolders = async () => {
         setLoading(true);
         try {
-          const res = await fetch(`${API_BASE}/api/videos`);
+          const res = await fetch(`${API_BASE}/api/video-folders?withVideos=true`);
           const data = await res.json();
-          setVideos(Array.isArray(data) ? data : []);
+          setFolders(Array.isArray(data) ? data : []);
         } catch (err) {
           console.error(err);
-          showToast('Lỗi tải danh sách video', 'danger');
+          showToast('Lỗi tải danh sách folder', 'danger');
         }
         setLoading(false);
       };
 
-      const handleCreate = () => {
-        setEditingVideo(null);
-        setShowModal(true);
-      };
-
-      const handleEdit = (video) => {
-        setEditingVideo(video);
-        setShowModal(true);
-      };
-
-      const handleSave = async (formData) => {
+      const loadVideosInFolder = async (folderId) => {
         try {
+          const res = await fetch(`${API_BASE}/api/videos?folderId=${folderId}`);
+          const data = await res.json();
+          setVideos(Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.error(err);
+        }
+      };
+
+      // Folder handlers
+      const handleCreateFolder = () => {
+        setEditingFolder(null);
+        setShowFolderModal(true);
+      };
+
+      const handleEditFolder = (folder) => {
+        setEditingFolder(folder);
+        setShowFolderModal(true);
+      };
+
+      const handleSaveFolder = async (formData) => {
+        try {
+          const url = editingFolder 
+            ? `${API_BASE}/api/video-folders/${editingFolder.id}`
+            : `${API_BASE}/api/video-folders`;
+          
+          const res = await fetch(url, {
+            method: editingFolder ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+          });
+
+          if (!res.ok) throw new Error('Lỗi lưu folder');
+
+          showToast(editingFolder ? 'Đã cập nhật folder!' : 'Đã tạo folder mới!', 'success');
+          setShowFolderModal(false);
+          loadFolders();
+        } catch (err) {
+          showToast(err.message, 'danger');
+        }
+      };
+
+      const handleDeleteFolder = async (folder) => {
+        if (!confirm(`Xóa folder "${folder.name}"? Videos trong folder sẽ không bị xóa.`)) return;
+
+        try {
+          await fetch(`${API_BASE}/api/video-folders/${folder.id}`, { method: 'DELETE' });
+          showToast('Đã xóa folder', 'success');
+          setSelectedFolder(null);
+          loadFolders();
+        } catch (err) {
+          showToast('Lỗi xóa folder', 'danger');
+        }
+      };
+
+      const handleSelectFolder = (folder) => {
+        setSelectedFolder(folder);
+        setVideos(folder.videos || []);
+      };
+
+      // Video handlers
+      const handleCreateVideo = () => {
+        setEditingVideo(null);
+        setShowVideoModal(true);
+      };
+
+      const handleEditVideo = (video) => {
+        setEditingVideo(video);
+        setShowVideoModal(true);
+      };
+
+      const handleSaveVideo = async (formData) => {
+        try {
+          // Add folder_id
+          formData.folder_id = selectedFolder?.id;
+          
           const url = editingVideo 
             ? `${API_BASE}/api/videos/${editingVideo.id}`
             : `${API_BASE}/api/videos`;
@@ -879,20 +947,26 @@
           }
 
           showToast(editingVideo ? 'Cập nhật thành công!' : 'Thêm video thành công!', 'success');
-          setShowModal(false);
-          loadVideos();
+          setShowVideoModal(false);
+          loadFolders();
+          if (selectedFolder) {
+            loadVideosInFolder(selectedFolder.id);
+          }
         } catch (err) {
           showToast(err.message, 'danger');
         }
       };
 
-      const handleDelete = async (video) => {
+      const handleDeleteVideo = async (video) => {
         if (!confirm(`Xóa video "${video.title}"?`)) return;
 
         try {
           await fetch(`${API_BASE}/api/videos/${video.id}`, { method: 'DELETE' });
           showToast('Đã xóa video', 'success');
-          loadVideos();
+          loadFolders();
+          if (selectedFolder) {
+            loadVideosInFolder(selectedFolder.id);
+          }
         } catch (err) {
           showToast('Lỗi xóa video', 'danger');
         }
@@ -907,54 +981,97 @@
         });
       };
 
-      const filteredVideos = activeCategory === 'all' 
-        ? videos 
-        : videos.filter(v => v.category === activeCategory);
+      // Folder List View
+      if (!selectedFolder) {
+        return (
+          <div>
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <h4 className="m-0"><i className="fas fa-video me-2 text-warning"></i>Quản lý Video</h4>
+              <button className="btn btn-warning" onClick={handleCreateFolder}>
+                <i className="fas fa-folder-plus me-2"></i>Tạo Folder
+              </button>
+            </div>
 
-      const categories = [
-        { id: 'all', label: 'Tất cả', icon: 'fa-list' },
-        { id: 'instruction', label: 'Hướng dẫn', icon: 'fa-book' },
-        { id: 'shorts', label: 'Shorts', icon: 'fa-bolt' }
-      ];
+            {loading ? (
+              <div className="text-center py-5">
+                <div className="spinner-border text-warning"></div>
+              </div>
+            ) : folders.length === 0 ? (
+              <div className="text-center py-5">
+                <i className="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                <p className="text-muted">Chưa có folder video nào</p>
+                <button className="btn btn-warning" onClick={handleCreateFolder}>
+                  <i className="fas fa-plus me-2"></i>Tạo folder đầu tiên
+                </button>
+              </div>
+            ) : (
+              <div className="row g-4">
+                {folders.map(folder => (
+                  <div key={folder.id} className="col-md-4 col-lg-3">
+                    <div className="card h-100 folder-card" style={{ cursor: 'pointer' }}>
+                      <div 
+                        className="card-body text-center py-4"
+                        onClick={() => handleSelectFolder(folder)}
+                      >
+                        <i className={`fas fa-folder fa-3x mb-3 ${folder.slug === 'shorts' ? 'text-danger' : 'text-warning'}`}></i>
+                        <h5 className="card-title">{folder.name}</h5>
+                        <p className="text-muted mb-0">
+                          <i className="fas fa-video me-1"></i>
+                          {folder.videoCount || folder.videos?.length || 0} videos
+                        </p>
+                      </div>
+                      <div className="card-footer bg-transparent border-0">
+                        <div className="btn-group btn-group-sm w-100">
+                          <button className="btn btn-outline-secondary" onClick={(e) => { e.stopPropagation(); handleEditFolder(folder); }}>
+                            <i className="fas fa-edit"></i> Sửa
+                          </button>
+                          <button className="btn btn-outline-danger" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder); }}>
+                            <i className="fas fa-trash"></i> Xóa
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
+            <VideoFolderModal
+              show={showFolderModal}
+              folder={editingFolder}
+              onClose={() => setShowFolderModal(false)}
+              onSave={handleSaveFolder}
+            />
+          </div>
+        );
+      }
+
+      // Video List in Folder
       return (
         <div>
           <div className="d-flex justify-content-between align-items-center mb-4">
-            <h4 className="m-0"><i className="fas fa-video me-2 text-warning"></i>Quản lý Video</h4>
-            <button className="btn btn-warning" onClick={handleCreate}>
+            <div className="d-flex align-items-center">
+              <button className="btn btn-outline-secondary me-3" onClick={() => setSelectedFolder(null)}>
+                <i className="fas fa-arrow-left"></i>
+              </button>
+              <h4 className="m-0">
+                <i className={`fas fa-folder-open me-2 ${selectedFolder.slug === 'shorts' ? 'text-danger' : 'text-warning'}`}></i>
+                {selectedFolder.name}
+              </h4>
+            </div>
+            <button className="btn btn-warning" onClick={handleCreateVideo}>
               <i className="fas fa-plus me-2"></i>Thêm Video
             </button>
           </div>
 
-          {/* Category tabs */}
-          <div className="btn-group mb-4">
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                className={`btn ${activeCategory === cat.id ? 'btn-warning' : 'btn-outline-secondary'}`}
-                onClick={() => setActiveCategory(cat.id)}
-              >
-                <i className={`fas ${cat.icon} me-1`}></i>
-                {cat.label}
-                <span className="badge bg-dark ms-2">
-                  {cat.id === 'all' ? videos.length : videos.filter(v => v.category === cat.id).length}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {loading ? (
-            <div className="text-center py-5">
-              <div className="spinner-border text-warning"></div>
-            </div>
-          ) : filteredVideos.length === 0 ? (
+          {videos.length === 0 ? (
             <div className="text-center py-5">
               <i className="fas fa-video fa-3x text-muted mb-3"></i>
-              <p className="text-muted">Chưa có video nào</p>
+              <p className="text-muted">Chưa có video trong folder này</p>
             </div>
           ) : (
             <div className="row g-4">
-              {filteredVideos.map(video => (
+              {videos.map(video => (
                 <div key={video.id} className="col-md-4 col-lg-3">
                   <div className="card h-100">
                     <div className="position-relative">
@@ -971,9 +1088,6 @@
                       >
                         <i className="fas fa-play-circle fa-3x text-white" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}></i>
                       </a>
-                      <span className={`position-absolute top-0 end-0 m-2 badge ${video.category === 'shorts' ? 'bg-danger' : 'bg-primary'}`}>
-                        {video.category === 'shorts' ? 'Short' : 'Video'}
-                      </span>
                     </div>
                     <div className="card-body py-2">
                       <h6 className="card-title small mb-1 text-truncate" title={video.title}>{video.title}</h6>
@@ -984,10 +1098,10 @@
                         <button className="btn btn-outline-primary" onClick={() => copyLink(video)} title="Copy link">
                           <i className="fas fa-link"></i>
                         </button>
-                        <button className="btn btn-outline-secondary" onClick={() => handleEdit(video)} title="Sửa">
+                        <button className="btn btn-outline-secondary" onClick={() => handleEditVideo(video)} title="Sửa">
                           <i className="fas fa-edit"></i>
                         </button>
-                        <button className="btn btn-outline-danger" onClick={() => handleDelete(video)} title="Xóa">
+                        <button className="btn btn-outline-danger" onClick={() => handleDeleteVideo(video)} title="Xóa">
                           <i className="fas fa-trash"></i>
                         </button>
                       </div>
@@ -999,11 +1113,89 @@
           )}
 
           <VideoModal
-            show={showModal}
+            show={showVideoModal}
             video={editingVideo}
-            onClose={() => setShowModal(false)}
-            onSave={handleSave}
+            onClose={() => setShowVideoModal(false)}
+            onSave={handleSaveVideo}
           />
+        </div>
+      );
+    }
+
+    // Video Folder Modal
+    function VideoFolderModal({ show, folder, onClose, onSave }) {
+      const [formData, setFormData] = useState({ name: '', description: '', sortOrder: 0 });
+      const [saving, setSaving] = useState(false);
+
+      useEffect(() => {
+        if (folder) {
+          setFormData({
+            name: folder.name || '',
+            description: folder.description || '',
+            sortOrder: folder.sortOrder || 0
+          });
+        } else {
+          setFormData({ name: '', description: '', sortOrder: 0 });
+        }
+      }, [folder, show]);
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        await onSave(formData);
+        setSaving(false);
+      };
+
+      if (!show) return null;
+
+      return (
+        <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">{folder ? 'Sửa Folder' : 'Tạo Folder mới'}</h5>
+                <button type="button" className="btn-close" onClick={onClose}></button>
+              </div>
+              <form onSubmit={handleSubmit}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label">Tên folder *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Mô tả</label>
+                    <textarea
+                      className="form-control"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows="2"
+                    ></textarea>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Thứ tự</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={formData.sortOrder}
+                      onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
+                  <button type="submit" className="btn btn-warning" disabled={saving}>
+                    {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu...</> : 'Lưu'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
       );
     }
@@ -1014,7 +1206,6 @@
         title: '',
         youtube_url: '',
         thumbnail_url: '',
-        category: 'instruction',
         sort_order: 0
       });
       const [saving, setSaving] = useState(false);
@@ -1026,7 +1217,6 @@
             title: video.title || '',
             youtube_url: `https://www.youtube.com/watch?v=${video.youtubeId}`,
             thumbnail_url: video.thumb || '',
-            category: video.category || 'instruction',
             sort_order: video.sortOrder || 0
           });
           setPreviewThumb(video.thumb);
@@ -1035,7 +1225,6 @@
             title: '',
             youtube_url: '',
             thumbnail_url: '',
-            category: 'instruction',
             sort_order: 0
           });
           setPreviewThumb('');
@@ -1104,27 +1293,14 @@
                     />
                   </div>
 
-                  <div className="row">
-                    <div className="col-6 mb-3">
-                      <label className="form-label">Danh mục</label>
-                      <select
-                        className="form-select"
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      >
-                        <option value="instruction">Video hướng dẫn</option>
-                        <option value="shorts">Shorts</option>
-                      </select>
-                    </div>
-                    <div className="col-6 mb-3">
-                      <label className="form-label">Thứ tự</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={formData.sort_order}
-                        onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
-                      />
-                    </div>
+                  <div className="mb-3">
+                    <label className="form-label">Thứ tự</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={formData.sort_order}
+                      onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
+                    />
                   </div>
 
                   <div className="mb-3">
