@@ -1,11 +1,8 @@
 // api/albums.js - Vercel Serverless Function for Albums API
-import { Pool } from 'pg';
+import { neon } from '@neondatabase/serverless';
 
-// Tạo connection pool
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+// Tạo SQL client
+const sql = neon(process.env.DATABASE_URL);
 
 export default async function handler(req, res) {
   // CORS headers
@@ -17,16 +14,20 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // Check DATABASE_URL
+  if (!process.env.DATABASE_URL) {
+    return res.status(500).json({ error: 'DATABASE_URL not configured' });
+  }
+
   // GET /api/albums - Lấy danh sách albums
   if (req.method === 'GET') {
     try {
-      const q = `
+      const rows = await sql`
         SELECT a.id, a.slug, a.title, a.description, a.cover_url,
                (SELECT COUNT(*) FROM images i WHERE i.album_id = a.id)::int as image_count
         FROM albums a
-        ORDER BY a.created_at DESC;
+        ORDER BY a.created_at DESC
       `;
-      const { rows } = await pool.query(q);
       
       // Transform to match frontend format
       const albums = rows.map(row => ({
@@ -54,12 +55,11 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'slug and title are required' });
       }
       
-      const q = `
+      const rows = await sql`
         INSERT INTO albums (slug, title, description, cover_url) 
-        VALUES ($1, $2, $3, $4) 
+        VALUES (${slug}, ${title}, ${description || null}, ${cover_url || null}) 
         RETURNING *
       `;
-      const { rows } = await pool.query(q, [slug, title, description || null, cover_url || null]);
       return res.status(201).json(rows[0]);
     } catch (err) {
       console.error('POST /api/albums error:', err);
