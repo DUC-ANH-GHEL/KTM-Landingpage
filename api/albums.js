@@ -1,9 +1,6 @@
 // api/albums.js - Vercel Serverless Function for Albums API
 import { neon } from '@neondatabase/serverless';
 
-// Tạo SQL client
-const sql = neon(process.env.DATABASE_URL);
-
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,6 +15,9 @@ export default async function handler(req, res) {
   if (!process.env.DATABASE_URL) {
     return res.status(500).json({ error: 'DATABASE_URL not configured' });
   }
+
+  // Tạo SQL client inside handler
+  const sql = neon(process.env.DATABASE_URL);
 
   // GET /api/albums - Lấy danh sách albums
   if (req.method === 'GET') {
