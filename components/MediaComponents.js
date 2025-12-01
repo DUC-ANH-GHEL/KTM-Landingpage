@@ -71,7 +71,7 @@ function InstructionVideos() {
   const [loading, setLoading] = useState(true);
   const [showAllFolders, setShowAllFolders] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
-  const DISPLAY_LIMIT = 6;
+  const DISPLAY_LIMIT = 4;
 
   // Copy link helper
   const copyVideoLink = (e, video) => {
