@@ -69,6 +69,7 @@ function InstructionVideos() {
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [activeVideo, setActiveVideo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showAllFolders, setShowAllFolders] = useState(false);
   const DISPLAY_LIMIT = 6;
 
   // Fallback data nếu API fail
@@ -150,10 +151,59 @@ function InstructionVideos() {
 
         {hasMore && (
           <div className="text-center mt-4">
-            <button className="btn btn-outline-warning rounded-pill px-4">
+            <button 
+              className="btn btn-outline-warning rounded-pill px-4"
+              onClick={() => setShowAllFolders(true)}
+            >
               <i className="fas fa-th me-2"></i>
               Xem tất cả {folders.length} danh mục
             </button>
+          </div>
+        )}
+
+        {/* All Folders Modal */}
+        {showAllFolders && (
+          <div className="modal-overlay-full" style={{ zIndex: 9998 }} onClick={() => setShowAllFolders(false)}>
+            <div className="container py-4" onClick={(e) => e.stopPropagation()}>
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h3 className="text-white mb-0">
+                  <i className="fas fa-folder me-2 text-warning"></i>
+                  Tất cả danh mục ({folders.length})
+                </h3>
+                <button className="btn btn-light" onClick={() => setShowAllFolders(false)}>
+                  <i className="fas fa-times"></i> Đóng
+                </button>
+              </div>
+              <div className="row g-3" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+                {folders.map((folder, i) => (
+                  <div key={folder.id || i} className="col-6 col-md-4 col-lg-3">
+                    <div 
+                      className="video-folder-card position-relative rounded overflow-hidden shadow"
+                      onClick={() => { setShowAllFolders(false); setSelectedFolder(folder); }}
+                      style={{ cursor: 'pointer', aspectRatio: '16/9' }}
+                    >
+                      <img 
+                        src={folder.coverImage || folder.videos?.[0]?.thumb || `https://img.youtube.com/vi/${folder.videos?.[0]?.youtubeId}/hqdefault.jpg` || 'https://via.placeholder.com/320x180?text=Video'} 
+                        alt={folder.name}
+                        className="w-100 h-100"
+                        style={{ objectFit: 'cover' }}
+                      />
+                      <div className="position-absolute top-0 start-0 end-0 bottom-0" style={{ background: 'linear-gradient(transparent 50%, rgba(0,0,0,0.8))' }}></div>
+                      <div className="position-absolute bottom-0 start-0 end-0 p-2 text-white">
+                        <h6 className="mb-0 fw-bold">{folder.name}</h6>
+                        <small className="opacity-75">
+                          <i className="fas fa-video me-1"></i>
+                          {folder.videos?.length || folder.videoCount || 0} video
+                        </small>
+                      </div>
+                      <div className="position-absolute top-50 start-50 translate-middle">
+                        <i className="fas fa-folder-open fa-2x text-warning"></i>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </>
