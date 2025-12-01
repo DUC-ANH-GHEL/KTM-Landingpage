@@ -571,7 +571,7 @@ function App() {
       {/* <SparePartsComponent /> */}
       <AlbumGallery />
       <InstructionVideos />
-      <YoutubeShortsSection onOpen={() => setShowShortsModal(true)} />
+      {/* <YoutubeShortsSection onOpen={() => setShowShortsModal(true)} /> */}
       {showShortsModal && <YoutubeShortsModal onClose={() => setShowShortsModal(false)} />}
       {showAiChat && <AiChatWidget onClose={() => setShowAiChat(false)} />}
       <FloatingSocial onOpenAiChat={() => setShowAiChat(true)} />
