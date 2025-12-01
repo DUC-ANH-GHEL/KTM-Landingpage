@@ -1711,6 +1711,24 @@
                   </button>
                 </div>
               </div>
+              {/* Mobile menu */}
+              <div className="d-flex gap-2 mt-3 overflow-auto pb-1">
+                <button 
+                  className={`btn btn-sm ${activeMenu === 'albums' ? 'btn-warning' : 'btn-outline-light'}`}
+                  onClick={() => setActiveMenu('albums')}
+                >
+                  <i className="fas fa-images me-1"></i> Album
+                </button>
+                <button 
+                  className={`btn btn-sm ${activeMenu === 'videos' ? 'btn-warning' : 'btn-outline-light'}`}
+                  onClick={() => setActiveMenu('videos')}
+                >
+                  <i className="fas fa-video me-1"></i> Video
+                </button>
+                <button className="btn btn-sm btn-outline-secondary" disabled>
+                  <i className="fas fa-box me-1"></i> Sản phẩm
+                </button>
+              </div>
             </div>
 
             {activeMenu === 'albums' && !selectedAlbum && (
