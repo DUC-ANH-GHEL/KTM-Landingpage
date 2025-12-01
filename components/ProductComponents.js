@@ -22,8 +22,6 @@ function ProductList() {
         setTimeLeft("Đã hết khuyến mãi");
         setIsPromoOver(true);
         clearInterval(interval);
-        const beep = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-        beep.play();
         return;
       }
 
