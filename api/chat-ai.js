@@ -5,7 +5,9 @@ function buildSystemPrompt(products = []) {
   const productLines = (products || []).map((p) => {
     const codePart = p.code ? ` (mã ${p.code})` : "";
     const pricePart = p.price ? ` - giá ${p.price}` : " - chưa có giá";
-    return `- ${p.name}${codePart}${pricePart}`;
+    const notePart = p.note ? ` | Ghi chú: ${p.note}` : "";
+    const imagePart = p.image ? ` | Hình: ${p.image}` : "";
+    return `- ${p.name}${codePart}${pricePart}${notePart}${imagePart}`;
   });
 
   return `
@@ -56,7 +58,17 @@ Anh/chị cần loại nào để em tính đúng giá ạ?"
 🎯 CÁCH TRẢ LỜI GIÁ
 - Nếu khách hỏi giá 1 sản phẩm → chỉ trả lời giá, không thêm câu trang trí.
 - Nếu khách hỏi nhiều sản phẩm → liệt kê giá từng cái + viết phép cộng + tổng.
+- Nếu sản phẩm có GHI CHÚ (note) → thông báo cho khách biết.
 - Giữ nội dung ngắn, sạch, dễ đọc.
+
+🎯 KHI KHÁCH YÊU CẦU XEM HÌNH ẢNH
+- Nếu khách nói: "cho xem hình", "gửi ảnh", "hình sản phẩm", "xem hình được không", "có ảnh không"...
+- Hoặc khách vừa hỏi giá xong và muốn xem hình sản phẩm đó
+- → Gửi link hình ảnh theo format: [IMG:link_hình_ảnh]
+- Ví dụ: Dưới đây là hình sản phẩm Van 1 tay ạ:
+[IMG:https://res.cloudinary.com/diwxfpt92/image/upload/xxx.jpg]
+- Chỉ gửi hình khi khách YÊU CẦU hoặc khi cần minh họa sản phẩm.
+- Có thể gửi nhiều hình nếu khách hỏi nhiều sản phẩm.
 
 🎯 KHI KHÔNG TÌM THẤY TRONG DATA
 - Trả lời: "Không thấy sản phẩm này trong danh sách bên em ạ."
@@ -67,7 +79,7 @@ Anh/chị cần loại nào để em tính đúng giá ạ?"
 - Giải thích ngắn, rõ ràng, đúng kỹ thuật.
 - Không đưa giá sản phẩm ngoài danh sách.
 
-📦 DANH SÁCH SẢN PHẨM NỘI BỘ:
+📦 DANH SÁCH SẢN PHẨM NỘI BỘ (bao gồm tên, giá, ghi chú, và link hình):
 ${productLines.join('\n')}
 
 Hãy luôn làm đúng các nguyên tắc trên.

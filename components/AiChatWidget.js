@@ -30,13 +30,125 @@ async function callGeminiWithProducts(question, chatHistory = []) {
   return data.reply || "Không nhận được phản hồi từ AI.";
 }
 
+// Component hiển thị nội dung tin nhắn (hỗ trợ hình ảnh)
+function MessageContent({ text }) {
+  const { useState } = React;
+  const [lightboxImg, setLightboxImg] = useState(null);
+
+  // Parse text để tìm [IMG:url] và render thành hình ảnh
+  const parseContent = (content) => {
+    const parts = [];
+    const imgRegex = /\[IMG:(https?:\/\/[^\]]+)\]/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = imgRegex.exec(content)) !== null) {
+      // Text trước hình
+      if (match.index > lastIndex) {
+        const textBefore = content.slice(lastIndex, match.index);
+        parts.push({ type: 'text', content: textBefore });
+      }
+      // Hình ảnh
+      parts.push({ type: 'image', url: match[1] });
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Text còn lại
+    if (lastIndex < content.length) {
+      parts.push({ type: 'text', content: content.slice(lastIndex) });
+    }
+
+    return parts;
+  };
+
+  const parts = parseContent(text);
+
+  return (
+    <>
+      {parts.map((part, idx) => {
+        if (part.type === 'image') {
+          return (
+            <div key={idx} className="ai-chat-image-container my-2">
+              <img
+                src={part.url}
+                alt="Hình sản phẩm"
+                className="ai-chat-image"
+                onClick={() => setLightboxImg(part.url)}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '200px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  objectFit: 'cover',
+                  border: '1px solid #ddd'
+                }}
+              />
+            </div>
+          );
+        }
+        // Text
+        return part.content.split("\n").map((line, i) => (
+          <p key={`${idx}-${i}`} className="mb-1">{line}</p>
+        ));
+      })}
+
+      {/* Lightbox */}
+      {lightboxImg && (
+        <div
+          className="ai-chat-lightbox"
+          onClick={() => setLightboxImg(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999999,
+            cursor: 'zoom-out'
+          }}
+        >
+          <img
+            src={lightboxImg}
+            alt="Xem hình lớn"
+            style={{
+              maxWidth: '90%',
+              maxHeight: '90%',
+              objectFit: 'contain',
+              borderRadius: '8px'
+            }}
+          />
+          <button
+            onClick={() => setLightboxImg(null)}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              color: '#fff',
+              fontSize: '24px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              cursor: 'pointer'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 function AiChatWidget({ onClose }) {
   const { useState, useEffect, useRef } = React;
   
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      text: "Chào bạn, mình là trợ lý KTM AI. Bạn có thể hỏi: 'van 1 tay giá bao nhiêu', 'tổng 3 combo này hết bao nhiêu', 'so sánh combo van 2 tay và 3 tay'..."
+      text: "Chào bạn, mình là trợ lý KTM AI 🤖\n\nBạn có thể hỏi:\n• Giá sản phẩm: 'van 1 tay giá bao nhiêu'\n• Tính tổng: 'tổng 3 combo này hết bao nhiêu'\n• So sánh: 'so sánh combo van 2 tay và 3 tay'\n• Xem hình: 'cho xem hình van 1 tay'"
     }
   ]);
   const [input, setInput] = useState("");
@@ -119,11 +231,7 @@ function AiChatWidget({ onClose }) {
             }`}
           >
             <div className="ai-chat-bubble">
-              {m.text.split("\n").map((line, i) => (
-                <p key={i} className="mb-1">
-                  {line}
-                </p>
-              ))}
+              <MessageContent text={m.text} />
             </div>
           </div>
         ))}
