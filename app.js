@@ -566,7 +566,7 @@ function App() {
       <HeroSection />
       <ProductList />
       <HydraulicBladeProducts />
-      <ProductShowcaseTabs />
+      {/* <ProductShowcaseTabs /> */}
       {/* <ProductVanTay /> */}
       {/* <SparePartsComponent /> */}
       <AlbumGallery />

@@ -183,6 +183,22 @@ const SEARCH_PRODUCTS = [
     category: 'Phụ kiện',
     note: 'có freeship',
   },
+  {
+    id: 'nhot-5l',
+    name: 'Nhớt động cơ 5L',
+    price: '590.000 đ',
+    // image: 'https://img.icons8.com/color/48/settings.png',
+    category: 'Phụ kiện',
+    note: 'có freeship',
+  },
+  {
+    id: 'nhot-20l',
+    name: 'Nhớt động cơ 20L',
+    price: '2.140.000 đ',
+    // image: 'https://img.icons8.com/color/48/settings.png',
+    category: 'Phụ kiện',
+    note: 'có freeship',
+  },
 
   // ================== Van tay ===================
   {
