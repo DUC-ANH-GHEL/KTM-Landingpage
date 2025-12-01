@@ -93,18 +93,21 @@ function MessageContent({ text }) {
       })}
 
       {/* Lightbox */}
-      {lightboxImg && (
+      {lightboxImg && ReactDOM.createPortal(
         <div
           className="ai-chat-lightbox"
           onClick={() => setLightboxImg(null)}
           style={{
             position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.9)',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.95)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 999999,
+            zIndex: 2147483647,
             cursor: 'zoom-out'
           }}
         >
@@ -136,7 +139,8 @@ function MessageContent({ text }) {
           >
             ×
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
