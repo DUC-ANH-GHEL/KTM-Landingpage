@@ -67,14 +67,27 @@ export default async function handler(req, res) {
     try {
       const { name, slug, description, coverImage, sortOrder } = req.body;
 
+      // First get current folder
+      const current = await sql`SELECT * FROM video_folders WHERE id = ${id}::uuid`;
+      if (current.length === 0) {
+        return res.status(404).json({ error: 'Folder not found' });
+      }
+
+      // Use provided values or keep current
+      const newName = name !== undefined ? name : current[0].name;
+      const newSlug = slug !== undefined ? slug : current[0].slug;
+      const newDesc = description !== undefined ? description : current[0].description;
+      const newCover = coverImage !== undefined ? (coverImage || null) : current[0].cover_image;
+      const newSort = sortOrder !== undefined ? sortOrder : current[0].sort_order;
+
       const rows = await sql`
         UPDATE video_folders
         SET 
-          name = COALESCE(${name}, name),
-          slug = COALESCE(${slug}, slug),
-          description = COALESCE(${description}, description),
-          cover_image = COALESCE(${coverImage}, cover_image),
-          sort_order = COALESCE(${sortOrder}, sort_order),
+          name = ${newName},
+          slug = ${newSlug},
+          description = ${newDesc},
+          cover_image = ${newCover},
+          sort_order = ${newSort},
           updated_at = NOW()
         WHERE id = ${id}::uuid
         RETURNING id, name, slug, description, cover_image, sort_order
