@@ -65,103 +65,216 @@ function CustomerReviews({ innerRef }) {
 
 function InstructionVideos() {
   const { useState, useEffect } = React;
+  const [folders, setFolders] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState(null);
   const [activeVideo, setActiveVideo] = useState(null);
-  const [videos, setVideos] = useState([]);
-  const [allVideos, setAllVideos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAllModal, setShowAllModal] = useState(false);
   const DISPLAY_LIMIT = 6;
 
   // Fallback data nếu API fail
-  const fallbackVideos = [
-    { id: 1, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749269320/bao-gia-trang-gat-doc-lap_exzhpm.jpg", url: "https://www.youtube.com/embed/U9v6y7kIJ9A?si=LUUh8N05b5fhXo4I", title: "Báo giá trang gạt độc lập" },
-    { id: 2, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749269576/bao-gia-trang-gat-tren-xoi_u9jocc.jpg", url: "https://www.youtube.com/embed/oLC34LfasrI?si=zDNi3tsbEh0d-nH7", title: "Báo giá trang gạt trên xới" },
-    { id: 3, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749277751/Trang-gat_fmkuqw.jpg", url: "https://www.youtube.com/embed/GEt7NB5GwIU?si=yMh6SCJgKUckIEQy", title: "Trang gạt" },
-    { id: 4, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/youtube1_y63sbd.jpg", url: "https://www.youtube.com/embed/2MLY9YJrroU?si=qvuJDHHp3bmNcIWY", title: "Hướng dẫn lắp đặt" },
-    { id: 5, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube4_ykmqip.jpg", url: "https://www.youtube.com/embed/x2TQKWooJEQ?si=n-cUkEEnpIqwx_iY", title: "Video hướng dẫn 5" },
-    { id: 6, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube5_dy8uj1.jpg", url: "https://www.youtube.com/embed/_M6O7gCgdAc?si=nt8RATetDmGp5_3f", title: "Video hướng dẫn 6" },
-  ];
+  const fallbackFolders = [{
+    id: 'fallback',
+    name: 'Video hướng dẫn',
+    videos: [
+      { id: 1, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749269320/bao-gia-trang-gat-doc-lap_exzhpm.jpg", url: "https://www.youtube.com/embed/U9v6y7kIJ9A", title: "Báo giá trang gạt độc lập" },
+      { id: 2, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749269576/bao-gia-trang-gat-tren-xoi_u9jocc.jpg", url: "https://www.youtube.com/embed/oLC34LfasrI", title: "Báo giá trang gạt trên xới" },
+      { id: 3, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/v1749277751/Trang-gat_fmkuqw.jpg", url: "https://www.youtube.com/embed/GEt7NB5GwIU", title: "Trang gạt" },
+      { id: 4, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538310/youtube1_y63sbd.jpg", url: "https://www.youtube.com/embed/2MLY9YJrroU", title: "Hướng dẫn lắp đặt" },
+      { id: 5, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube4_ykmqip.jpg", url: "https://www.youtube.com/embed/x2TQKWooJEQ", title: "Video hướng dẫn 5" },
+      { id: 6, thumb: "https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538312/youtube5_dy8uj1.jpg", url: "https://www.youtube.com/embed/_M6O7gCgdAc", title: "Video hướng dẫn 6" },
+    ]
+  }];
 
   useEffect(() => {
-    const loadVideos = async () => {
+    const loadFolders = async () => {
       try {
-        // Fetch folder "huong-dan" videos
-        const res = await fetch('/api/video-folders?slug=huong-dan');
+        const res = await fetch('/api/video-folders?withVideos=true');
         if (res.ok) {
           const data = await res.json();
-          if (data.videos && data.videos.length > 0) {
-            setAllVideos(data.videos);
-            setVideos(data.videos.slice(0, DISPLAY_LIMIT));
+          // Filter out shorts folder
+          const videoFolders = data.filter(f => f.slug !== 'shorts');
+          if (videoFolders.length > 0) {
+            setFolders(videoFolders);
           } else {
-            setAllVideos(fallbackVideos);
-            setVideos(fallbackVideos.slice(0, DISPLAY_LIMIT));
+            setFolders(fallbackFolders);
           }
         } else {
-          // Fallback to category-based fetch
-          const res2 = await fetch('/api/videos?category=instruction');
-          if (res2.ok) {
-            const data2 = await res2.json();
-            if (data2.length > 0) {
-              setAllVideos(data2);
-              setVideos(data2.slice(0, DISPLAY_LIMIT));
-            } else {
-              setAllVideos(fallbackVideos);
-              setVideos(fallbackVideos.slice(0, DISPLAY_LIMIT));
-            }
-          } else {
-            setAllVideos(fallbackVideos);
-            setVideos(fallbackVideos.slice(0, DISPLAY_LIMIT));
-          }
+          setFolders(fallbackFolders);
         }
       } catch (err) {
-        console.error('Error loading videos:', err);
-        setAllVideos(fallbackVideos);
-        setVideos(fallbackVideos.slice(0, DISPLAY_LIMIT));
+        console.error('Error loading video folders:', err);
+        setFolders(fallbackFolders);
       }
       setLoading(false);
     };
-    loadVideos();
+    loadFolders();
   }, []);
 
-  const hasMore = allVideos.length > DISPLAY_LIMIT;
+  // Folder Grid View
+  const renderFolderGrid = () => {
+    const displayFolders = folders.slice(0, DISPLAY_LIMIT);
+    const hasMore = folders.length > DISPLAY_LIMIT;
+
+    return (
+      <>
+        <div className="row g-3 justify-content-center">
+          {displayFolders.map((folder, i) => (
+            <div key={folder.id || i} className="col-6 col-md-4 col-lg-3">
+              <div 
+                className="video-folder-card position-relative rounded overflow-hidden shadow"
+                onClick={() => setSelectedFolder(folder)}
+                style={{ cursor: 'pointer', aspectRatio: '16/9' }}
+              >
+                {/* Folder thumbnail - use first video thumb or default */}
+                <img 
+                  src={folder.coverImage || folder.videos?.[0]?.thumb || `https://img.youtube.com/vi/${folder.videos?.[0]?.youtubeId}/hqdefault.jpg` || 'https://via.placeholder.com/320x180?text=Video'} 
+                  alt={folder.name}
+                  className="w-100 h-100"
+                  style={{ objectFit: 'cover' }}
+                />
+                <div className="position-absolute top-0 start-0 end-0 bottom-0" style={{ background: 'linear-gradient(transparent 50%, rgba(0,0,0,0.8))' }}></div>
+                <div className="position-absolute bottom-0 start-0 end-0 p-2 text-white">
+                  <h6 className="mb-0 fw-bold">{folder.name}</h6>
+                  <small className="opacity-75">
+                    <i className="fas fa-video me-1"></i>
+                    {folder.videos?.length || folder.videoCount || 0} video
+                  </small>
+                </div>
+                <div className="position-absolute top-50 start-50 translate-middle">
+                  <i className="fas fa-folder-open fa-2x text-warning"></i>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {hasMore && (
+          <div className="text-center mt-4">
+            <button className="btn btn-outline-warning rounded-pill px-4">
+              <i className="fas fa-th me-2"></i>
+              Xem tất cả {folders.length} danh mục
+            </button>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  // Videos in Folder View
+  const renderVideosInFolder = () => {
+    const videos = selectedFolder.videos || [];
+    const displayVideos = videos.slice(0, DISPLAY_LIMIT);
+    const hasMore = videos.length > DISPLAY_LIMIT;
+
+    return (
+      <>
+        {/* Back button */}
+        <div className="d-flex align-items-center justify-content-center mb-4">
+          <button 
+            className="btn btn-outline-secondary me-3"
+            onClick={() => setSelectedFolder(null)}
+          >
+            <i className="fas fa-arrow-left"></i>
+          </button>
+          <h4 className="mb-0">
+            <i className="fas fa-folder-open text-warning me-2"></i>
+            {selectedFolder.name}
+          </h4>
+        </div>
+
+        <div className="row g-3">
+          {displayVideos.map((v, i) => (
+            <div key={v.id || i} className="col-6 col-md-4">
+              <div 
+                className="position-relative video-thumb rounded overflow-hidden shadow" 
+                onClick={() => setActiveVideo(v.url)} 
+                style={{ cursor: "pointer" }}
+              >
+                <img src={v.thumb} alt={v.title || `video ${i + 1}`} className="img-fluid w-100" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
+                <div className="position-absolute top-50 start-50 translate-middle">
+                  <i className="fas fa-play-circle fa-2x text-white"></i>
+                </div>
+                <div className="position-absolute bottom-0 start-0 end-0 p-2 text-white small" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
+                  {v.title || `Video ${i + 1}`}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {hasMore && (
+          <div className="text-center mt-4">
+            <button 
+              className="btn btn-warning rounded-pill px-4"
+              onClick={() => setActiveVideo('showAll')}
+            >
+              <i className="fas fa-video me-2"></i>
+              Xem tất cả {videos.length} video
+            </button>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  // All Videos Modal
+  const renderAllVideosModal = () => {
+    if (activeVideo !== 'showAll') return null;
+    const videos = selectedFolder?.videos || [];
+
+    return (
+      <div className="modal-overlay-full" style={{ zIndex: 9998 }} onClick={() => setActiveVideo(null)}>
+        <div className="container py-4" onClick={(e) => e.stopPropagation()}>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h3 className="text-white mb-0">
+              <i className="fas fa-folder-open me-2 text-warning"></i>
+              {selectedFolder?.name} ({videos.length} video)
+            </h3>
+            <button className="btn btn-light" onClick={() => setActiveVideo(null)}>
+              <i className="fas fa-times"></i> Đóng
+            </button>
+          </div>
+          <div className="row g-3" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+            {videos.map((v, i) => (
+              <div key={v.id || i} className="col-6 col-md-4 col-lg-3">
+                <div 
+                  className="position-relative video-thumb bg-dark rounded overflow-hidden" 
+                  onClick={() => setActiveVideo(v.url)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <img src={v.thumb} alt={v.title || `video ${i + 1}`} className="img-fluid w-100" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
+                  <div className="position-absolute top-50 start-50 translate-middle">
+                    <i className="fas fa-play-circle fa-2x text-white"></i>
+                  </div>
+                  <div className="position-absolute bottom-0 start-0 end-0 p-2 text-white small" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
+                    {v.title || `Video ${i + 1}`}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <section className="py-5">
       <div className="container text-center">
         <h2 className="fw-bold mb-4">Video hướng dẫn</h2>
+        
         {loading ? (
           <div className="py-4">
             <div className="spinner-border text-warning"></div>
           </div>
+        ) : selectedFolder ? (
+          renderVideosInFolder()
         ) : (
-          <>
-            <div className="row g-3">
-              {videos.map((v, i) => (
-                <div key={v.id || i} className="col-6 col-md-4">
-                  <div className="position-relative video-thumb" onClick={() => setActiveVideo(v.url)} style={{ cursor: "pointer" }}>
-                    <img src={v.thumb} alt={v.title || `video ${i + 1}`} className="img-fluid rounded shadow" />
-                    <div className="position-absolute top-50 start-50 translate-middle">
-                      <i className="fas fa-play-circle fa-2x text-white"></i>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {hasMore && (
-              <button 
-                className="btn btn-warning mt-4 px-4 py-2 rounded-pill"
-                onClick={() => setShowAllModal(true)}
-              >
-                <i className="fas fa-video me-2"></i>
-                Xem tất cả {allVideos.length} video
-              </button>
-            )}
-          </>
+          renderFolderGrid()
         )}
 
         {/* Video Player Modal */}
-        {activeVideo && (
+        {activeVideo && activeVideo !== 'showAll' && (
           <div className="video-modal-overlay" onClick={() => setActiveVideo(null)}>
             <div className="video-modal-content" onClick={(e) => e.stopPropagation()}>
               <button className="btn btn-light position-absolute top-0 end-0 m-2" onClick={() => setActiveVideo(null)}>
@@ -181,40 +294,7 @@ function InstructionVideos() {
         )}
 
         {/* All Videos Modal */}
-        {showAllModal && (
-          <div className="modal-overlay-full" style={{ zIndex: 9998 }} onClick={() => setShowAllModal(false)}>
-            <div className="container py-4" onClick={(e) => e.stopPropagation()}>
-              <div className="d-flex justify-content-between align-items-center mb-4">
-                <h3 className="text-white mb-0">
-                  <i className="fas fa-video me-2 text-warning"></i>
-                  Tất cả video hướng dẫn ({allVideos.length})
-                </h3>
-                <button className="btn btn-light" onClick={() => setShowAllModal(false)}>
-                  <i className="fas fa-times"></i> Đóng
-                </button>
-              </div>
-              <div className="row g-3" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
-                {allVideos.map((v, i) => (
-                  <div key={v.id || i} className="col-6 col-md-4 col-lg-3">
-                    <div 
-                      className="position-relative video-thumb bg-dark rounded overflow-hidden" 
-                      onClick={() => { setShowAllModal(false); setActiveVideo(v.url); }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <img src={v.thumb} alt={v.title || `video ${i + 1}`} className="img-fluid w-100" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
-                      <div className="position-absolute top-50 start-50 translate-middle">
-                        <i className="fas fa-play-circle fa-2x text-white"></i>
-                      </div>
-                      <div className="position-absolute bottom-0 start-0 end-0 p-2 text-white small" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
-                        {v.title || `Video ${i + 1}`}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        {renderAllVideosModal()}
       </div>
     </section>
   );
@@ -251,45 +331,17 @@ function YoutubeShortsSection({ onOpen }) {
 }
 
 function YoutubeShortsModal({ onClose }) {
-  const { useState, useEffect, useRef } = React;
+  const { useRef, useEffect } = React;
   
-  // Fallback shorts
-  const fallbackShorts = [
+  // Hardcoded shorts - không cần fetch từ API
+  const shorts = [
     "UCreMHzob5c", "X7KeEUeH08s", "aRGJaryWCZM",
     "1jUJZ3JVYrE", "P4B9jBiCumw", "FEDQpcHVzEA",
     "sg45zTOzlr8", "VuPrPSkBtNE", "7aGK8dR8pK0"
   ];
   
-  const [shorts, setShorts] = useState(fallbackShorts);
   const containerRef = useRef(null);
   const iframeRefs = useRef([]);
-
-  useEffect(() => {
-    const loadShorts = async () => {
-      try {
-        // Try folder-based fetch first
-        const res = await fetch('/api/video-folders?slug=shorts');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.videos && data.videos.length > 0) {
-            setShorts(data.videos.map(v => v.youtubeId));
-            return;
-          }
-        }
-        // Fallback to category-based
-        const res2 = await fetch('/api/videos?category=shorts');
-        if (res2.ok) {
-          const data2 = await res2.json();
-          if (data2.length > 0) {
-            setShorts(data2.map(v => v.youtubeId));
-          }
-        }
-      } catch (err) {
-        console.error('Error loading shorts:', err);
-      }
-    };
-    loadShorts();
-  }, []);
 
   const handleIntersection = (entries) => {
     entries.forEach((entry) => {
@@ -311,7 +363,7 @@ function YoutubeShortsModal({ onClose }) {
     items?.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
-  }, [shorts]);
+  }, []);
 
   return (
     <div className="modal-overlay-full bg-black text-white" style={{ zIndex: 9999 }}>
