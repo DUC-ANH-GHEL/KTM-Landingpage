@@ -19,11 +19,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'query and products array are required' });
   }
 
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  
-  // Always use smart local filter (more reliable)
-  const matchedIds = smartLocalFilter(query, products);
-  return res.status(200).json({ matchedIds, query, method: 'smart-filter' });
+  // Smart local filter với debug info
+  const result = smartLocalFilter(query, products);
+  return res.status(200).json({ 
+    matchedIds: result.matchedIds, 
+    query, 
+    method: 'smart-filter',
+    debug: result.debug 
+  });
 }
 
 // Hàm bỏ dấu tiếng Việt
@@ -281,5 +284,16 @@ function smartLocalFilter(query, products) {
     return true;
   });
 
-  return filtered.map(p => p.id);
+  return {
+    matchedIds: filtered.map(p => p.id),
+    debug: {
+      fixedQuery,
+      tayNum,
+      tyNum,
+      typeFilter,
+      folderKeywordsFound,
+      otherKeywords,
+      totalProducts: products.length
+    }
+  };
 }
