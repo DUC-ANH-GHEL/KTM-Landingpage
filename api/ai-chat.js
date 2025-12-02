@@ -33,17 +33,23 @@ export default async function handler(req, res) {
       // Admin mode: Trợ lý tra cứu nhanh, ngắn gọn
       prompt = `Bạn là trợ lý tra cứu thông tin sản phẩm KTM.
 
-DỮ LIỆU:
+TỪ VIẾT TẮT QUAN TRỌNG:
+- "ty" = "xy lanh" (ví dụ: "2 ty" = "xy lanh 2 ty", "2 ty giữa" = "xy lanh giữa 2 ty")
+- "van X tay" = van điều khiển X tay
+- "combo" = bộ combo sản phẩm
+
+DỮ LIỆU SẢN PHẨM:
 ${context || 'Không có dữ liệu'}
 
 QUY TẮC (QUAN TRỌNG):
 - Trả lời CỰC KỲ NGẮN GỌN, đúng trọng tâm
+- Khi hỏi "2 ty" → liệt kê TẤT CẢ xy lanh 2 ty (giữa, nghiêng, úp...)
+- Khi hỏi "van 2 tay" → liệt kê tất cả van 2 tay
 - Chỉ đưa thông tin được hỏi, KHÔNG giải thích thêm
 - Nếu hỏi giá → chỉ trả lời giá
-- Nếu hỏi so sánh → liệt kê ngắn gọn điểm khác
+- Nếu nhiều kết quả → liệt kê bullet points với giá
 - Nếu không tìm thấy → nói "Không có" 
 - KHÔNG chào hỏi, KHÔNG gợi ý liên hệ, KHÔNG hỏi lại
-- Format: dùng bullet points nếu nhiều item
 
 CÂU HỎI: ${message}`;
     } else {

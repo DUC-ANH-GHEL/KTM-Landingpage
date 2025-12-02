@@ -2065,39 +2065,49 @@
 
       // Find matching items from message
       const findMatchingItems = (message) => {
-        const lowerMsg = message.toLowerCase();
+        let lowerMsg = message.toLowerCase();
         
-        // Tìm các cụm từ quan trọng trong câu hỏi
-        const keyPhrases = [];
+        // Chuyển đổi từ viết tắt
+        // "2 ty" → "2 ty" (giữ nguyên để match "xy lanh giữa 2 ty", "xy lanh nghiêng 2 ty")
+        // "ty" là viết tắt của "xy lanh"
+        const tyMatch = lowerMsg.match(/(\d+)\s*ty/);
+        const searchTerms = [];
         
-        // Match các pattern phổ biến: "van X tay", "xy lanh XxY", "combo X tay"
-        const patterns = [
-          /van\s*\d+\s*tay/gi,           // van 1 tay, van 2 tay
-          /xy\s*lanh\s*\d+x\d+/gi,       // xy lanh 50x400
-          /combo\s*van?\s*\d+\s*tay/gi,  // combo van 1 tay, combo 2 tay
-          /combo\s*\d+/gi,               // combo 1, combo 2
-        ];
+        if (tyMatch) {
+          // Tìm tất cả xy lanh có số ty này
+          searchTerms.push(`${tyMatch[1]} ty`);
+        }
         
-        patterns.forEach(pattern => {
-          const matches = lowerMsg.match(pattern);
-          if (matches) keyPhrases.push(...matches);
-        });
+        // Tìm van X tay
+        const vanMatch = lowerMsg.match(/van\s*(\d+)\s*tay/);
+        if (vanMatch) {
+          searchTerms.push(`van ${vanMatch[1]} tay`);
+        }
         
-        // Nếu có cụm từ cụ thể, ưu tiên match chính xác
-        if (keyPhrases.length > 0) {
-          const exactMatches = allData.filter(item => {
-            const itemName = (item.name || '').toLowerCase();
-            return keyPhrases.some(phrase => 
-              itemName.includes(phrase.replace(/\s+/g, ' ').trim())
-            );
-          });
-          if (exactMatches.length > 0) {
-            return exactMatches.slice(0, 4);
+        // Tìm combo
+        const comboMatch = lowerMsg.match(/combo\s*(\d+)?\s*(tay)?/);
+        if (comboMatch) {
+          if (comboMatch[1]) {
+            searchTerms.push(`combo ${comboMatch[1]} tay`);
+            searchTerms.push(`combo van ${comboMatch[1]} tay`);
+          } else {
+            searchTerms.push('combo');
           }
         }
         
-        // Fallback: match từng từ (bỏ các từ chung như giá, bao nhiêu, có...)
-        const stopWords = ['giá', 'bao', 'nhiêu', 'có', 'không', 'là', 'của', 'cái', 'con', 'chiếc'];
+        // Nếu có search terms cụ thể
+        if (searchTerms.length > 0) {
+          const matches = allData.filter(item => {
+            const itemName = (item.name || '').toLowerCase();
+            return searchTerms.some(term => itemName.includes(term));
+          });
+          if (matches.length > 0) {
+            return matches.slice(0, 6); // Tăng lên 6 để hiện nhiều kết quả hơn
+          }
+        }
+        
+        // Fallback: match từng từ (bỏ các từ chung)
+        const stopWords = ['giá', 'bao', 'nhiêu', 'có', 'không', 'là', 'của', 'cái', 'con', 'chiếc', 'tất', 'cả'];
         const words = lowerMsg.split(/\s+/)
           .filter(w => w.length > 1 && !stopWords.includes(w));
         
@@ -2107,7 +2117,7 @@
             .join(' ')
             .toLowerCase();
           return words.some(word => text.includes(word));
-        }).slice(0, 4);
+        }).slice(0, 6);
       };
 
       // AI Chat function - Local AI using data context
