@@ -2094,13 +2094,15 @@
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
 
         try {
-          // Build context from allData
+          // Build context from allData với format tốt hơn
           const dataContext = allData.map(item => {
-            const fields = Object.entries(item)
-              .filter(([k]) => !k.startsWith('_'))
-              .map(([k, v]) => `${k}: ${v}`)
-              .join(', ');
-            return fields;
+            let info = `- ${item.name}`;
+            if (item.code) info += ` (Mã: ${item.code})`;
+            if (item.price) info += ` - Giá: ${item.price}`;
+            if (item.category) info += ` [${item.category}]`;
+            if (item.note) info += ` (${item.note})`;
+            if (item.image) info += ` [IMG:${item.image}]`;
+            return info;
           }).join('\n');
 
           // Call backend API

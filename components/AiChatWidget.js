@@ -35,10 +35,20 @@ async function callGeminiWithProducts(question, chatHistory = []) {
   // Load products từ DB
   const products = await loadProductsForAI();
 
+  // Build context từ products
+  const context = products.map(p => {
+    let info = `- ${p.name}`;
+    if (p.code) info += ` (Mã: ${p.code})`;
+    if (p.price) info += ` - Giá: ${p.price}`;
+    if (p.category) info += ` [${p.category}]`;
+    if (p.note) info += ` (${p.note})`;
+    if (p.image) info += ` [IMG:${p.image}]`;
+    return info;
+  }).join('\n');
+
   const payload = {
-    question,
-    products: products,
-    history: chatHistory
+    message: question,
+    context: context
   };
 
   const res = await fetch(API_URL, {
@@ -54,7 +64,7 @@ async function callGeminiWithProducts(question, chatHistory = []) {
   }
 
   const data = await res.json();
-  return data.reply || "Không nhận được phản hồi từ AI.";
+  return data.response || "Không nhận được phản hồi từ AI.";
 }
 
 // Component hiển thị nội dung tin nhắn (hỗ trợ hình ảnh)
