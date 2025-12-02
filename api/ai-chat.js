@@ -20,13 +20,35 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message, context } = req.body;
+    const { message, context, mode } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    const prompt = `Bạn là trợ lý bán hàng thông minh của KTM - chuyên cung cấp thiết bị thủy lực, xy lanh, van tay, combo sản phẩm cho máy nông nghiệp.
+    // Prompt khác nhau cho admin vs customer
+    let prompt;
+    
+    if (mode === 'admin') {
+      // Admin mode: Trợ lý tra cứu nhanh, ngắn gọn
+      prompt = `Bạn là trợ lý tra cứu thông tin sản phẩm KTM.
+
+DỮ LIỆU:
+${context || 'Không có dữ liệu'}
+
+QUY TẮC (QUAN TRỌNG):
+- Trả lời CỰC KỲ NGẮN GỌN, đúng trọng tâm
+- Chỉ đưa thông tin được hỏi, KHÔNG giải thích thêm
+- Nếu hỏi giá → chỉ trả lời giá
+- Nếu hỏi so sánh → liệt kê ngắn gọn điểm khác
+- Nếu không tìm thấy → nói "Không có" 
+- KHÔNG chào hỏi, KHÔNG gợi ý liên hệ, KHÔNG hỏi lại
+- Format: dùng bullet points nếu nhiều item
+
+CÂU HỎI: ${message}`;
+    } else {
+      // Customer mode: Trợ lý bán hàng thân thiện
+      prompt = `Bạn là trợ lý bán hàng thông minh của KTM - chuyên cung cấp thiết bị thủy lực, xy lanh, van tay, combo sản phẩm cho máy nông nghiệp.
 
 DANH SÁCH SẢN PHẨM VÀ GIÁ:
 ${context || 'Không có dữ liệu sản phẩm'}
@@ -42,6 +64,7 @@ QUY TẮC TRẢ LỜI:
 8. Cuối câu trả lời, có thể gợi ý liên hệ Bá Đức qua Zalo: 0966201140
 
 CÂU HỎI CỦA KHÁCH: ${message}`;
+    }
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
