@@ -845,6 +845,11 @@
       const [videoFolders, setVideoFolders] = useState([]);
       const searchInputRef = useRef(null);
       
+      // AI Search states
+      const [aiSearchEnabled, setAiSearchEnabled] = useState(true);
+      const [aiSearching, setAiSearching] = useState(false);
+      const aiSearchTimeoutRef = useRef(null);
+      
       // AI Chat states
       const [showAIChat, setShowAIChat] = useState(false);
       const [aiMessages, setAiMessages] = useState([
@@ -965,9 +970,57 @@
         setTimeout(() => searchInputRef.current?.focus(), 100);
       }, []);
 
-      // Search function - flexible matching
+      // AI-powered search function
+      const performAISearch = async (query, basicResults) => {
+        if (!aiSearchEnabled || basicResults.length === 0) return;
+        
+        setAiSearching(true);
+        try {
+          // Prepare product list for AI
+          const productList = basicResults.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            category: item.category,
+            note: item.note
+          }));
+
+          const response = await fetch(`${API_BASE}/api/ai-search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query: query,
+              products: productList
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.matchedIds && data.matchedIds.length > 0) {
+              // Filter results to only include AI-matched items
+              const aiFiltered = basicResults.filter(item => 
+                data.matchedIds.includes(item.id)
+              );
+              if (aiFiltered.length > 0) {
+                setSearchResults(aiFiltered);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('AI Search error:', err);
+          // Keep basic results on error
+        }
+        setAiSearching(false);
+      };
+
+      // Search function - flexible matching with AI enhancement
       const handleSearch = (query) => {
         setSearchQuery(query);
+        
+        // Clear previous AI search timeout
+        if (aiSearchTimeoutRef.current) {
+          clearTimeout(aiSearchTimeoutRef.current);
+        }
         
         if (!query.trim()) {
           filterByCategory(selectedCategory);
@@ -984,18 +1037,25 @@
             .map(([, value]) => String(value || '').toLowerCase())
             .join(' ');
 
-          // All words must match somewhere
-          return words.every(word => searchableText.includes(word));
+          // All words must match somewhere (OR logic for basic, AI will refine)
+          return words.some(word => searchableText.includes(word));
         });
 
         // Apply category filter
+        let finalResults = results;
         if (selectedCategory !== 'all') {
-          const filtered = results.filter(item => 
+          finalResults = results.filter(item => 
             (item.category || item._type) === selectedCategory
           );
-          setSearchResults(filtered);
-        } else {
-          setSearchResults(results);
+        }
+        
+        setSearchResults(finalResults);
+
+        // Trigger AI search after debounce (500ms)
+        if (aiSearchEnabled && query.length >= 3) {
+          aiSearchTimeoutRef.current = setTimeout(() => {
+            performAISearch(query, finalResults);
+          }, 500);
         }
       };
 
@@ -1286,20 +1346,39 @@
         <div>
           {/* Search Header */}
           <div className="sticky-top bg-white shadow-sm p-3 mb-3 rounded" style={{ zIndex: 100 }}>
-            <h4 className="m-0 text-warning mb-3">
-              <i className="fas fa-search me-2"></i>Tra cứu nhanh
-            </h4>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h4 className="m-0 text-warning">
+                <i className="fas fa-search me-2"></i>Tra cứu nhanh
+              </h4>
+              {/* AI Search Toggle */}
+              <div className="form-check form-switch">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="aiSearchToggle"
+                  checked={aiSearchEnabled}
+                  onChange={(e) => setAiSearchEnabled(e.target.checked)}
+                />
+                <label className="form-check-label small" htmlFor="aiSearchToggle">
+                  <i className="fas fa-robot me-1"></i>AI Search
+                </label>
+              </div>
+            </div>
 
             {/* Main search input */}
             <div className="input-group input-group-lg">
               <span className="input-group-text bg-warning border-warning">
-                <i className="fas fa-search text-dark"></i>
+                {aiSearching ? (
+                  <span className="spinner-border spinner-border-sm text-dark"></span>
+                ) : (
+                  <i className="fas fa-search text-dark"></i>
+                )}
               </span>
               <input
                 ref={searchInputRef}
                 type="text"
                 className="form-control border-warning"
-                placeholder="Gõ tên sản phẩm, mã, giá, ghi chú... (VD: van 2 tay, combo, freeship)"
+                placeholder="Gõ tên sản phẩm, mã, giá, ghi chú... (VD: van 3 tay 2 ty)"
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 autoFocus
@@ -1316,7 +1395,11 @@
 
             {/* View mode toggle */}
             <div className="d-flex justify-content-between align-items-center">
-              <small className="text-muted">{searchResults.length} kết quả</small>
+              <small className="text-muted">
+                {searchResults.length} kết quả
+                {aiSearching && <span className="ms-2 text-info"><i className="fas fa-robot"></i> AI đang lọc...</span>}
+                {aiSearchEnabled && !aiSearching && searchQuery.length >= 3 && <span className="ms-2 text-success"><i className="fas fa-check"></i> AI</span>}
+              </small>
               <div className="btn-group btn-group-sm">
                 <button 
                   className={`btn ${viewMode === 'grid' ? 'btn-warning' : 'btn-outline-secondary'}`}
