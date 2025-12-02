@@ -75,18 +75,163 @@
       background: rgba(255,193,7,0.1);
     }
     
-    /* Product List Styles */
+    /* Product List Styles - Beautiful Design */
+    .product-manager {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 16px;
+      padding: 16px;
+      margin: -15px;
+      min-height: calc(100vh - 140px);
+    }
+    .product-header {
+      background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .product-header h5 {
+      color: #1a1a2e;
+      font-weight: 700;
+      margin: 0;
+    }
+    .product-search {
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      backdrop-filter: blur(10px);
+    }
+    .product-search input,
+    .product-search select {
+      background: rgba(255,255,255,0.9) !important;
+      border: none !important;
+      border-radius: 8px !important;
+      color: #333 !important;
+    }
+    .product-search input::placeholder {
+      color: #888 !important;
+    }
     .product-item {
-      transition: background 0.2s;
+      background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: all 0.3s ease;
     }
     .product-item:hover {
-      background: #363652 !important;
+      background: linear-gradient(135deg, rgba(255,193,7,0.15) 0%, rgba(255,152,0,0.1) 100%);
+      border-color: rgba(255,193,7,0.3);
+      transform: translateX(4px);
     }
     .product-item:active {
-      background: #404060 !important;
+      transform: scale(0.98);
+    }
+    .product-img {
+      width: 65px;
+      height: 65px;
+      border-radius: 10px;
+      object-fit: cover;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .product-img-placeholder {
+      width: 65px;
+      height: 65px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .product-name {
+      font-weight: 600;
+      color: #fff;
+      font-size: 0.95rem;
+      line-height: 1.3;
+      margin-bottom: 4px;
+    }
+    .product-price {
+      color: #ffc107;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .product-badge {
+      font-size: 0.6rem;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .product-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .product-actions .btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .product-actions .btn-edit {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      border: none;
+      color: #fff;
+    }
+    .product-actions .btn-edit:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 15px rgba(79,172,254,0.4);
+    }
+    .product-actions .btn-delete {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+      border: none;
+      color: #fff;
+    }
+    .product-actions .btn-delete:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 15px rgba(255,107,107,0.4);
+    }
+    .product-count {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .btn-add-product {
+      background: #1a1a2e;
+      color: #ffc107;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-add-product:hover {
+      background: #0d0d1a;
+      color: #ffc107;
+      transform: scale(1.05);
     }
     .min-width-0 {
       min-width: 0;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .empty-state i {
+      font-size: 4rem;
+      color: rgba(255,193,7,0.3);
+      margin-bottom: 16px;
+    }
+    .empty-state p {
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 20px;
     }
     
     /* Desktop Sidebar */
@@ -3080,107 +3225,85 @@
       });
 
       return (
-        <div className="pb-5 mb-5">
+        <div className="product-manager pb-5 mb-4">
           {/* Header */}
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="m-0"><i className="fas fa-box me-2 text-warning"></i>Sản phẩm</h5>
-            <button className="btn btn-warning btn-sm" onClick={handleCreate}>
-              <i className="fas fa-plus me-1"></i>Thêm
+          <div className="product-header">
+            <h5><i className="fas fa-box me-2"></i>Sản phẩm</h5>
+            <button className="btn-add-product" onClick={handleCreate}>
+              <i className="fas fa-plus me-1"></i>Thêm mới
             </button>
           </div>
 
-          {/* Filters */}
-          <div className="mb-3">
-            <div className="input-group input-group-sm mb-2">
-              <span className="input-group-text"><i className="fas fa-search"></i></span>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Tìm tên hoặc mã..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              {searchTerm && (
-                <button className="btn btn-outline-secondary" onClick={() => setSearchTerm('')}>
-                  <i className="fas fa-times"></i>
-                </button>
-              )}
+          {/* Search & Filter */}
+          <div className="product-search">
+            <div className="d-flex gap-2 mb-2">
+              <div className="flex-grow-1 position-relative">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="🔍 Tìm sản phẩm..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <span className="product-count">{filteredProducts.length}</span>
             </div>
-            <div className="d-flex gap-2 align-items-center">
-              <select className="form-select form-select-sm flex-grow-1" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-                <option value="">Tất cả danh mục</option>
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <span className="badge bg-warning text-dark">{filteredProducts.length}</span>
-            </div>
+            <select className="form-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+              <option value="">📁 Tất cả danh mục</option>
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
 
           {/* Product List */}
           {loading ? (
-            <div className="text-center py-5"><div className="spinner-border text-warning"></div></div>
-          ) : filteredProducts.length === 0 ? (
             <div className="text-center py-5">
-              <i className="fas fa-box-open fa-3x text-muted mb-3"></i>
-              <p className="text-muted">Không có sản phẩm nào</p>
-              <button className="btn btn-warning btn-sm" onClick={handleCreate}>
-                <i className="fas fa-plus me-1"></i>Thêm sản phẩm đầu tiên
+              <div className="spinner-border text-warning" style={{width: '3rem', height: '3rem'}}></div>
+              <p className="text-white-50 mt-3">Đang tải...</p>
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="empty-state">
+              <i className="fas fa-box-open"></i>
+              <p>Chưa có sản phẩm nào</p>
+              <button className="btn btn-warning" onClick={handleCreate}>
+                <i className="fas fa-plus me-2"></i>Thêm sản phẩm đầu tiên
               </button>
             </div>
           ) : (
             <div className="product-list">
               {filteredProducts.map(product => (
-                <div key={product.id} className="product-item d-flex align-items-center gap-3 p-2 mb-2 rounded" style={{background: '#2a2a3e'}}>
+                <div key={product.id} className="product-item d-flex align-items-center gap-3">
                   {/* Image */}
-                  <div className="flex-shrink-0">
-                    {product.image ? (
-                      <img 
-                        src={product.image} 
-                        alt={product.name}
-                        className="rounded"
-                        style={{width: 70, height: 70, objectFit: 'cover'}}
-                      />
-                    ) : (
-                      <div className="rounded bg-secondary d-flex align-items-center justify-content-center" style={{width: 70, height: 70}}>
-                        <i className="fas fa-image text-muted"></i>
-                      </div>
-                    )}
-                  </div>
+                  {product.image ? (
+                    <img src={product.image} alt="" className="product-img" />
+                  ) : (
+                    <div className="product-img-placeholder">
+                      <i className="fas fa-image text-muted"></i>
+                    </div>
+                  )}
                   
                   {/* Info */}
                   <div className="flex-grow-1 min-width-0">
-                    <div className="fw-semibold text-white mb-1" style={{fontSize: '0.9rem'}}>
-                      {product.name}
-                    </div>
-                    <div className="d-flex flex-wrap gap-1 align-items-center mb-1">
+                    <div className="product-name">{product.name}</div>
+                    <div className="d-flex flex-wrap gap-1 mb-1">
                       {product.category && (
-                        <span className="badge bg-info" style={{fontSize: '0.65rem'}}>{product.category}</span>
+                        <span className="product-badge bg-info bg-opacity-75">{product.category}</span>
                       )}
                       {product.code && (
-                        <span className="badge bg-secondary" style={{fontSize: '0.65rem'}}>{product.code}</span>
+                        <span className="product-badge bg-secondary">{product.code}</span>
                       )}
                     </div>
-                    <div className="text-warning fw-bold" style={{fontSize: '0.95rem'}}>
-                      {product.price || 'Liên hệ'}
-                    </div>
+                    <div className="product-price">{product.price || 'Liên hệ'}</div>
                     {product.note && (
-                      <div className="text-muted small">{product.note}</div>
+                      <div className="text-white-50 small mt-1" style={{fontSize: '0.75rem'}}>{product.note}</div>
                     )}
                   </div>
                   
                   {/* Actions */}
-                  <div className="flex-shrink-0 d-flex flex-column gap-1">
-                    <button 
-                      className="btn btn-sm btn-outline-warning" 
-                      onClick={() => handleEdit(product)}
-                      style={{width: 36, height: 36}}
-                    >
-                      <i className="fas fa-edit"></i>
+                  <div className="product-actions">
+                    <button className="btn btn-edit" onClick={() => handleEdit(product)} title="Sửa">
+                      <i className="fas fa-pen"></i>
                     </button>
-                    <button 
-                      className="btn btn-sm btn-outline-danger" 
-                      onClick={() => handleDelete(product)}
-                      style={{width: 36, height: 36}}
-                    >
+                    <button className="btn btn-delete" onClick={() => handleDelete(product)} title="Xóa">
                       <i className="fas fa-trash"></i>
                     </button>
                   </div>
