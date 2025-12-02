@@ -2064,61 +2064,68 @@
         }
       };
 
-      // Find matching items from message
+      // Find matching items from message - chỉ hiện ảnh đúng sản phẩm được hỏi
       const findMatchingItems = (message) => {
         let lowerMsg = message.toLowerCase();
+        const results = [];
         
-        // Chuyển đổi từ viết tắt
-        // "2 ty" → "2 ty" (giữ nguyên để match "xy lanh giữa 2 ty", "xy lanh nghiêng 2 ty")
-        // "ty" là viết tắt của "xy lanh"
-        const tyMatch = lowerMsg.match(/(\d+)\s*ty/);
-        const searchTerms = [];
+        // Chỉ filter products (không lấy albums, videos)
+        const products = allData.filter(item => item._type === 'product');
         
-        if (tyMatch) {
-          // Tìm tất cả xy lanh có số ty này
-          searchTerms.push(`${tyMatch[1]} ty`);
+        // Hỏi về ty/xy lanh (không phải combo)
+        if ((lowerMsg.includes('ty') || lowerMsg.includes('xy lanh')) && !lowerMsg.includes('combo')) {
+          // Tìm loại cụ thể
+          if (lowerMsg.includes('giữa') || lowerMsg.includes('giua')) {
+            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh giữa'));
+            if (match) results.push(match);
+          }
+          if (lowerMsg.includes('nghiêng') || lowerMsg.includes('nghieng')) {
+            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh nghiêng'));
+            if (match) results.push(match);
+          }
+          if (lowerMsg.includes('ủi') || lowerMsg.includes('ui')) {
+            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh ủi'));
+            if (match) results.push(match);
+          }
+          // Nếu chỉ hỏi "ty" không rõ loại, hiện cả giữa và nghiêng
+          if (results.length === 0) {
+            const giua = products.find(p => p.name?.toLowerCase().includes('xy lanh giữa'));
+            const nghieng = products.find(p => p.name?.toLowerCase().includes('xy lanh nghiêng'));
+            if (giua) results.push(giua);
+            if (nghieng) results.push(nghieng);
+          }
+          return results.slice(0, 2);
         }
         
-        // Tìm van X tay
+        // Hỏi về van (không phải combo)
         const vanMatch = lowerMsg.match(/van\s*(\d+)\s*tay/);
-        if (vanMatch) {
-          searchTerms.push(`van ${vanMatch[1]} tay`);
-        }
-        
-        // Tìm combo
-        const comboMatch = lowerMsg.match(/combo\s*(\d+)?\s*(tay)?/);
-        if (comboMatch) {
-          if (comboMatch[1]) {
-            searchTerms.push(`combo ${comboMatch[1]} tay`);
-            searchTerms.push(`combo van ${comboMatch[1]} tay`);
-          } else {
-            searchTerms.push('combo');
-          }
-        }
-        
-        // Nếu có search terms cụ thể
-        if (searchTerms.length > 0) {
-          const matches = allData.filter(item => {
-            const itemName = (item.name || '').toLowerCase();
-            return searchTerms.some(term => itemName.includes(term));
+        if (vanMatch && !lowerMsg.includes('combo')) {
+          const vanNum = vanMatch[1];
+          const match = products.find(p => {
+            const name = p.name?.toLowerCase() || '';
+            return name.includes(`van ${vanNum} tay`) && !name.includes('combo');
           });
-          if (matches.length > 0) {
-            return matches.slice(0, 6); // Tăng lên 6 để hiện nhiều kết quả hơn
-          }
+          if (match) return [match];
         }
         
-        // Fallback: match từng từ (bỏ các từ chung)
-        const stopWords = ['giá', 'bao', 'nhiêu', 'có', 'không', 'là', 'của', 'cái', 'con', 'chiếc', 'tất', 'cả'];
-        const words = lowerMsg.split(/\s+/)
-          .filter(w => w.length > 1 && !stopWords.includes(w));
+        // Hỏi về combo
+        if (lowerMsg.includes('combo')) {
+          const comboMatch = lowerMsg.match(/combo.*?(\d+)\s*tay/);
+          if (comboMatch) {
+            const tayNum = comboMatch[1];
+            const matches = products.filter(p => {
+              const name = p.name?.toLowerCase() || '';
+              return name.includes('combo') && name.includes(`${tayNum} tay`);
+            });
+            return matches.slice(0, 3);
+          }
+          // Combo chung
+          const matches = products.filter(p => p.name?.toLowerCase().includes('combo'));
+          return matches.slice(0, 3);
+        }
         
-        return allData.filter(item => {
-          const text = Object.values(item)
-            .filter(v => typeof v === 'string')
-            .join(' ')
-            .toLowerCase();
-          return words.some(word => text.includes(word));
-        }).slice(0, 6);
+        // Fallback: không hiện gì nếu không match rõ ràng
+        return [];
       };
 
       // AI Chat function - Local AI using data context
