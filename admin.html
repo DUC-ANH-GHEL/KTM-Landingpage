@@ -848,11 +848,14 @@
       // AI Chat states
       const [showAIChat, setShowAIChat] = useState(false);
       const [aiMessages, setAiMessages] = useState([
-        { role: 'assistant', content: 'Xin chào! Tôi là trợ lý AI của KTM. Hãy hỏi tôi về sản phẩm, giá cả, combo... Ví dụ:\n- "Giá van 2 tay bao nhiêu?"\n- "Combo nào rẻ nhất?"\n- "Sản phẩm nào có freeship?"' }
+        { role: 'assistant', content: 'Xin chào! Tôi là trợ lý AI của KTM. Hãy hỏi tôi về sản phẩm, giá cả, combo... Ví dụ:\n- "Giá van 2 tay bao nhiêu?"\n- "Combo nào rẻ nhất?"\n- "Sản phẩm nào có freeship?"', attachments: [] }
       ]);
       const [aiInput, setAiInput] = useState('');
       const [aiLoading, setAiLoading] = useState(false);
       const chatEndRef = useRef(null);
+      
+      // Modal state for image preview
+      const [previewImage, setPreviewImage] = useState(null);
 
       // Load data từ nhiều nguồn
       useEffect(() => {
@@ -1032,15 +1035,32 @@
         }
       };
 
+      // Find matching items from message
+      const findMatchingItems = (message) => {
+        const lowerMsg = message.toLowerCase();
+        const words = lowerMsg.split(/\s+/).filter(w => w.length > 1);
+        
+        return allData.filter(item => {
+          const text = Object.values(item)
+            .filter(v => typeof v === 'string')
+            .join(' ')
+            .toLowerCase();
+          return words.some(word => text.includes(word));
+        }).slice(0, 4); // Max 4 items
+      };
+
       // AI Chat function - Local AI using data context
       const handleAIChat = async (message) => {
         if (!message.trim()) return;
         
         // Add user message
-        const userMsg = { role: 'user', content: message };
+        const userMsg = { role: 'user', content: message, attachments: [] };
         setAiMessages(prev => [...prev, userMsg]);
         setAiInput('');
         setAiLoading(true);
+
+        // Find matching items to attach
+        const matchedItems = findMatchingItems(message);
 
         // Scroll to bottom
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -1073,7 +1093,12 @@
           
           const aiResponse = data.response || 'Xin lỗi, tôi không thể trả lời lúc này.';
           
-          setAiMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+          // Attach matching items with images/videos
+          setAiMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: aiResponse,
+            attachments: matchedItems
+          }]);
         } catch (err) {
           console.error('AI Error:', err);
           
@@ -1098,7 +1123,11 @@
             fallbackResponse = 'Không tìm thấy sản phẩm phù hợp. Hãy thử từ khóa khác như "van", "combo", "xy lanh"...';
           }
           
-          setAiMessages(prev => [...prev, { role: 'assistant', content: fallbackResponse }]);
+          setAiMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: fallbackResponse,
+            attachments: matches.slice(0, 4)
+          }]);
         }
 
         setAiLoading(false);
@@ -1375,13 +1404,78 @@
               {/* Chat Messages */}
               <div className="flex-grow-1 overflow-auto p-3" style={{ background: '#f8f9fa' }}>
                 {aiMessages.map((msg, i) => (
-                  <div key={i} className={`mb-3 d-flex ${msg.role === 'user' ? 'justify-content-end' : 'justify-content-start'}`}>
+                  <div key={i} className={`mb-3 ${msg.role === 'user' ? 'd-flex justify-content-end' : ''}`}>
                     <div 
                       className={`p-2 px-3 rounded-3 ${msg.role === 'user' ? 'bg-warning text-dark' : 'bg-white border'}`}
-                      style={{ maxWidth: '85%', whiteSpace: 'pre-wrap' }}
+                      style={{ maxWidth: '85%', whiteSpace: 'pre-wrap', display: 'inline-block' }}
                     >
                       {msg.role === 'assistant' && <i className="fas fa-robot me-1 text-muted"></i>}
                       {msg.content}
+                      
+                      {/* Attachments - Images/Videos */}
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div className="mt-2 d-flex flex-wrap gap-2">
+                          {msg.attachments.map((item, idx) => (
+                            <div key={idx} className="position-relative" style={{ width: 80 }}>
+                              {/* Image */}
+                              {item.image && (
+                                <img 
+                                  src={item.image} 
+                                  alt={item.name}
+                                  className="rounded border"
+                                  style={{ width: 80, height: 60, objectFit: 'cover', cursor: 'pointer' }}
+                                  onClick={() => setPreviewImage({ url: item.image, name: item.name, price: item.price })}
+                                />
+                              )}
+                              {/* Video indicator */}
+                              {item._type === 'video' && (
+                                <div className="position-absolute top-0 end-0">
+                                  <span className="badge bg-danger" style={{ fontSize: 8 }}>
+                                    <i className="fab fa-youtube"></i>
+                                  </span>
+                                </div>
+                              )}
+                              {/* Name */}
+                              <div className="small text-truncate" style={{ fontSize: 10 }} title={item.name}>
+                                {item.name}
+                              </div>
+                              {/* Quick actions */}
+                              <div className="d-flex gap-1 mt-1">
+                                {item.image && (
+                                  <button
+                                    className="btn btn-outline-secondary p-0"
+                                    style={{ width: 20, height: 20, fontSize: 9 }}
+                                    onClick={() => copyText(item.image, `ai-${item.id}-img`)}
+                                    title="Copy link ảnh"
+                                  >
+                                    <i className={`fas ${copiedId === `ai-${item.id}-img` ? 'fa-check text-success' : 'fa-link'}`}></i>
+                                  </button>
+                                )}
+                                {item._type === 'video' && item.youtubeId && (
+                                  <button
+                                    className="btn btn-outline-danger p-0"
+                                    style={{ width: 20, height: 20, fontSize: 9 }}
+                                    onClick={() => copyText(`https://www.youtube.com/watch?v=${item.youtubeId}`, `ai-${item.id}-yt`)}
+                                    title="Copy link YouTube"
+                                  >
+                                    <i className={`fab ${copiedId === `ai-${item.id}-yt` ? 'fa-check text-success' : 'fa-youtube'}`}></i>
+                                  </button>
+                                )}
+                                {item.price && (
+                                  <button
+                                    className="btn btn-outline-warning p-0"
+                                    style={{ width: 20, height: 20, fontSize: 9 }}
+                                    onClick={() => copyText(item.price, `ai-${item.id}-price`)}
+                                    title="Copy giá"
+                                  >
+                                    <i className={`fas ${copiedId === `ai-${item.id}-price` ? 'fa-check text-success' : 'fa-tag'}`}></i>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1432,6 +1526,57 @@
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* Image Preview Modal */}
+          {previewImage && (
+            <div 
+              className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+              style={{ background: 'rgba(0,0,0,0.9)', zIndex: 2000 }}
+              onClick={() => setPreviewImage(null)}
+            >
+              <div className="text-center" onClick={(e) => e.stopPropagation()}>
+                <img 
+                  src={previewImage.url} 
+                  alt={previewImage.name}
+                  style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain' }}
+                  className="rounded shadow"
+                />
+                <div className="mt-3 text-white">
+                  <h5>{previewImage.name}</h5>
+                  {previewImage.price && <p className="text-warning fs-4">{previewImage.price}</p>}
+                  <div className="d-flex justify-content-center gap-2 mt-2">
+                    <button 
+                      className={`btn ${copiedId === 'preview-img' ? 'btn-success' : 'btn-outline-light'}`}
+                      onClick={() => copyText(previewImage.url, 'preview-img')}
+                    >
+                      <i className={`fas ${copiedId === 'preview-img' ? 'fa-check' : 'fa-link'} me-1`}></i>
+                      Copy link ảnh
+                    </button>
+                    <button 
+                      className="btn btn-outline-light"
+                      onClick={() => {
+                        const a = document.createElement('a');
+                        a.href = previewImage.url;
+                        a.download = previewImage.name || 'image';
+                        a.target = '_blank';
+                        a.click();
+                      }}
+                    >
+                      <i className="fas fa-download me-1"></i>
+                      Tải xuống
+                    </button>
+                    <button 
+                      className="btn btn-light"
+                      onClick={() => setPreviewImage(null)}
+                    >
+                      <i className="fas fa-times me-1"></i>
+                      Đóng
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
