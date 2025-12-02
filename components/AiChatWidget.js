@@ -28,9 +28,9 @@ async function loadProductsForAI() {
   return [];
 }
 
-// Gọi backend Vercel serverless để chat AI
+// Gọi backend Vercel serverless để chat AI cho khách hàng
 async function callGeminiWithProducts(question, chatHistory = []) {
-  const API_URL = "/api/ai-chat";
+  const API_URL = "/api/ai-chat-customer";
 
   // Load products từ DB
   const products = await loadProductsForAI();

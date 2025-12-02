@@ -1,12 +1,9 @@
 /**
- * api/ai-chat.js - UNIFIED AI Chat API (Gemini)
+ * api/ai-chat-admin.js - AI Chat cho ADMIN
+ * Trợ lý tra cứu giá nhanh, ngắn gọn, đúng trọng tâm
  * 
- * Dùng cho CẢ Admin và Frontend:
- * - Admin: gửi mode='admin' → trả lời ngắn gọn, tra cứu nhanh
- * - Frontend (khách): không gửi mode → trả lời thân thiện, bán hàng
- * 
- * Endpoint: POST /api/ai-chat
- * Body: { message, context, mode? }
+ * Endpoint: POST /api/ai-chat-admin
+ * Body: { message, context }
  */
 export default async function handler(req, res) {
   // CORS headers
@@ -29,18 +26,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message, context, mode } = req.body;
+    const { message, context } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // Prompt khác nhau cho admin vs customer
-    let prompt;
-    
-    if (mode === 'admin') {
-      // Admin mode: Trợ lý tra cứu nhanh cho chủ shop
-      prompt = `Bạn là trợ lý tra cứu giá nhanh cho chủ shop KTM.
+    // Admin prompt: Tra cứu nhanh cho chủ shop
+    const prompt = `Bạn là trợ lý tra cứu giá nhanh cho chủ shop KTM.
 
 📦 DANH SÁCH SẢN PHẨM:
 ${context || 'Không có dữ liệu'}
@@ -67,25 +60,6 @@ Trả lời:
 • Combo van 2 tay 2 ty nghiêng giữa: 7.300.000đ
 
 CÂU HỎI: ${message}`;
-    } else {
-      // Customer mode: Trợ lý bán hàng thân thiện
-      prompt = `Bạn là trợ lý bán hàng thông minh của KTM - chuyên cung cấp thiết bị thủy lực, xy lanh, van tay, combo sản phẩm cho máy nông nghiệp.
-
-DANH SÁCH SẢN PHẨM VÀ GIÁ:
-${context || 'Không có dữ liệu sản phẩm'}
-
-QUY TẮC TRẢ LỜI:
-1. Trả lời ngắn gọn, thân thiện, dễ hiểu
-2. Nếu hỏi về giá, trả lời chính xác giá từ danh sách
-3. Nếu hỏi combo, gợi ý combo phù hợp với nhu cầu
-4. Nếu hỏi so sánh, so sánh rõ ràng các sản phẩm
-5. Nếu sản phẩm có [IMG:url] thì đưa link hình vào câu trả lời theo format: [IMG:url]
-6. Nếu sản phẩm có ghi chú (note) thì đề cập
-7. Luôn hỏi lại nếu cần làm rõ nhu cầu
-8. Cuối câu trả lời, có thể gợi ý liên hệ Bá Đức qua Zalo: 0966201140
-
-CÂU HỎI CỦA KHÁCH: ${message}`;
-    }
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -97,8 +71,8 @@ CÂU HỎI CỦA KHÁCH: ${message}`;
             parts: [{ text: prompt }]
           }],
           generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 800
+            temperature: 0.5,
+            maxOutputTokens: 500
           }
         })
       }
@@ -111,11 +85,11 @@ CÂU HỎI CỦA KHÁCH: ${message}`;
     }
 
     const data = await response.json();
-    const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Xin lỗi, tôi không thể trả lời lúc này.';
+    const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Không tìm thấy.';
 
     return res.status(200).json({ response: aiResponse });
   } catch (err) {
-    console.error('AI Chat error:', err);
+    console.error('AI Chat Admin error:', err);
     return res.status(500).json({ error: 'Internal server error', detail: err.message });
   }
 }

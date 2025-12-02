@@ -2161,14 +2161,13 @@
             ? `LỊCH SỬ HỘI THOẠI:\n${historyText}\n\nDANH SÁCH SẢN PHẨM:\n${dataContext}`
             : dataContext;
 
-          // Call backend API với mode admin
-          const response = await fetch(`${API_BASE}/api/ai-chat`, {
+          // Call backend API cho Admin
+          const response = await fetch(`${API_BASE}/api/ai-chat-admin`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               message: message,
-              context: fullContext,
-              mode: 'admin'
+              context: fullContext
             })
           });
 
