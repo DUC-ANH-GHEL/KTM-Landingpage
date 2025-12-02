@@ -19,13 +19,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'query and products array are required' });
   }
 
-  // Smart local filter với debug info
-  const result = smartLocalFilter(query, products);
+  // Smart local filter
+  const matchedIds = smartLocalFilter(query, products);
   return res.status(200).json({ 
-    matchedIds: result.matchedIds, 
+    matchedIds, 
     query, 
-    method: 'smart-filter',
-    debug: result.debug 
+    method: 'smart-filter'
   });
 }
 
@@ -283,16 +282,6 @@ function smartLocalFilter(query, products) {
     return true;
   });
 
-  return {
-    matchedIds: filtered.map(p => p.id),
-    debug: {
-      fixedQuery,
-      tayNum,
-      tyNum,
-      typeFilter,
-      folderKeywordsFound,
-      otherKeywords,
-      totalProducts: products.length
-    }
-  };
+  return filtered.map(p => p.id);
 }
+
