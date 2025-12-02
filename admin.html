@@ -2130,9 +2130,6 @@
         setAiMessages(prev => [...prev, userMsg]);
         setAiInput('');
         setAiLoading(true);
-        
-        // Keep focus on input for continuous chat
-        setTimeout(() => aiInputRef.current?.focus(), 50);
 
         // Find matching items to attach
         const matchedItems = findMatchingItems(message);
@@ -2221,7 +2218,10 @@
         }
 
         setAiLoading(false);
-        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        setTimeout(() => {
+          chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          aiInputRef.current?.focus();
+        }, 100);
       };
 
       // ========== MOBILE CARD COMPONENT ==========
