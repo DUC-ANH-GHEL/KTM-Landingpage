@@ -31,13 +31,40 @@ function smartLocalFilter(query, products) {
   const lowerQuery = query.toLowerCase().trim();
   
   // 1. Phân tích TYPE filter (ảnh/album, video, sản phẩm)
+  // Dùng regex đơn giản hơn để match cả có dấu và không dấu
   let typeFilter = null;
-  if (/\b(ảnh|anh|album|hình|hinh|photo|image)\b/.test(lowerQuery)) {
-    typeFilter = 'album';
-  } else if (/\b(video|clip|youtube)\b/.test(lowerQuery)) {
-    typeFilter = 'video';
-  } else if (/\b(sản phẩm|san pham|product|sp)\b/.test(lowerQuery)) {
-    typeFilter = 'product';
+  const albumKeywords = ['ảnh', 'anh', 'album', 'hình', 'hinh', 'photo', 'image', 'picture', 'pic'];
+  const videoKeywords = ['video', 'clip', 'youtube'];
+  const productKeywords = ['sản phẩm', 'san pham', 'product', 'sp'];
+  
+  // Check từng keyword
+  for (const kw of albumKeywords) {
+    if (lowerQuery.includes(kw)) {
+      // Đảm bảo không phải là phần của từ khác (như "xylanh")
+      const regex = new RegExp(`(^|\\s)${kw}($|\\s)`, 'i');
+      if (regex.test(lowerQuery) || lowerQuery.endsWith(kw)) {
+        typeFilter = 'album';
+        break;
+      }
+    }
+  }
+  
+  if (!typeFilter) {
+    for (const kw of videoKeywords) {
+      if (lowerQuery.includes(kw)) {
+        typeFilter = 'video';
+        break;
+      }
+    }
+  }
+  
+  if (!typeFilter) {
+    for (const kw of productKeywords) {
+      if (lowerQuery.includes(kw)) {
+        typeFilter = 'product';
+        break;
+      }
+    }
   }
   
   // 2. Extract số tay (CHÍNH XÁC)
@@ -49,25 +76,37 @@ function smartLocalFilter(query, products) {
   const tyNum = tyMatch ? tyMatch[1] : null;
   
   // 4. Extract folder/brand keywords (yanmar, kubota, etc.)
-  const folderKeywords = [];
+  const folderKeywordsFound = [];
   const folderPatterns = ['yanmar', 'kubota', 'iseki', 'ktm', 'máy cày', 'may cay'];
   folderPatterns.forEach(pattern => {
     if (lowerQuery.includes(pattern)) {
-      folderKeywords.push(pattern);
+      folderKeywordsFound.push(pattern);
     }
   });
   
   // 5. Extract other meaningful keywords
-  let cleanQuery = lowerQuery
-    .replace(/\b(ảnh|anh|album|hình|hinh|photo|image)\b/g, '')
-    .replace(/\b(video|clip|youtube)\b/g, '')
-    .replace(/\b(sản phẩm|san pham|product|sp)\b/g, '')
+  let cleanQuery = lowerQuery;
+  
+  // Remove type keywords
+  albumKeywords.forEach(kw => {
+    cleanQuery = cleanQuery.replace(new RegExp(`(^|\\s)${kw}($|\\s)`, 'gi'), ' ');
+  });
+  videoKeywords.forEach(kw => {
+    cleanQuery = cleanQuery.replace(new RegExp(kw, 'gi'), '');
+  });
+  productKeywords.forEach(kw => {
+    cleanQuery = cleanQuery.replace(new RegExp(kw, 'gi'), '');
+  });
+  
+  // Remove số tay, số ty
+  cleanQuery = cleanQuery
     .replace(/\d+\s*tay/g, '')
     .replace(/\d+\s*(ty|xi\s*lanh|xylanh)/g, '')
     .replace(/\b(van|combo)\b/g, ''); // Quá chung
   
+  // Remove folder patterns
   folderPatterns.forEach(p => {
-    cleanQuery = cleanQuery.replace(new RegExp(p, 'g'), '');
+    cleanQuery = cleanQuery.replace(new RegExp(p, 'gi'), '');
   });
   
   const otherKeywords = cleanQuery
@@ -81,7 +120,7 @@ function smartLocalFilter(query, products) {
     typeFilter,
     tayNum,
     tyNum,
-    folderKeywords,
+    folderKeywordsFound,
     otherKeywords
   });
 
@@ -118,8 +157,8 @@ function smartLocalFilter(query, products) {
     }
     
     // FOLDER filter - phải match folder hoặc tên
-    if (folderKeywords.length > 0) {
-      const hasFolder = folderKeywords.some(kw => 
+    if (folderKeywordsFound.length > 0) {
+      const hasFolder = folderKeywordsFound.some(kw => 
         folder.includes(kw) || name.includes(kw) || allText.includes(kw)
       );
       if (!hasFolder) {
