@@ -35,10 +35,99 @@ function removeVietnameseTones(str) {
     .replace(/Đ/g, 'D');
 }
 
+// Levenshtein distance - tính độ khác biệt giữa 2 chuỗi
+function levenshteinDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+// Common Vietnamese typo patterns (Telex, VNI, lỗi chính tả phổ biến)
+const TYPO_CORRECTIONS = {
+  // Telex patterns
+  'aa': 'â', 'aw': 'ă', 'ee': 'ê', 'oo': 'ô', 'ow': 'ơ', 'uw': 'ư',
+  'dd': 'đ', 'w': 'ư',
+  // Common typos
+  'ngieng': 'nghiêng', 'ngheng': 'nghiêng', 'ngheeng': 'nghiêng',
+  'giua': 'giữa', 'giu': 'giữ',
+  'xylanh': 'xy lanh', 'xilanh': 'xy lanh',
+  'ktm': 'ktm',
+  'vanm': 'van', 'vna': 'van',
+  'comob': 'combo', 'cmbo': 'combo',
+  'tya': 'ty', 'tay': 'tay',
+  // w/o tones typos
+  'san pham': 'sản phẩm', 'sanpham': 'sản phẩm',
+  'may cay': 'máy cày', 'maycay': 'máy cày',
+};
+
+// Fix typos trong query
+function fixTypos(query) {
+  let fixed = query.toLowerCase();
+  
+  // Apply known corrections
+  Object.entries(TYPO_CORRECTIONS).forEach(([typo, correct]) => {
+    fixed = fixed.replace(new RegExp(typo, 'gi'), correct);
+  });
+  
+  return fixed;
+}
+
+// Fuzzy match - kiểm tra từ có gần giống không
+function fuzzyMatch(word, target, maxDistance = 2) {
+  // Exact match
+  if (target.includes(word)) return true;
+  
+  // Normalize và check
+  const normWord = removeVietnameseTones(word);
+  const normTarget = removeVietnameseTones(target);
+  if (normTarget.includes(normWord)) return true;
+  
+  // Levenshtein check cho từng từ trong target
+  const targetWords = normTarget.split(/\s+/);
+  for (const tw of targetWords) {
+    if (tw.length >= 3 && normWord.length >= 3) {
+      const distance = levenshteinDistance(normWord, tw);
+      // Cho phép lỗi tùy theo độ dài từ
+      const allowedDistance = Math.min(maxDistance, Math.floor(normWord.length / 3));
+      if (distance <= allowedDistance) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
 // Smart local filter - phân tích kỹ từng keyword
 function smartLocalFilter(query, products) {
-  const lowerQuery = query.toLowerCase().trim();
+  // Fix typos trước
+  const fixedQuery = fixTypos(query);
+  const lowerQuery = fixedQuery.toLowerCase().trim();
   const normalizedQuery = removeVietnameseTones(lowerQuery);
+  
+  console.log('Query processing:', { original: query, fixed: fixedQuery, normalized: normalizedQuery });
   
   // 1. Phân tích TYPE filter (ảnh/album, video, sản phẩm)
   // Dùng regex đơn giản hơn để match cả có dấu và không dấu
@@ -169,23 +258,20 @@ function smartLocalFilter(query, products) {
       }
     }
     
-    // FOLDER filter - phải match folder hoặc tên (so sánh cả có dấu và không dấu)
+    // FOLDER filter - phải match folder hoặc tên (dùng fuzzy match)
     if (folderKeywordsFound.length > 0) {
       const hasFolder = folderKeywordsFound.some(kw => {
-        const normalizedKw = removeVietnameseTones(kw);
-        return folder.includes(kw) || name.includes(kw) || allText.includes(kw) ||
-               normalizedFolder.includes(normalizedKw) || normalizedName.includes(normalizedKw);
+        return fuzzyMatch(kw, allText);
       });
       if (!hasFolder) {
         return false;
       }
     }
     
-    // OTHER keywords - tất cả phải match (AND logic) - so sánh không dấu
+    // OTHER keywords - tất cả phải match (AND logic) - dùng fuzzy match
     if (otherKeywords.length > 0) {
       const allMatch = otherKeywords.every(kw => {
-        const normalizedKw = removeVietnameseTones(kw);
-        return allText.includes(kw) || normalizedAllText.includes(normalizedKw);
+        return fuzzyMatch(kw, allText);
       });
       if (!allMatch) {
         return false;
