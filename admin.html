@@ -1630,9 +1630,24 @@
         const loadAllData = async () => {
           setLoading(true);
           
-          // 1. Load products từ searchData.js (đã có sẵn global SEARCH_PRODUCTS)
+          // 1. Load products từ Database API (ưu tiên) hoặc fallback searchData.js
           let products = [];
-          if (typeof SEARCH_PRODUCTS !== 'undefined') {
+          try {
+            const res = await fetch(`${API_BASE}/api/products`);
+            if (res.ok) {
+              const dbProducts = await res.json();
+              products = dbProducts.map(p => ({
+                ...p,
+                _type: 'product',
+                _source: 'database'
+              }));
+            }
+          } catch (err) {
+            console.error('Error loading products from DB:', err);
+          }
+          
+          // Fallback to searchData.js nếu DB trống hoặc lỗi
+          if (products.length === 0 && typeof SEARCH_PRODUCTS !== 'undefined') {
             products = SEARCH_PRODUCTS.map(p => ({
               ...p,
               _type: 'product',
