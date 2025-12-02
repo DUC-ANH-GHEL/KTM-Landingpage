@@ -1,16 +1,43 @@
 // components/AiChatWidget.js
-// Widget chat AI dùng Gemini + data từ SEARCH_PRODUCTS
+// Widget chat AI dùng Gemini + data từ Database
+
+// Cache products globally
+let _cachedProducts = null;
+
+// Load products từ API
+async function loadProductsForAI() {
+  if (_cachedProducts) return _cachedProducts;
+  try {
+    const res = await fetch('/api/products');
+    if (res.ok) {
+      const data = await res.json();
+      _cachedProducts = data.map(p => ({
+        id: p.id,
+        name: p.name,
+        code: p.code || '',
+        price: p.price || '',
+        image: p.image || '',
+        category: p.category || '',
+        note: p.note || ''
+      }));
+      return _cachedProducts;
+    }
+  } catch (e) {
+    console.error('Error loading products:', e);
+  }
+  return [];
+}
 
 // Gọi backend Vercel serverless để chat AI
 async function callGeminiWithProducts(question, chatHistory = []) {
-  // Local: http://localhost:4000/api/chat-ai
-  // Production: /api/chat-ai
-//   const API_URL = "http://localhost:4000/api/chat-ai";
-  const API_URL = "/api/chat-ai";
+  const API_URL = "/api/ai-chat";
+
+  // Load products từ DB
+  const products = await loadProductsForAI();
 
   const payload = {
     question,
-    products: SEARCH_PRODUCTS,
+    products: products,
     history: chatHistory
   };
 
@@ -22,7 +49,7 @@ async function callGeminiWithProducts(question, chatHistory = []) {
 
   if (!res.ok) {
     const errText = await res.text();
-    console.error("Backend /api/chat-ai error:", errText);
+    console.error("Backend /api/ai-chat error:", errText);
     throw new Error("Backend API error");
   }
 

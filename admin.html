@@ -1005,9 +1005,6 @@
   <!-- Bootstrap JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
-  <!-- Search Data -->
-  <script src="searchData.js"></script>
-
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
@@ -1644,15 +1641,6 @@
             }
           } catch (err) {
             console.error('Error loading products from DB:', err);
-          }
-          
-          // Fallback to searchData.js nếu DB trống hoặc lỗi
-          if (products.length === 0 && typeof SEARCH_PRODUCTS !== 'undefined') {
-            products = SEARCH_PRODUCTS.map(p => ({
-              ...p,
-              _type: 'product',
-              _source: 'searchData'
-            }));
           }
 
           // 2. Load images từ albums API

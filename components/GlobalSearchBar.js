@@ -12,8 +12,33 @@ function GlobalSearchBar() {
   const [dropdownStyle, setDropdownStyle] = useState({});
   const [modalImage, setModalImage] = useState(null);
   const [suppressSuggestions, setSuppressSuggestions] = useState(false);
+  const [allProducts, setAllProducts] = useState([]);
 
   const inputRef = useRef(null);
+
+  // Load products từ API khi component mount
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const res = await fetch('/api/products');
+        if (res.ok) {
+          const data = await res.json();
+          setAllProducts(data.map(p => ({
+            id: p.id,
+            name: p.name,
+            code: p.code || '',
+            price: p.price || '',
+            image: p.image || '',
+            category: p.category || '',
+            note: p.note || ''
+          })));
+        }
+      } catch (e) {
+        console.error('Error loading products:', e);
+      }
+    };
+    loadProducts();
+  }, []);
 
   // Hàm bỏ dấu tiếng Việt
   const removeAccents = (str = "") =>
@@ -44,7 +69,7 @@ function GlobalSearchBar() {
       const keywords = normalizedQuery.split(/\s+/).filter(Boolean);
 
       // Tính điểm ưu tiên cho mỗi sản phẩm
-      const scoredResults = SEARCH_PRODUCTS.map((prod) => {
+      const scoredResults = allProducts.map((prod) => {
         const name = removeAccents(prod.name || "");
         const code = removeAccents(prod.code || "");
         const category = removeAccents(prod.category || "");
