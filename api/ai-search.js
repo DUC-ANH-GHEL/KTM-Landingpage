@@ -26,9 +26,19 @@ export default async function handler(req, res) {
   return res.status(200).json({ matchedIds, query, method: 'smart-filter' });
 }
 
+// Hàm bỏ dấu tiếng Việt
+function removeVietnameseTones(str) {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+}
+
 // Smart local filter - phân tích kỹ từng keyword
 function smartLocalFilter(query, products) {
   const lowerQuery = query.toLowerCase().trim();
+  const normalizedQuery = removeVietnameseTones(lowerQuery);
   
   // 1. Phân tích TYPE filter (ảnh/album, video, sản phẩm)
   // Dùng regex đơn giản hơn để match cả có dấu và không dấu
@@ -132,8 +142,11 @@ function smartLocalFilter(query, products) {
     const type = (p._type || '').toLowerCase();
     const note = (p.note || '').toLowerCase();
     
-    // Combine all searchable text
+    // Combine all searchable text (cả có dấu và không dấu)
     const allText = `${name} ${folder} ${category} ${note}`;
+    const normalizedAllText = removeVietnameseTones(allText);
+    const normalizedName = removeVietnameseTones(name);
+    const normalizedFolder = removeVietnameseTones(folder);
     
     // TYPE filter - nếu user chỉ định loại
     if (typeFilter && type !== typeFilter) {
@@ -156,19 +169,24 @@ function smartLocalFilter(query, products) {
       }
     }
     
-    // FOLDER filter - phải match folder hoặc tên
+    // FOLDER filter - phải match folder hoặc tên (so sánh cả có dấu và không dấu)
     if (folderKeywordsFound.length > 0) {
-      const hasFolder = folderKeywordsFound.some(kw => 
-        folder.includes(kw) || name.includes(kw) || allText.includes(kw)
-      );
+      const hasFolder = folderKeywordsFound.some(kw => {
+        const normalizedKw = removeVietnameseTones(kw);
+        return folder.includes(kw) || name.includes(kw) || allText.includes(kw) ||
+               normalizedFolder.includes(normalizedKw) || normalizedName.includes(normalizedKw);
+      });
       if (!hasFolder) {
         return false;
       }
     }
     
-    // OTHER keywords - tất cả phải match (AND logic)
+    // OTHER keywords - tất cả phải match (AND logic) - so sánh không dấu
     if (otherKeywords.length > 0) {
-      const allMatch = otherKeywords.every(kw => allText.includes(kw));
+      const allMatch = otherKeywords.every(kw => {
+        const normalizedKw = removeVietnameseTones(kw);
+        return allText.includes(kw) || normalizedAllText.includes(normalizedKw);
+      });
       if (!allMatch) {
         return false;
       }
