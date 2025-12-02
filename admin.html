@@ -70,6 +70,25 @@
       background: rgba(255,193,7,0.1);
     }
     
+    /* Product Card Styles */
+    .product-card {
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .product-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255,193,7,0.2);
+    }
+    .product-card .card-title {
+      line-height: 1.3;
+    }
+    .product-card .btn-group .btn {
+      flex: 1;
+      padding: 8px;
+    }
+    .product-card .btn-group .btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    
     /* Desktop Sidebar */
     .sidebar {
       background: var(--dark);
@@ -3061,85 +3080,119 @@
       });
 
       return (
-        <div>
-          <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-            <h4 className="m-0"><i className="fas fa-box me-2 text-warning"></i>Quản lý Sản phẩm</h4>
-            <button className="btn btn-warning" onClick={handleCreate}>
-              <i className="fas fa-plus me-2"></i>Thêm sản phẩm
+        <div className="pb-5 mb-5">
+          {/* Header */}
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h5 className="m-0"><i className="fas fa-box me-2 text-warning"></i>Sản phẩm</h5>
+            <button className="btn btn-warning btn-sm" onClick={handleCreate}>
+              <i className="fas fa-plus me-1"></i>Thêm
             </button>
           </div>
 
-          <div className="row g-2 mb-3">
-            <div className="col-md-6">
+          {/* Filters */}
+          <div className="mb-3">
+            <div className="input-group input-group-sm mb-2">
+              <span className="input-group-text"><i className="fas fa-search"></i></span>
               <input
                 type="text"
                 className="form-control"
-                placeholder="Tìm theo tên hoặc mã..."
+                placeholder="Tìm tên hoặc mã..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+              {searchTerm && (
+                <button className="btn btn-outline-secondary" onClick={() => setSearchTerm('')}>
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
             </div>
-            <div className="col-md-4">
-              <select className="form-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+            <div className="d-flex gap-2 align-items-center">
+              <select className="form-select form-select-sm flex-grow-1" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
                 <option value="">Tất cả danh mục</option>
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-            </div>
-            <div className="col-md-2">
-              <span className="badge bg-secondary py-2 px-3 w-100">{filteredProducts.length} sản phẩm</span>
+              <span className="badge bg-warning text-dark">{filteredProducts.length}</span>
             </div>
           </div>
 
+          {/* Product List */}
           {loading ? (
             <div className="text-center py-5"><div className="spinner-border text-warning"></div></div>
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-5">
               <i className="fas fa-box-open fa-3x text-muted mb-3"></i>
               <p className="text-muted">Không có sản phẩm nào</p>
+              <button className="btn btn-warning btn-sm" onClick={handleCreate}>
+                <i className="fas fa-plus me-1"></i>Thêm sản phẩm đầu tiên
+              </button>
             </div>
           ) : (
-            <div className="table-responsive">
-              <table className="table table-dark table-hover">
-                <thead>
-                  <tr>
-                    <th style={{width: 60}}>Ảnh</th>
-                    <th>Tên sản phẩm</th>
-                    <th>Mã</th>
-                    <th>Giá</th>
-                    <th>Danh mục</th>
-                    <th>Ghi chú</th>
-                    <th style={{width: 100}}>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.map(product => (
-                    <tr key={product.id}>
-                      <td>
-                        {product.image ? (
-                          <img src={product.image} alt="" style={{width: 50, height: 50, objectFit: 'cover', borderRadius: 4}} />
-                        ) : (
-                          <div className="bg-secondary d-flex align-items-center justify-content-center" style={{width: 50, height: 50, borderRadius: 4}}>
-                            <i className="fas fa-image text-muted"></i>
-                          </div>
-                        )}
-                      </td>
-                      <td className="fw-medium">{product.name}</td>
-                      <td><span className="badge bg-secondary">{product.code || '-'}</span></td>
-                      <td className="text-warning fw-bold">{product.price || '-'}</td>
-                      <td><span className="badge bg-info">{product.category || '-'}</span></td>
-                      <td className="small text-muted">{product.note || '-'}</td>
-                      <td>
-                        <button className="btn btn-sm btn-outline-primary me-1" onClick={() => handleEdit(product)} title="Sửa">
+            <div className="row g-2">
+              {filteredProducts.map(product => (
+                <div key={product.id} className="col-6 col-md-4 col-lg-3">
+                  <div className="card h-100 bg-dark border-secondary product-card">
+                    {/* Image */}
+                    <div className="position-relative" style={{paddingTop: '100%'}}>
+                      {product.image ? (
+                        <img 
+                          src={product.image} 
+                          alt={product.name}
+                          className="position-absolute top-0 start-0 w-100 h-100"
+                          style={{objectFit: 'cover'}}
+                        />
+                      ) : (
+                        <div className="position-absolute top-0 start-0 w-100 h-100 bg-secondary d-flex align-items-center justify-content-center">
+                          <i className="fas fa-image fa-2x text-muted"></i>
+                        </div>
+                      )}
+                      {/* Category badge */}
+                      {product.category && (
+                        <span className="badge bg-info position-absolute top-0 start-0 m-1" style={{fontSize: '0.65rem'}}>
+                          {product.category.replace('Combo ', '').replace('Van ', '')}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Info */}
+                    <div className="card-body p-2">
+                      <h6 className="card-title mb-1 text-truncate" style={{fontSize: '0.8rem'}} title={product.name}>
+                        {product.name}
+                      </h6>
+                      {product.code && (
+                        <div className="text-muted mb-1" style={{fontSize: '0.7rem'}}>
+                          <i className="fas fa-tag me-1"></i>{product.code}
+                        </div>
+                      )}
+                      <div className="text-warning fw-bold" style={{fontSize: '0.85rem'}}>
+                        {product.price || 'Liên hệ'}
+                      </div>
+                      {product.note && (
+                        <div className="text-muted text-truncate" style={{fontSize: '0.65rem'}}>
+                          {product.note}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="card-footer p-1 bg-transparent border-top border-secondary">
+                      <div className="btn-group btn-group-sm w-100">
+                        <button 
+                          className="btn btn-outline-primary border-0" 
+                          onClick={() => handleEdit(product)}
+                        >
                           <i className="fas fa-edit"></i>
                         </button>
-                        <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(product)} title="Xóa">
+                        <button 
+                          className="btn btn-outline-danger border-0" 
+                          onClick={() => handleDelete(product)}
+                        >
                           <i className="fas fa-trash"></i>
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -3154,7 +3207,7 @@
       );
     }
 
-    // Product Modal (Create/Edit)
+    // Product Modal (Create/Edit) - Mobile Optimized
     function ProductModal({ show, product, categories, onClose, onSave }) {
       const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0 });
       const [saving, setSaving] = useState(false);
@@ -3203,72 +3256,127 @@
       if (!show) return null;
 
       return (
-        <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">{product ? 'Sửa Sản phẩm' : 'Thêm Sản phẩm mới'}</h5>
-                <button type="button" className="btn-close" onClick={onClose}></button>
+        <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.8)' }}>
+          <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+            <div className="modal-content bg-dark text-white">
+              <div className="modal-header border-secondary py-2">
+                <h6 className="modal-title">
+                  <i className={`fas ${product ? 'fa-edit' : 'fa-plus'} me-2 text-warning`}></i>
+                  {product ? 'Sửa sản phẩm' : 'Thêm sản phẩm'}
+                </h6>
+                <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
               </div>
               <form onSubmit={handleSubmit}>
-                <div className="modal-body">
-                  <div className="row g-3">
-                    <div className="col-md-8">
-                      <label className="form-label">Tên sản phẩm *</label>
-                      <input type="text" className="form-control" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
-                    </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Mã sản phẩm</label>
-                      <input type="text" className="form-control" value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} placeholder="VD: KTM-01" />
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Giá</label>
-                      <input type="text" className="form-control" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} placeholder="VD: 1.950.000đ" />
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Danh mục</label>
-                      <select className="form-select" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})}>
-                        <option value="">Chọn danh mục</option>
-                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    <div className="col-12">
-                      <label className="form-label">Hình ảnh</label>
-                      <div className="d-flex gap-3 align-items-start">
-                        {formData.image ? (
-                          <div className="position-relative">
-                            <img src={formData.image} alt="" className="rounded" style={{width: 100, height: 100, objectFit: 'cover'}} />
-                            <button type="button" className="btn btn-sm btn-danger position-absolute top-0 end-0" onClick={() => setFormData({...formData, image: ''})} style={{transform: 'translate(30%, -30%)'}}>
-                              <i className="fas fa-times"></i>
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="bg-light rounded d-flex align-items-center justify-content-center text-muted" style={{width: 100, height: 100}}>
-                            <i className="fas fa-image fa-2x"></i>
-                          </div>
-                        )}
-                        <div className="flex-grow-1">
-                          <input type="file" className="form-control form-control-sm" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
-                          {uploading && <div className="mt-1 text-muted small"><span className="spinner-border spinner-border-sm me-1"></span>Đang upload...</div>}
-                          <div className="mt-2 text-muted small">Hoặc dán URL:</div>
-                          <input type="url" className="form-control form-control-sm" placeholder="https://..." value={formData.image} onChange={(e) => setFormData({...formData, image: e.target.value})} />
+                <div className="modal-body py-3" style={{maxHeight: '70vh', overflowY: 'auto'}}>
+                  {/* Image Upload - First for mobile */}
+                  <div className="text-center mb-3">
+                    <div className="position-relative d-inline-block">
+                      {formData.image ? (
+                        <>
+                          <img src={formData.image} alt="" className="rounded" style={{width: 120, height: 120, objectFit: 'cover'}} />
+                          <button 
+                            type="button" 
+                            className="btn btn-sm btn-danger position-absolute" 
+                            onClick={() => setFormData({...formData, image: ''})} 
+                            style={{top: -8, right: -8, width: 24, height: 24, padding: 0, borderRadius: '50%'}}
+                          >
+                            <i className="fas fa-times" style={{fontSize: '0.7rem'}}></i>
+                          </button>
+                        </>
+                      ) : (
+                        <div className="bg-secondary rounded d-flex align-items-center justify-content-center" style={{width: 120, height: 120}}>
+                          <i className="fas fa-image fa-2x text-muted"></i>
                         </div>
-                      </div>
+                      )}
                     </div>
-                    <div className="col-md-9">
-                      <label className="form-label">Ghi chú</label>
-                      <input type="text" className="form-control" value={formData.note} onChange={(e) => setFormData({...formData, note: e.target.value})} placeholder="VD: Thêm dây là 2.150.000đ" />
-                    </div>
-                    <div className="col-md-3">
-                      <label className="form-label">Thứ tự</label>
-                      <input type="number" className="form-control" value={formData.sort_order} onChange={(e) => setFormData({...formData, sort_order: parseInt(e.target.value) || 0})} />
+                    <div className="mt-2">
+                      <label className="btn btn-sm btn-outline-warning">
+                        <i className="fas fa-camera me-1"></i>
+                        {uploading ? 'Đang tải...' : 'Chọn ảnh'}
+                        <input type="file" className="d-none" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
+                      </label>
                     </div>
                   </div>
+
+                  {/* Form Fields */}
+                  <div className="mb-3">
+                    <label className="form-label small mb-1">Tên sản phẩm *</label>
+                    <input 
+                      type="text" 
+                      className="form-control form-control-sm bg-dark text-white border-secondary" 
+                      value={formData.name} 
+                      onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                      required 
+                      placeholder="VD: Combo Van 3 tay + 2 xylanh"
+                    />
+                  </div>
+
+                  <div className="row g-2 mb-3">
+                    <div className="col-6">
+                      <label className="form-label small mb-1">Mã SP</label>
+                      <input 
+                        type="text" 
+                        className="form-control form-control-sm bg-dark text-white border-secondary" 
+                        value={formData.code} 
+                        onChange={(e) => setFormData({...formData, code: e.target.value})} 
+                        placeholder="KTM-01"
+                      />
+                    </div>
+                    <div className="col-6">
+                      <label className="form-label small mb-1">Giá</label>
+                      <input 
+                        type="text" 
+                        className="form-control form-control-sm bg-dark text-white border-secondary" 
+                        value={formData.price} 
+                        onChange={(e) => setFormData({...formData, price: e.target.value})} 
+                        placeholder="1.950.000đ"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small mb-1">Danh mục</label>
+                    <select 
+                      className="form-select form-select-sm bg-dark text-white border-secondary" 
+                      value={formData.category} 
+                      onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    >
+                      <option value="">Chọn danh mục</option>
+                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small mb-1">Ghi chú</label>
+                    <input 
+                      type="text" 
+                      className="form-control form-control-sm bg-dark text-white border-secondary" 
+                      value={formData.note} 
+                      onChange={(e) => setFormData({...formData, note: e.target.value})} 
+                      placeholder="Thêm dây là 2.150.000đ"
+                    />
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="form-label small mb-1">URL ảnh (tùy chọn)</label>
+                    <input 
+                      type="url" 
+                      className="form-control form-control-sm bg-dark text-white border-secondary" 
+                      placeholder="https://..." 
+                      value={formData.image} 
+                      onChange={(e) => setFormData({...formData, image: e.target.value})} 
+                    />
+                  </div>
                 </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
-                  <button type="submit" className="btn btn-warning" disabled={saving}>
-                    {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu...</> : 'Lưu'}
+
+                <div className="modal-footer border-secondary py-2">
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>Hủy</button>
+                  <button type="submit" className="btn btn-sm btn-warning" disabled={saving}>
+                    {saving ? (
+                      <><span className="spinner-border spinner-border-sm me-1"></span>Đang lưu...</>
+                    ) : (
+                      <><i className="fas fa-save me-1"></i>Lưu</>
+                    )}
                   </button>
                 </div>
               </form>
