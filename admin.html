@@ -256,15 +256,163 @@
       border-right: 1px solid #e0e0e0;
     }
     
-    /* ========== SEARCH HEADER - MOBILE ========== */
+    /* ========== SEARCH BAR - FIXED BOTTOM ========== */
     
-    .search-header-mobile {
-      position: sticky;
-      top: 0;
+    .search-bar-bottom {
+      position: fixed;
+      bottom: 60px;
+      left: 0;
+      right: 0;
       background: #fff;
-      z-index: 100;
+      z-index: 101;
+      padding: 10px 12px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+    
+    @media (min-width: 769px) {
+      .search-bar-bottom {
+        left: 250px;
+        bottom: 0;
+      }
+    }
+    
+    .search-bar-bottom .search-input-wrap {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    .search-bar-bottom .search-input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 25px;
+      font-size: 16px;
+      transition: all 0.2s;
+      background: #f8f9fa;
+    }
+    
+    .search-bar-bottom .search-input:focus {
+      border-color: var(--primary);
+      background: #fff;
+      outline: none;
+    }
+    
+    .search-bar-bottom .filter-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid #e0e0e0;
+      background: #fff;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    
+    .search-bar-bottom .filter-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #000;
+    }
+    
+    /* Filter dropdown */
+    .filter-dropdown {
+      position: fixed;
+      bottom: 120px;
+      left: 12px;
+      right: 12px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+      padding: 16px;
+      z-index: 102;
+    }
+    
+    @media (min-width: 769px) {
+      .filter-dropdown {
+        left: 262px;
+        bottom: 70px;
+        right: auto;
+        width: 300px;
+      }
+    }
+    
+    .filter-dropdown .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    
+    .filter-dropdown .filter-chip {
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      background: #fff;
+      font-size: 14px;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .filter-dropdown .filter-chip.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #000;
+      font-weight: 600;
+    }
+    
+    .filter-dropdown .filter-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    /* Results area - add padding for bottom bar */
+    .search-results-area {
       padding: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding-bottom: 140px;
+    }
+    
+    @media (min-width: 769px) {
+      .search-results-area {
+        padding-bottom: 80px;
+      }
+    }
+    
+    /* Result count header */
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    
+    .result-header .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    /* OLD - Keep for compatibility but hidden */
+    .search-header-mobile {
+      display: none;
     }
     
     .search-header-mobile .search-input-wrap {
@@ -1952,129 +2100,154 @@
         );
       };
 
+      // State for filter dropdown
+      const [showFilter, setShowFilter] = useState(false);
+
       return (
         <div>
-          {/* ========== MOBILE SEARCH HEADER ========== */}
-          <div className="search-header-mobile">
-            {/* Search Input */}
-            <div className="search-input-wrap">
-              <i className={`search-icon fas ${aiSearching ? 'fa-spinner fa-spin' : 'fa-search'}`}></i>
-              <input
-                ref={searchInputRef}
-                type="text"
-                className="search-input"
-                placeholder="Tìm: van 3 tay, xylanh, giá..."
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-              />
-              {searchQuery && (
-                <button className="clear-btn" onClick={() => { setSearchQuery(''); handleSearch(''); }}>
-                  <i className="fas fa-times"></i>
-                </button>
+          {/* ========== RESULT HEADER ========== */}
+          <div className="result-header">
+            <span>
+              <strong>{searchResults.length}</strong> kết quả
+              {aiSearchEnabled && searchQuery.length >= 3 && (
+                <span className="ai-badge ms-2">
+                  <i className="fas fa-robot"></i> AI
+                </span>
               )}
-            </div>
-            
-            {/* Filter Chips */}
-            <div className="filter-row">
-              <span 
-                className={`filter-chip ${selectedCategory === 'all' ? 'active' : ''}`}
-                onClick={() => filterByCategory('all')}
+              {selectedCategory !== 'all' && (
+                <span className="ms-2 badge bg-warning text-dark">
+                  {selectedCategory === 'product' ? 'Sản phẩm' : selectedCategory === 'album' ? 'Ảnh' : 'Video'}
+                </span>
+              )}
+            </span>
+            <div className="d-flex gap-1 align-items-center">
+              {/* View mode */}
+              <button 
+                className={`btn btn-sm ${viewMode === 'list' ? 'btn-dark' : 'btn-outline-secondary'}`}
+                onClick={() => setViewMode('list')}
+                style={{padding: '4px 8px'}}
               >
-                Tất cả
-              </span>
-              <span 
-                className={`filter-chip ${selectedCategory === 'product' ? 'active' : ''}`}
-                onClick={() => filterByCategory('product')}
+                <i className="fas fa-list"></i>
+              </button>
+              <button 
+                className={`btn btn-sm ${viewMode === 'grid' ? 'btn-dark' : 'btn-outline-secondary'}`}
+                onClick={() => setViewMode('grid')}
+                style={{padding: '4px 8px'}}
               >
-                <i className="fas fa-box me-1"></i>Sản phẩm
-              </span>
-              <span 
-                className={`filter-chip ${selectedCategory === 'album' ? 'active' : ''}`}
-                onClick={() => filterByCategory('album')}
-              >
-                <i className="fas fa-images me-1"></i>Ảnh
-              </span>
-              <span 
-                className={`filter-chip ${selectedCategory === 'video' ? 'active' : ''}`}
-                onClick={() => filterByCategory('video')}
-              >
-                <i className="fas fa-video me-1"></i>Video
-              </span>
-            </div>
-            
-            {/* Result Info & View Toggle */}
-            <div className="result-info">
-              <span>
-                <strong>{searchResults.length}</strong> kết quả
-                {aiSearchEnabled && searchQuery.length >= 3 && (
-                  <span className="ai-badge ms-2">
-                    <i className="fas fa-robot"></i> AI
-                  </span>
-                )}
-              </span>
-              <div className="d-flex gap-1 align-items-center">
-                {/* AI Toggle */}
-                <label className="d-flex align-items-center gap-1 me-2" style={{fontSize: 11, cursor: 'pointer'}}>
-                  <input 
-                    type="checkbox" 
-                    checked={aiSearchEnabled} 
-                    onChange={(e) => setAiSearchEnabled(e.target.checked)}
-                    style={{width: 14, height: 14}}
-                  />
-                  AI
-                </label>
-                {/* View mode */}
-                <button 
-                  className={`btn btn-sm ${viewMode === 'list' ? 'btn-dark' : 'btn-outline-secondary'}`}
-                  onClick={() => setViewMode('list')}
-                  style={{padding: '4px 8px'}}
-                >
-                  <i className="fas fa-list"></i>
-                </button>
-                <button 
-                  className={`btn btn-sm ${viewMode === 'grid' ? 'btn-dark' : 'btn-outline-secondary'}`}
-                  onClick={() => setViewMode('grid')}
-                  style={{padding: '4px 8px'}}
-                >
-                  <i className="fas fa-th"></i>
-                </button>
-              </div>
+                <i className="fas fa-th"></i>
+              </button>
             </div>
           </div>
 
           {/* ========== RESULTS ========== */}
-          {loading ? (
-            <div className="empty-state">
-              <div className="spinner-border text-warning" style={{width: 48, height: 48}}></div>
-              <p className="mt-3">Đang tải dữ liệu...</p>
-            </div>
-          ) : searchResults.length === 0 ? (
-            <div className="empty-state">
-              <i className="fas fa-search"></i>
-              <p>Không tìm thấy "{searchQuery}"</p>
-              <button className="btn btn-warning" onClick={() => { setSearchQuery(''); handleSearch(''); }}>
-                Xem tất cả
-              </button>
-            </div>
-          ) : viewMode === 'grid' ? (
-            <div className="product-grid-mobile">
-              {searchResults.map((item, index) => renderMobileCard(item, index))}
-            </div>
-          ) : (
-            <div style={{padding: 12}}>
-              {searchResults.map((item, index) => renderMobileCard(item, index))}
+          <div className="search-results-area">
+            {loading ? (
+              <div className="empty-state">
+                <div className="spinner-border text-warning" style={{width: 48, height: 48}}></div>
+                <p className="mt-3">Đang tải dữ liệu...</p>
+              </div>
+            ) : searchResults.length === 0 ? (
+              <div className="empty-state">
+                <i className="fas fa-search"></i>
+                <p>Không tìm thấy "{searchQuery}"</p>
+                <button className="btn btn-warning" onClick={() => { setSearchQuery(''); handleSearch(''); }}>
+                  Xem tất cả
+                </button>
+              </div>
+            ) : viewMode === 'grid' ? (
+              <div className="product-grid-mobile">
+                {searchResults.map((item, index) => renderMobileCard(item, index))}
+              </div>
+            ) : (
+              <div>
+                {searchResults.map((item, index) => renderMobileCard(item, index))}
+              </div>
+            )}
+          </div>
+
+          {/* ========== FILTER DROPDOWN ========== */}
+          {showFilter && (
+            <div className="filter-dropdown">
+              <div className="filter-header">
+                <strong>Lọc theo loại</strong>
+                <button 
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => setShowFilter(false)}
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="filter-chips">
+                <span 
+                  className={`filter-chip ${selectedCategory === 'all' ? 'active' : ''}`}
+                  onClick={() => { filterByCategory('all'); setShowFilter(false); }}
+                >
+                  Tất cả
+                </span>
+                <span 
+                  className={`filter-chip ${selectedCategory === 'product' ? 'active' : ''}`}
+                  onClick={() => { filterByCategory('product'); setShowFilter(false); }}
+                >
+                  <i className="fas fa-box me-1"></i>Sản phẩm
+                </span>
+                <span 
+                  className={`filter-chip ${selectedCategory === 'album' ? 'active' : ''}`}
+                  onClick={() => { filterByCategory('album'); setShowFilter(false); }}
+                >
+                  <i className="fas fa-images me-1"></i>Ảnh
+                </span>
+                <span 
+                  className={`filter-chip ${selectedCategory === 'video' ? 'active' : ''}`}
+                  onClick={() => { filterByCategory('video'); setShowFilter(false); }}
+                >
+                  <i className="fas fa-video me-1"></i>Video
+                </span>
+              </div>
+              {/* AI Toggle */}
+              <div className="mt-3 pt-3 border-top d-flex align-items-center justify-content-between">
+                <span>AI Search thông minh</span>
+                <div className="form-check form-switch m-0">
+                  <input 
+                    type="checkbox" 
+                    className="form-check-input"
+                    checked={aiSearchEnabled} 
+                    onChange={(e) => setAiSearchEnabled(e.target.checked)}
+                    style={{width: 40, height: 20}}
+                  />
+                </div>
+              </div>
             </div>
           )}
+
+          {/* ========== SEARCH BAR BOTTOM ========== */}
+          <div className="search-bar-bottom">
+            <div className="search-input-wrap">
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="search-input"
+                placeholder="🔍 Tìm: van 3 tay, xylanh..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+              <button 
+                className={`filter-btn ${showFilter || selectedCategory !== 'all' ? 'active' : ''}`}
+                onClick={() => setShowFilter(!showFilter)}
+              >
+                <i className="fas fa-filter"></i>
+              </button>
+            </div>
+          </div>
 
           {/* ========== AI CHAT BUTTON ========== */}
           <button
             className="btn btn-lg rounded-circle position-fixed shadow-lg"
             style={{ 
-              bottom: 90, 
+              bottom: 130, 
               right: 16, 
               width: 56, 
               height: 56, 
-              zIndex: 1000,
+              zIndex: 100,
               background: 'linear-gradient(135deg, #667eea, #764ba2)',
               color: '#fff',
               border: 'none'
