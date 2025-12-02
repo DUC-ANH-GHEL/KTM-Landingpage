@@ -2107,13 +2107,24 @@
             return info;
           }).join('\n');
 
+          // Build chat history để AI hiểu ngữ cảnh (lấy 6 tin nhắn gần nhất)
+          const recentMessages = aiMessages.slice(-6);
+          const historyText = recentMessages.map(m => 
+            `${m.role === 'user' ? 'Khách' : 'AI'}: ${m.content}`
+          ).join('\n');
+          
+          // Gộp context = products + history
+          const fullContext = historyText 
+            ? `LỊCH SỬ HỘI THOẠI:\n${historyText}\n\nDANH SÁCH SẢN PHẨM:\n${dataContext}`
+            : dataContext;
+
           // Call backend API
           const response = await fetch(`${API_BASE}/api/ai-chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               message: message,
-              context: dataContext
+              context: fullContext
             })
           });
 
