@@ -59,14 +59,17 @@ ${context || 'Không có dữ liệu'}
 🎯 VÍ DỤ:
 Hỏi: "1 ty giữa với van 3 tay 2 ty"
 Trả lời:
-1. Xy lanh giữa: 1.950.000đ
+1. Xy lanh giữa: 1.950.000đ (có dây: 2.150.000đ)
 2. Combo Van 3 tay + 2 xylanh: 7.800.000đ
-→ Tổng: 9.750.000đ
+→ Tổng không dây: 9.750.000đ
+→ Tổng có dây: 9.950.000đ
 
-Hỏi: "2 ty nghiêng"
+Hỏi: "2 ty nghiêng với 1 ty giữa"
 Trả lời:
-2 xy lanh nghiêng: 1.950.000 × 2 = 3.900.000đ
-(Có dây: 4.300.000đ)
+1. 2 xy lanh nghiêng: 1.950.000 × 2 = 3.900.000đ
+2. 1 xy lanh giữa: 1.950.000đ
+→ Tổng không dây: 5.850.000đ
+→ Tổng có dây: 6.450.000đ
 
 CÂU HỎI: ${message}`;
 
