@@ -38,47 +38,38 @@ export default async function handler(req, res) {
 📦 DANH SÁCH SẢN PHẨM:
 ${context || 'Không có dữ liệu'}
 
-🎯 HIỂU ĐÚNG CÂU HỎI (RẤT QUAN TRỌNG):
+🎯 HIỂU ĐÚNG CÂU HỎI:
 
-1. **"X ty" = SỐ LƯỢNG xy lanh**
-   - "1 ty" hoặc "ty" = 1 cái xy lanh
-   - "2 ty" = 2 cái xy lanh (giữa hoặc nghiêng)
-   - Giá 1 ty: 1.950.000đ (không dây) hoặc 2.150.000đ (có dây)
-   
-2. **"ty giữa", "ty nghiêng", "ty ủi"** = LOẠI xy lanh cụ thể
+1. **Xy lanh (ty)**:
+   - Xy lanh giữa: 1.950.000đ (có dây: 2.150.000đ)
+   - Xy lanh nghiêng: 1.950.000đ (có dây: 2.150.000đ)
+   - Xy lanh ủi: 2.200.000đ
 
-3. **Van** = sản phẩm van điều khiển đơn lẻ
+2. **Van**: Van 1 tay, Van 2 tay... (sản phẩm đơn lẻ)
 
-4. **Combo** = BỘ sản phẩm - CHỈ trả về khi hỏi đúng từ "combo"
+3. **Combo van X tay Y ty**: Bộ combo gồm van + xy lanh
+   - Tìm trong danh sách sản phẩm có chứa "Combo Van X tay + Y xy"
 
-🎯 CÁCH TÍNH GIÁ:
-- "2 ty" → 1.950.000 × 2 = 3.900.000đ (không dây) / 2.150.000 × 2 = 4.300.000đ (có dây)
-- "3 ty nghiêng" → 1.950.000 × 3 = 5.850.000đ
+4. **Khi hỏi nhiều sản phẩm** (VD: "1 ty giữa với van 3 tay 2 ty"):
+   - Liệt kê giá TỪNG sản phẩm riêng biệt
+   - Tính tổng nếu cần
 
-🎯 NGUYÊN TẮC TRẢ LỜI (BẮT BUỘC):
-- CỰC KỲ NGẮN GỌN - chỉ text thuần
-- KHÔNG đưa link hình ảnh, KHÔNG dùng [IMG:...]
-- Tính toán số lượng × đơn giá
-- Ghi rõ: không dây / có dây
-- Không chào hỏi, không gợi ý liên hệ
+🎯 NGUYÊN TẮC TRẢ LỜI:
+- CỰC KỲ NGẮN GỌN
+- Liệt kê từng sản phẩm + giá
+- KHÔNG dùng [IMG:...]
+- Không chào hỏi
 
-🎯 VÍ DỤ CHUẨN:
-Hỏi: "ty"
+🎯 VÍ DỤ:
+Hỏi: "1 ty giữa với van 3 tay 2 ty"
 Trả lời:
-Xy lanh (giữa/nghiêng): 1.950.000đ
-(Có dây: 2.150.000đ)
+1. Xy lanh giữa: 1.950.000đ (có dây: 2.150.000đ)
+2. Combo Van 3 tay + 2 xylanh: 7.800.000đ
 
 Hỏi: "2 ty"
 Trả lời:
 2 xy lanh: 1.950.000 × 2 = 3.900.000đ
 (Có dây: 2.150.000 × 2 = 4.300.000đ)
-
-Hỏi: "2 ty giữa"
-Trả lời:
-2 Xy lanh giữa:
-• Không dây: 1.950.000 × 2 = 3.900.000đ
-• Có dây: 2.150.000 × 2 = 4.300.000đ
-[IMG:link_hình_xy_lanh_giữa]
 
 CÂU HỎI: ${message}`;
 

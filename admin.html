@@ -2064,7 +2064,7 @@
         }
       };
 
-      // Find matching items from message - chỉ hiện ảnh đúng sản phẩm được hỏi
+      // Find matching items from message - hiện ảnh đúng TẤT CẢ sản phẩm được hỏi
       const findMatchingItems = (message) => {
         let lowerMsg = message.toLowerCase();
         const results = [];
@@ -2072,81 +2072,73 @@
         // Chỉ filter products (không lấy albums, videos)
         const products = allData.filter(item => item._type === 'product');
         
-        // "van X tay Y ty" = combo (VD: "van 3 tay 2 ty" = combo van 3 tay + 2 xylanh)
+        // 1. Tìm xy lanh được đề cập
+        if (lowerMsg.includes('ty') || lowerMsg.includes('xy lanh')) {
+          if (lowerMsg.includes('giữa') || lowerMsg.includes('giua')) {
+            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh giữa'));
+            if (match && !results.find(r => r.id === match.id)) results.push(match);
+          }
+          if (lowerMsg.includes('nghiêng') || lowerMsg.includes('nghieng')) {
+            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh nghiêng'));
+            if (match && !results.find(r => r.id === match.id)) results.push(match);
+          }
+          if (lowerMsg.includes('ủi') || lowerMsg.includes('ui')) {
+            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh ủi'));
+            if (match && !results.find(r => r.id === match.id)) results.push(match);
+          }
+        }
+        
+        // 2. Tìm combo "van X tay Y ty"
         const vanTyMatch = lowerMsg.match(/van\s*(\d+)\s*tay.*?(\d+)\s*ty/);
         if (vanTyMatch) {
           const tayNum = vanTyMatch[1];
           const tyNum = vanTyMatch[2];
           // Tìm combo van X tay + Y xylanh
-          const matches = products.filter(p => {
+          const comboMatch = products.find(p => {
             const name = p.name?.toLowerCase() || '';
             return name.includes('combo') && 
                    name.includes(`${tayNum} tay`) && 
                    (name.includes(`${tyNum} xy`) || name.includes(`${tyNum} xylanh`));
           });
-          if (matches.length > 0) return matches.slice(0, 2);
-          
-          // Fallback: tìm combo van X tay bất kỳ
-          const fallback = products.filter(p => {
-            const name = p.name?.toLowerCase() || '';
-            return name.includes('combo') && name.includes(`${tayNum} tay`);
-          });
-          return fallback.slice(0, 2);
+          if (comboMatch && !results.find(r => r.id === comboMatch.id)) {
+            results.push(comboMatch);
+          } else {
+            // Fallback: combo van X tay bất kỳ
+            const fallback = products.find(p => {
+              const name = p.name?.toLowerCase() || '';
+              return name.includes('combo') && name.includes(`${tayNum} tay`);
+            });
+            if (fallback && !results.find(r => r.id === fallback.id)) results.push(fallback);
+          }
         }
         
-        // Hỏi về combo
-        if (lowerMsg.includes('combo')) {
-          const comboMatch = lowerMsg.match(/combo.*?(\d+)\s*tay/);
-          if (comboMatch) {
-            const tayNum = comboMatch[1];
+        // 3. Tìm combo nếu có từ "combo"
+        if (lowerMsg.includes('combo') && !vanTyMatch) {
+          const comboTayMatch = lowerMsg.match(/combo.*?(\d+)\s*tay/);
+          if (comboTayMatch) {
+            const tayNum = comboTayMatch[1];
             const matches = products.filter(p => {
               const name = p.name?.toLowerCase() || '';
               return name.includes('combo') && name.includes(`${tayNum} tay`);
             });
-            return matches.slice(0, 3);
+            matches.forEach(m => {
+              if (!results.find(r => r.id === m.id)) results.push(m);
+            });
           }
-          // Combo chung
-          const matches = products.filter(p => p.name?.toLowerCase().includes('combo'));
-          return matches.slice(0, 3);
         }
         
-        // Hỏi về ty/xy lanh đơn lẻ (không kèm van)
-        if ((lowerMsg.includes('ty') || lowerMsg.includes('xy lanh')) && !lowerMsg.includes('van')) {
-          if (lowerMsg.includes('giữa') || lowerMsg.includes('giua')) {
-            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh giữa'));
-            if (match) results.push(match);
-          }
-          if (lowerMsg.includes('nghiêng') || lowerMsg.includes('nghieng')) {
-            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh nghiêng'));
-            if (match) results.push(match);
-          }
-          if (lowerMsg.includes('ủi') || lowerMsg.includes('ui')) {
-            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh ủi'));
-            if (match) results.push(match);
-          }
-          // Nếu chỉ hỏi "ty" không rõ loại
-          if (results.length === 0) {
-            const giua = products.find(p => p.name?.toLowerCase().includes('xy lanh giữa'));
-            const nghieng = products.find(p => p.name?.toLowerCase().includes('xy lanh nghiêng'));
-            if (giua) results.push(giua);
-            if (nghieng) results.push(nghieng);
-          }
-          return results.slice(0, 2);
-        }
-        
-        // Hỏi về van đơn lẻ (không kèm ty)
-        const vanMatch = lowerMsg.match(/van\s*(\d+)\s*tay/);
-        if (vanMatch && !lowerMsg.includes('ty')) {
-          const vanNum = vanMatch[1];
+        // 4. Tìm van đơn lẻ (nếu không có ty đi kèm)
+        const vanOnlyMatch = lowerMsg.match(/van\s*(\d+)\s*tay/);
+        if (vanOnlyMatch && !lowerMsg.includes('ty') && !lowerMsg.includes('combo')) {
+          const vanNum = vanOnlyMatch[1];
           const match = products.find(p => {
             const name = p.name?.toLowerCase() || '';
             return name.includes(`van ${vanNum} tay`) && !name.includes('combo');
           });
-          if (match) return [match];
+          if (match && !results.find(r => r.id === match.id)) results.push(match);
         }
         
-        // Fallback: không hiện gì
-        return [];
+        return results.slice(0, 4);
       };
 
       // AI Chat function - Local AI using data context
