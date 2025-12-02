@@ -604,6 +604,8 @@
         try {
           const res = await fetch(`${API_BASE}/api/albums/${album.id}`);
           const data = await res.json();
+          console.log('Album data:', data);
+          console.log('Images:', data.images);
           setImages(data.images || []);
         } catch (err) {
           console.error(err);
