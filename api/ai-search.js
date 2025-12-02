@@ -19,11 +19,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'query and products array are required' });
   }
 
-  // Check for Gemini API key
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    // Fallback: do smart local filtering instead
-    console.log('No GEMINI_API_KEY, using local smart filter');
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  
+  // Fallback to smart local filter if no API key
+  if (!GEMINI_API_KEY) {
     const matchedIds = smartLocalFilter(query, products);
     return res.status(200).json({ matchedIds, query, fallback: true });
   }
@@ -32,7 +31,6 @@ export default async function handler(req, res) {
     // Limit products to avoid token limits
     const limitedProducts = products.slice(0, 50);
     
-    // Prepare product list for AI
     const productListText = limitedProducts.map((p, i) => 
       `${i + 1}. [ID: ${p.id}] ${p.name}${p.price ? ` - ${p.price}` : ''}${p.note ? ` (${p.note})` : ''}`
     ).join('\n');
@@ -41,30 +39,28 @@ export default async function handler(req, res) {
 
 Người dùng tìm: "${query}"
 
-Danh sách sản phẩm có thể phù hợp:
+Danh sách sản phẩm:
 ${productListText}
 
-NHIỆM VỤ: Phân tích câu tìm kiếm và chọn CHÍNH XÁC các sản phẩm phù hợp.
-
 QUY TẮC:
-1. "van X tay" = van có X tay điều khiển (1 tay, 2 tay, 3 tay, 4 tay, 5 tay)
-2. "X ty" hoặc "X xi lanh" = có X xy lanh/ty (1 ty, 2 ty, 3 ty...)
-3. Nếu tìm "van 3 tay 2 ty" thì phải có CẢ "3 tay" VÀ "2 ty" trong tên
-4. "combo" = bộ sản phẩm đi kèm
-5. "nghiêng", "giữa" = vị trí lắp đặt
-6. Chỉ trả về sản phẩm THỰC SỰ khớp với yêu cầu
+1. "van X tay" = van có X tay điều khiển
+2. "X ty" = có X xy lanh/ty
+3. Nếu tìm "van 3 tay 2 ty" thì phải có CẢ "3 tay" VÀ "2 ty"
+4. Chỉ trả về sản phẩm THỰC SỰ khớp
 
-TRẢ LỜI: Chỉ trả về JSON array chứa các ID sản phẩm phù hợp, không giải thích.
-Ví dụ: ["prod_1", "prod_5", "prod_8"]
-Nếu không có sản phẩm nào phù hợp chính xác, trả về: []`;
+TRẢ LỜI: Chỉ JSON array chứa ID phù hợp, không giải thích.
+Ví dụ: ["prod_1", "prod_5"]
+Nếu không có: []`;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
           generationConfig: {
             temperature: 0.1,
             maxOutputTokens: 500
@@ -74,9 +70,9 @@ Nếu không có sản phẩm nào phù hợp chính xác, trả về: []`;
     );
 
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Gemini API error:', response.status, errorData);
-      // Fallback to local filter
+      const errorData = await response.json();
+      console.error('Gemini API error:', errorData);
+      // Fallback
       const matchedIds = smartLocalFilter(query, products);
       return res.status(200).json({ matchedIds, query, fallback: true });
     }
@@ -84,7 +80,6 @@ Nếu không có sản phẩm nào phù hợp chính xác, trả về: []`;
     const data = await response.json();
     const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
     
-    // Parse AI response - extract JSON array
     let matchedIds = [];
     try {
       const jsonMatch = aiText.match(/\[[\s\S]*?\]/);
@@ -92,20 +87,14 @@ Nếu không có sản phẩm nào phù hợp chính xác, trả về: []`;
         matchedIds = JSON.parse(jsonMatch[0]);
       }
     } catch (parseErr) {
-      console.error('Parse error:', parseErr, 'AI response:', aiText);
-      // Fallback
+      console.error('Parse error:', parseErr);
       matchedIds = smartLocalFilter(query, products);
     }
 
-    return res.status(200).json({ 
-      matchedIds,
-      query,
-      totalProducts: products.length
-    });
+    return res.status(200).json({ matchedIds, query, totalProducts: products.length });
 
   } catch (err) {
     console.error('AI Search error:', err);
-    // Fallback to local filter
     const matchedIds = smartLocalFilter(query, products);
     return res.status(200).json({ matchedIds, query, fallback: true });
   }
@@ -115,7 +104,7 @@ Nếu không có sản phẩm nào phù hợp chính xác, trả về: []`;
 function smartLocalFilter(query, products) {
   const lowerQuery = query.toLowerCase();
   
-  // Extract numbers with context (e.g., "3 tay", "2 ty")
+  // Extract "X tay" and "X ty"
   const tayMatch = lowerQuery.match(/(\d+)\s*tay/);
   const tyMatch = lowerQuery.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
   const tayNum = tayMatch ? tayMatch[1] : null;
@@ -128,26 +117,28 @@ function smartLocalFilter(query, products) {
     .split(/\s+/)
     .filter(w => w.length >= 2);
 
-  return products.filter(p => {
+  const filtered = products.filter(p => {
     const name = (p.name || '').toLowerCase();
     
-    // Check tay requirement
+    // Check tay
     if (tayNum) {
       const productTay = name.match(/(\d+)\s*tay/);
       if (!productTay || productTay[1] !== tayNum) return false;
     }
     
-    // Check ty requirement  
+    // Check ty  
     if (tyNum) {
       const productTy = name.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
       if (!productTy || productTy[1] !== tyNum) return false;
     }
     
-    // Check other keywords
-    const hasKeywords = keywords.length === 0 || keywords.some(kw => name.includes(kw));
+    // Check keywords
+    if (keywords.length > 0) {
+      return keywords.some(kw => name.includes(kw));
+    }
     
-    return hasKeywords;
-  }).map(p => p.id);
-}
-}
+    return true;
+  });
+
+  return filtered.map(p => p.id);
 }
