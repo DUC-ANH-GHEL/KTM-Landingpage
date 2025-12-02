@@ -982,7 +982,9 @@
             name: item.name,
             price: item.price,
             category: item.category,
-            note: item.note
+            note: item.note,
+            folder: item.folder,
+            _type: item._type
           }));
 
           const response = await fetch(`${API_BASE}/api/ai-search`, {
@@ -1004,6 +1006,9 @@
               if (aiFiltered.length > 0) {
                 setSearchResults(aiFiltered);
               }
+            } else if (data.matchedIds && data.matchedIds.length === 0) {
+              // AI found no matches - show empty
+              setSearchResults([]);
             }
           }
         } catch (err) {

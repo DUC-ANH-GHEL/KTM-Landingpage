@@ -21,133 +21,118 @@ export default async function handler(req, res) {
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   
-  // Fallback to smart local filter if no API key
-  if (!GEMINI_API_KEY) {
-    const matchedIds = smartLocalFilter(query, products);
-    return res.status(200).json({ matchedIds, query, fallback: true });
-  }
-
-  try {
-    // Limit products to avoid token limits
-    const limitedProducts = products.slice(0, 50);
-    
-    const productListText = limitedProducts.map((p, i) => 
-      `${i + 1}. [ID: ${p.id}] ${p.name}${p.price ? ` - ${p.price}` : ''}${p.note ? ` (${p.note})` : ''}`
-    ).join('\n');
-
-    const prompt = `Bạn là hệ thống tìm kiếm sản phẩm thủy lực KTM. Trả về CHÍNH XÁC sản phẩm phù hợp.
-
-TÌM: "${query}"
-
-SẢN PHẨM:
-${productListText}
-
-QUY TẮC QUAN TRỌNG:
-- "X tay" nghĩa là CHÍNH XÁC X tay (VD: "3 tay" chỉ match "3 tay", KHÔNG match "2 tay" hay "4 tay")
-- "X ty" hoặc "X xylanh" nghĩa là CHÍNH XÁC X xy lanh (VD: "2 ty" chỉ match "2 ty" hoặc "2 xylanh")
-- Nếu tìm "3 tay 2 ty" → sản phẩm PHẢI có cả "3 tay" VÀ "2 ty/2 xylanh"
-- KHÔNG trả về sản phẩm có số tay/ty khác với yêu cầu
-
-VÍ DỤ:
-- Tìm "2 ty 3 tay" → CHỈ lấy sản phẩm có "3 tay" VÀ ("2 ty" hoặc "2 xylanh")
-- "Combo Van 3 tay + 2 xylanh" → ĐÚNG (3 tay, 2 xylanh)
-- "Combo van 2 tay 2 ty" → SAI (2 tay, không phải 3 tay)
-
-CHỈ TRẢ VỀ JSON ARRAY ID, KHÔNG GIẢI THÍCH:
-Ví dụ: ["id1", "id2"]
-Nếu không có sản phẩm nào phù hợp: []`;
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 500
-          }
-        })
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Gemini API error:', errorData);
-      // Fallback
-      const matchedIds = smartLocalFilter(query, products);
-      return res.status(200).json({ matchedIds, query, fallback: true });
-    }
-
-    const data = await response.json();
-    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-    
-    let matchedIds = [];
-    try {
-      const jsonMatch = aiText.match(/\[[\s\S]*?\]/);
-      if (jsonMatch) {
-        matchedIds = JSON.parse(jsonMatch[0]);
-      }
-    } catch (parseErr) {
-      console.error('Parse error:', parseErr);
-      matchedIds = smartLocalFilter(query, products);
-    }
-
-    return res.status(200).json({ matchedIds, query, totalProducts: products.length });
-
-  } catch (err) {
-    console.error('AI Search error:', err);
-    const matchedIds = smartLocalFilter(query, products);
-    return res.status(200).json({ matchedIds, query, fallback: true });
-  }
+  // Always use smart local filter (more reliable)
+  const matchedIds = smartLocalFilter(query, products);
+  return res.status(200).json({ matchedIds, query, method: 'smart-filter' });
 }
 
-// Smart local filter as fallback
+// Smart local filter - phân tích kỹ từng keyword
 function smartLocalFilter(query, products) {
-  const lowerQuery = query.toLowerCase();
+  const lowerQuery = query.toLowerCase().trim();
   
-  // Extract "X tay" - must be exact number
+  // 1. Phân tích TYPE filter (ảnh/album, video, sản phẩm)
+  let typeFilter = null;
+  if (/\b(ảnh|anh|album|hình|hinh|photo|image)\b/.test(lowerQuery)) {
+    typeFilter = 'album';
+  } else if (/\b(video|clip|youtube)\b/.test(lowerQuery)) {
+    typeFilter = 'video';
+  } else if (/\b(sản phẩm|san pham|product|sp)\b/.test(lowerQuery)) {
+    typeFilter = 'product';
+  }
+  
+  // 2. Extract số tay (CHÍNH XÁC)
   const tayMatch = lowerQuery.match(/(\d+)\s*tay/);
   const tayNum = tayMatch ? tayMatch[1] : null;
   
-  // Extract "X ty" or "X xylanh" or "X xi lanh"
+  // 3. Extract số ty/xylanh (CHÍNH XÁC)
   const tyMatch = lowerQuery.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
   const tyNum = tyMatch ? tyMatch[1] : null;
   
-  // Other keywords (van, combo, nghieng, giua, etc.)
-  const keywords = lowerQuery
+  // 4. Extract folder/brand keywords (yanmar, kubota, etc.)
+  const folderKeywords = [];
+  const folderPatterns = ['yanmar', 'kubota', 'iseki', 'ktm', 'máy cày', 'may cay'];
+  folderPatterns.forEach(pattern => {
+    if (lowerQuery.includes(pattern)) {
+      folderKeywords.push(pattern);
+    }
+  });
+  
+  // 5. Extract other meaningful keywords
+  let cleanQuery = lowerQuery
+    .replace(/\b(ảnh|anh|album|hình|hinh|photo|image)\b/g, '')
+    .replace(/\b(video|clip|youtube)\b/g, '')
+    .replace(/\b(sản phẩm|san pham|product|sp)\b/g, '')
     .replace(/\d+\s*tay/g, '')
     .replace(/\d+\s*(ty|xi\s*lanh|xylanh)/g, '')
+    .replace(/\b(van|combo)\b/g, ''); // Quá chung
+  
+  folderPatterns.forEach(p => {
+    cleanQuery = cleanQuery.replace(new RegExp(p, 'g'), '');
+  });
+  
+  const otherKeywords = cleanQuery
     .split(/\s+/)
-    .filter(w => w.length >= 2 && !['van', 'combo'].includes(w)); // van/combo quá chung
+    .filter(w => w.length >= 2)
+    .filter(w => !['và', 'hoặc', 'với', 'cho', 'của', 'cái', 'loại', 'tìm', 'kiếm'].includes(w));
 
+  // DEBUG log
+  console.log('Query analysis:', {
+    original: query,
+    typeFilter,
+    tayNum,
+    tyNum,
+    folderKeywords,
+    otherKeywords
+  });
+
+  // 6. Filter products
   const filtered = products.filter(p => {
     const name = (p.name || '').toLowerCase();
+    const folder = (p.folder || '').toLowerCase();
+    const category = (p.category || '').toLowerCase();
+    const type = (p._type || '').toLowerCase();
+    const note = (p.note || '').toLowerCase();
     
-    // STRICT check tay - must match exact number
+    // Combine all searchable text
+    const allText = `${name} ${folder} ${category} ${note}`;
+    
+    // TYPE filter - nếu user chỉ định loại
+    if (typeFilter && type !== typeFilter) {
+      return false;
+    }
+    
+    // TAY filter - CHÍNH XÁC số tay
     if (tayNum) {
-      // Match patterns like "3 tay", "3tay", "Van 3 tay"
       const productTayMatch = name.match(/(\d+)\s*tay/);
       if (!productTayMatch || productTayMatch[1] !== tayNum) {
         return false;
       }
     }
     
-    // STRICT check ty/xylanh - must match exact number
+    // TY filter - CHÍNH XÁC số ty/xylanh
     if (tyNum) {
-      // Match "2 ty", "2 xylanh", "2 xi lanh", "+ 2 xylanh"
       const productTyMatch = name.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
       if (!productTyMatch || productTyMatch[1] !== tyNum) {
         return false;
       }
     }
     
-    // Check other specific keywords (nghieng, giua, ktm, etc.)
-    if (keywords.length > 0) {
-      return keywords.every(kw => name.includes(kw));
+    // FOLDER filter - phải match folder hoặc tên
+    if (folderKeywords.length > 0) {
+      const hasFolder = folderKeywords.some(kw => 
+        folder.includes(kw) || name.includes(kw) || allText.includes(kw)
+      );
+      if (!hasFolder) {
+        return false;
+      }
+    }
+    
+    // OTHER keywords - tất cả phải match (AND logic)
+    if (otherKeywords.length > 0) {
+      const allMatch = otherKeywords.every(kw => allText.includes(kw));
+      if (!allMatch) {
+        return false;
+      }
     }
     
     return true;
