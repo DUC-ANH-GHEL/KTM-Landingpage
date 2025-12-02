@@ -1809,6 +1809,7 @@
       const [aiInput, setAiInput] = useState('');
       const [aiLoading, setAiLoading] = useState(false);
       const chatEndRef = useRef(null);
+      const aiInputRef = useRef(null);
       
       // Modal state for image preview
       const [previewImage, setPreviewImage] = useState(null);
@@ -2129,6 +2130,9 @@
         setAiMessages(prev => [...prev, userMsg]);
         setAiInput('');
         setAiLoading(true);
+        
+        // Keep focus on input for continuous chat
+        setTimeout(() => aiInputRef.current?.focus(), 50);
 
         // Find matching items to attach
         const matchedItems = findMatchingItems(message);
@@ -2586,6 +2590,7 @@
               <div className="chat-input-area">
                 <form onSubmit={(e) => { e.preventDefault(); handleAIChat(aiInput); }} className="chat-input-wrap">
                   <input
+                    ref={aiInputRef}
                     type="text"
                     className="chat-input"
                     placeholder="Nhập câu hỏi..."
