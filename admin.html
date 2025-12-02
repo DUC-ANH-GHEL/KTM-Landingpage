@@ -2094,14 +2094,16 @@
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
 
         try {
-          // Build context from allData với format tốt hơn
-          const dataContext = allData.map(item => {
+          // Chỉ lấy products (không lấy albums, videos)
+          const productsOnly = allData.filter(item => item._type === 'product');
+          
+          // Build context chỉ từ products
+          const dataContext = productsOnly.map(item => {
             let info = `- ${item.name}`;
             if (item.code) info += ` (Mã: ${item.code})`;
             if (item.price) info += ` - Giá: ${item.price}`;
             if (item.category) info += ` [${item.category}]`;
             if (item.note) info += ` (${item.note})`;
-            if (item.image) info += ` [IMG:${item.image}]`;
             return info;
           }).join('\n');
 

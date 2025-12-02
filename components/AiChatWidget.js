@@ -51,6 +51,8 @@ async function callGeminiWithProducts(question, chatHistory = []) {
     context: context
   };
 
+  console.log("🚀 Sending AI Chat payload:", JSON.stringify(payload).slice(0, 200));
+
   const res = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
