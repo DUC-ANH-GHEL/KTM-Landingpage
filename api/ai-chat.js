@@ -1,4 +1,13 @@
-// api/ai-chat.js - AI Chat API với Gemini
+/**
+ * api/ai-chat.js - UNIFIED AI Chat API (Gemini)
+ * 
+ * Dùng cho CẢ Admin và Frontend:
+ * - Admin: gửi mode='admin' → trả lời ngắn gọn, tra cứu nhanh
+ * - Frontend (khách): không gửi mode → trả lời thân thiện, bán hàng
+ * 
+ * Endpoint: POST /api/ai-chat
+ * Body: { message, context, mode? }
+ */
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
