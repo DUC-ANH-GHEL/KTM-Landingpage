@@ -48,28 +48,25 @@ ${context || 'Không có dữ liệu'}
 2. **Van**: Van 1 tay, Van 2 tay... (sản phẩm đơn lẻ)
 
 3. **Combo van X tay Y ty**: Bộ combo gồm van + xy lanh
-   - Tìm trong danh sách sản phẩm có chứa "Combo Van X tay + Y xy"
-
-4. **Khi hỏi nhiều sản phẩm** (VD: "1 ty giữa với van 3 tay 2 ty"):
-   - Liệt kê giá TỪNG sản phẩm riêng biệt
-   - Tính tổng nếu cần
 
 🎯 NGUYÊN TẮC TRẢ LỜI:
 - CỰC KỲ NGẮN GỌN
 - Liệt kê từng sản phẩm + giá
+- Nếu nhiều sản phẩm → LUÔN tính TỔNG ở cuối
 - KHÔNG dùng [IMG:...]
 - Không chào hỏi
 
 🎯 VÍ DỤ:
 Hỏi: "1 ty giữa với van 3 tay 2 ty"
 Trả lời:
-1. Xy lanh giữa: 1.950.000đ (có dây: 2.150.000đ)
+1. Xy lanh giữa: 1.950.000đ
 2. Combo Van 3 tay + 2 xylanh: 7.800.000đ
+→ Tổng: 9.750.000đ
 
-Hỏi: "2 ty"
+Hỏi: "2 ty nghiêng"
 Trả lời:
-2 xy lanh: 1.950.000 × 2 = 3.900.000đ
-(Có dây: 2.150.000 × 2 = 4.300.000đ)
+2 xy lanh nghiêng: 1.950.000 × 2 = 3.900.000đ
+(Có dây: 4.300.000đ)
 
 CÂU HỎI: ${message}`;
 
