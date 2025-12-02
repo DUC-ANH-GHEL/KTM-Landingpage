@@ -2072,40 +2072,26 @@
         // Chỉ filter products (không lấy albums, videos)
         const products = allData.filter(item => item._type === 'product');
         
-        // Hỏi về ty/xy lanh (không phải combo)
-        if ((lowerMsg.includes('ty') || lowerMsg.includes('xy lanh')) && !lowerMsg.includes('combo')) {
-          // Tìm loại cụ thể
-          if (lowerMsg.includes('giữa') || lowerMsg.includes('giua')) {
-            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh giữa'));
-            if (match) results.push(match);
-          }
-          if (lowerMsg.includes('nghiêng') || lowerMsg.includes('nghieng')) {
-            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh nghiêng'));
-            if (match) results.push(match);
-          }
-          if (lowerMsg.includes('ủi') || lowerMsg.includes('ui')) {
-            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh ủi'));
-            if (match) results.push(match);
-          }
-          // Nếu chỉ hỏi "ty" không rõ loại, hiện cả giữa và nghiêng
-          if (results.length === 0) {
-            const giua = products.find(p => p.name?.toLowerCase().includes('xy lanh giữa'));
-            const nghieng = products.find(p => p.name?.toLowerCase().includes('xy lanh nghiêng'));
-            if (giua) results.push(giua);
-            if (nghieng) results.push(nghieng);
-          }
-          return results.slice(0, 2);
-        }
-        
-        // Hỏi về van (không phải combo)
-        const vanMatch = lowerMsg.match(/van\s*(\d+)\s*tay/);
-        if (vanMatch && !lowerMsg.includes('combo')) {
-          const vanNum = vanMatch[1];
-          const match = products.find(p => {
+        // "van X tay Y ty" = combo (VD: "van 3 tay 2 ty" = combo van 3 tay + 2 xylanh)
+        const vanTyMatch = lowerMsg.match(/van\s*(\d+)\s*tay.*?(\d+)\s*ty/);
+        if (vanTyMatch) {
+          const tayNum = vanTyMatch[1];
+          const tyNum = vanTyMatch[2];
+          // Tìm combo van X tay + Y xylanh
+          const matches = products.filter(p => {
             const name = p.name?.toLowerCase() || '';
-            return name.includes(`van ${vanNum} tay`) && !name.includes('combo');
+            return name.includes('combo') && 
+                   name.includes(`${tayNum} tay`) && 
+                   (name.includes(`${tyNum} xy`) || name.includes(`${tyNum} xylanh`));
           });
-          if (match) return [match];
+          if (matches.length > 0) return matches.slice(0, 2);
+          
+          // Fallback: tìm combo van X tay bất kỳ
+          const fallback = products.filter(p => {
+            const name = p.name?.toLowerCase() || '';
+            return name.includes('combo') && name.includes(`${tayNum} tay`);
+          });
+          return fallback.slice(0, 2);
         }
         
         // Hỏi về combo
@@ -2124,7 +2110,42 @@
           return matches.slice(0, 3);
         }
         
-        // Fallback: không hiện gì nếu không match rõ ràng
+        // Hỏi về ty/xy lanh đơn lẻ (không kèm van)
+        if ((lowerMsg.includes('ty') || lowerMsg.includes('xy lanh')) && !lowerMsg.includes('van')) {
+          if (lowerMsg.includes('giữa') || lowerMsg.includes('giua')) {
+            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh giữa'));
+            if (match) results.push(match);
+          }
+          if (lowerMsg.includes('nghiêng') || lowerMsg.includes('nghieng')) {
+            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh nghiêng'));
+            if (match) results.push(match);
+          }
+          if (lowerMsg.includes('ủi') || lowerMsg.includes('ui')) {
+            const match = products.find(p => p.name?.toLowerCase().includes('xy lanh ủi'));
+            if (match) results.push(match);
+          }
+          // Nếu chỉ hỏi "ty" không rõ loại
+          if (results.length === 0) {
+            const giua = products.find(p => p.name?.toLowerCase().includes('xy lanh giữa'));
+            const nghieng = products.find(p => p.name?.toLowerCase().includes('xy lanh nghiêng'));
+            if (giua) results.push(giua);
+            if (nghieng) results.push(nghieng);
+          }
+          return results.slice(0, 2);
+        }
+        
+        // Hỏi về van đơn lẻ (không kèm ty)
+        const vanMatch = lowerMsg.match(/van\s*(\d+)\s*tay/);
+        if (vanMatch && !lowerMsg.includes('ty')) {
+          const vanNum = vanMatch[1];
+          const match = products.find(p => {
+            const name = p.name?.toLowerCase() || '';
+            return name.includes(`van ${vanNum} tay`) && !name.includes('combo');
+          });
+          if (match) return [match];
+        }
+        
+        // Fallback: không hiện gì
         return [];
       };
 
