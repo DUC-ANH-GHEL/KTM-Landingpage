@@ -1153,8 +1153,10 @@
                     style={{ 
                       height: viewMode === 'grid' ? 150 : 100,
                       width: viewMode === 'list' ? 120 : '100%',
-                      objectFit: 'cover'
+                      objectFit: 'cover',
+                      cursor: 'pointer'
                     }}
+                    onClick={() => setPreviewImage({ url: item.image, name: item.name, price: item.price })}
                   />
                   <button
                     className={`btn btn-sm position-absolute ${copiedId === item.id + '-img' ? 'btn-success' : 'btn-light'}`}
