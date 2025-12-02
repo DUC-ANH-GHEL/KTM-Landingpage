@@ -139,15 +139,14 @@ function smartLocalFilter(query, products) {
   const videoKeywords = ['video', 'clip', 'youtube'];
   const productKeywords = ['sản phẩm', 'san pham', 'product', 'sp'];
   
-  // Check từng keyword
+  // Check từng keyword - đảm bảo là word boundary thực sự
   for (const kw of albumKeywords) {
-    if (lowerQuery.includes(kw)) {
-      // Đảm bảo không phải là phần của từ khác (như "xylanh")
-      const regex = new RegExp(`(^|\\s)${kw}($|\\s)`, 'i');
-      if (regex.test(lowerQuery) || lowerQuery.endsWith(kw)) {
-        typeFilter = 'album';
-        break;
-      }
+    // Tạo regex với word boundary - không match nếu là phần của từ khác
+    // Dùng lookbehind và lookahead để tránh match "anh" trong "xylanh"
+    const regex = new RegExp(`(?<![a-z])${kw}(?![a-z])`, 'i');
+    if (regex.test(lowerQuery)) {
+      typeFilter = 'album';
+      break;
     }
   }
   
