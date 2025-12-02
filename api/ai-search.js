@@ -150,3 +150,4 @@ function smartLocalFilter(query, products) {
   }).map(p => p.id);
 }
 }
+}
