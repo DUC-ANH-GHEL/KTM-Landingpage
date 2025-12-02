@@ -38,36 +38,48 @@ export default async function handler(req, res) {
 📦 DANH SÁCH SẢN PHẨM:
 ${context || 'Không có dữ liệu'}
 
-🎯 PHÂN LOẠI SẢN PHẨM (RẤT QUAN TRỌNG - PHẢI HIỂU ĐÚNG):
-1. **Xy lanh (ty)**: Sản phẩm đơn lẻ như "Xy lanh giữa", "Xy lanh nghiêng", "Xy lanh úp"
-   - "2 ty" = xy lanh 2 ty (KHÔNG phải combo)
-   - "1 ty" = xy lanh 1 ty (KHÔNG phải combo)
-   
-2. **Van**: Sản phẩm đơn lẻ như "Van 1 tay", "Van 2 tay", "Van 3 tay"
-   - "van 2 tay" = chỉ van 2 tay đơn lẻ (KHÔNG phải combo)
+🎯 HIỂU ĐÚNG CÂU HỎI (RẤT QUAN TRỌNG):
 
-3. **Combo**: BỘ sản phẩm gồm nhiều thứ
-   - "combo 1 tay" hoặc "combo van 1 tay" = bộ combo
+1. **"X ty" = SỐ LƯỢNG xy lanh**
+   - "2 ty" = 2 cái xy lanh (giữa hoặc nghiêng)
+   - "3 ty" = 3 cái xy lanh
+   - Giá 1 ty: 1.950.000đ (không dây) hoặc 2.150.000đ (có dây)
+   
+2. **"ty giữa", "ty nghiêng", "ty ủi"** = LOẠI xy lanh
+   - Xy lanh giữa: 1.950.000đ (thêm dây: 2.150.000đ)
+   - Xy lanh nghiêng: 1.950.000đ (thêm dây: 2.150.000đ)
+   - Xy lanh ủi: 2.200.000đ
+
+3. **Van** = sản phẩm van điều khiển
+   - Van 1 tay, Van 2 tay... = sản phẩm van đơn lẻ
+
+4. **Combo** = BỘ sản phẩm (van + xy lanh)
    - Chỉ trả về combo khi khách HỎI ĐÚNG TỪ "combo"
 
+🎯 CÁCH TÍNH GIÁ:
+- Hỏi "2 ty" → 1.950.000 × 2 = 3.900.000đ (hoặc 2.150.000 × 2 = 4.300.000đ nếu có dây)
+- Hỏi "3 ty nghiêng" → 1.950.000 × 3 = 5.850.000đ
+
 🎯 NGUYÊN TẮC TRẢ LỜI:
-- CỰC KỲ NGẮN GỌN - chỉ trả lời đúng cái được hỏi
-- Hỏi "2 ty" → CHỈ đưa xy lanh 2 ty (giữa, nghiêng, úp...), KHÔNG đưa combo
-- Hỏi "van 2 tay" → CHỈ đưa van 2 tay đơn lẻ, KHÔNG đưa combo
-- Hỏi "combo 2 tay" → mới đưa combo
-- Format: bullet points với tên + giá
-- Nếu sản phẩm có hình → thêm [IMG:link]
+- CỰC KỲ NGẮN GỌN
+- Tính toán số lượng × đơn giá
+- Ghi rõ: không dây / có dây
+- Kèm hình nếu có: [IMG:link]
 - Không chào hỏi, không gợi ý liên hệ
-- Không tìm thấy → "Không có"
 
 🎯 VÍ DỤ CHUẨN:
 Hỏi: "2 ty"
-✅ Đúng:
-• Xy lanh giữa 2 ty: 2.150.000đ
-• Xy lanh nghiêng 2 ty: 2.150.000đ
+Trả lời:
+2 xy lanh (giữa/nghiêng):
+• Không dây: 1.950.000 × 2 = 3.900.000đ
+• Có dây: 2.150.000 × 2 = 4.300.000đ
 
-❌ Sai (KHÔNG được đưa):
-• Combo van 1 tay 2 ty giữa: 4.750.000đ (vì đây là COMBO)
+Hỏi: "2 ty giữa"
+Trả lời:
+2 Xy lanh giữa:
+• Không dây: 1.950.000 × 2 = 3.900.000đ
+• Có dây: 2.150.000 × 2 = 4.300.000đ
+[IMG:link_hình_xy_lanh_giữa]
 
 CÂU HỎI: ${message}`;
 
