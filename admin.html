@@ -1147,7 +1147,7 @@
         { id: 'search', icon: 'fa-search', label: 'Tra cứu nhanh', highlight: true },
         { id: 'albums', icon: 'fa-images', label: 'Quản lý Album' },
         { id: 'videos', icon: 'fa-video', label: 'Quản lý Video' },
-        { id: 'products', icon: 'fa-box', label: 'Sản phẩm', disabled: true },
+        { id: 'products', icon: 'fa-box', label: 'Sản phẩm' },
         { id: 'orders', icon: 'fa-shopping-cart', label: 'Đơn hàng', disabled: true },
         { id: 'settings', icon: 'fa-cog', label: 'Cài đặt', disabled: true },
       ];
@@ -3006,6 +3006,290 @@
       );
     }
 
+    // ==================== PRODUCT MANAGER ====================
+    function ProductManager({ showToast }) {
+      const [products, setProducts] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [showModal, setShowModal] = useState(false);
+      const [editingProduct, setEditingProduct] = useState(null);
+      const [searchTerm, setSearchTerm] = useState('');
+      const [filterCategory, setFilterCategory] = useState('');
+
+      const categories = ['Ty xy lanh', 'Combo Van 1 tay', 'Combo Van 2 tay', 'Combo Van 3 tay', 'Combo Van 4 tay', 'Combo Van 5 tay', 'Trang gạt', 'Phụ kiện', 'Van điều khiển'];
+
+      useEffect(() => { loadProducts(); }, []);
+
+      const loadProducts = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`${API_BASE}/api/products`);
+          const data = await res.json();
+          setProducts(Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.error(err);
+          showToast('Lỗi tải sản phẩm', 'danger');
+        }
+        setLoading(false);
+      };
+
+      const handleCreate = () => { setEditingProduct(null); setShowModal(true); };
+
+      const handleEdit = (product) => { setEditingProduct(product); setShowModal(true); };
+
+      const handleDelete = async (product) => {
+        if (!confirm(`Xóa sản phẩm "${product.name}"?`)) return;
+        try {
+          await fetch(`${API_BASE}/api/products?id=${product.id}`, { method: 'DELETE' });
+          showToast('Đã xóa sản phẩm', 'success');
+          loadProducts();
+        } catch (err) {
+          showToast('Lỗi xóa sản phẩm', 'danger');
+        }
+      };
+
+      const handleSave = async (formData) => {
+        try {
+          const url = editingProduct 
+            ? `${API_BASE}/api/products?id=${editingProduct.id}`
+            : `${API_BASE}/api/products`;
+          const res = await fetch(url, {
+            method: editingProduct ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+          });
+          if (!res.ok) throw new Error('Lỗi lưu sản phẩm');
+          showToast(editingProduct ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!', 'success');
+          setShowModal(false);
+          loadProducts();
+        } catch (err) {
+          showToast(err.message, 'danger');
+        }
+      };
+
+      const filteredProducts = products.filter(p => {
+        const matchSearch = !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.code && p.code.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchCategory = !filterCategory || p.category === filterCategory;
+        return matchSearch && matchCategory;
+      });
+
+      return (
+        <div>
+          <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <h4 className="m-0"><i className="fas fa-box me-2 text-warning"></i>Quản lý Sản phẩm</h4>
+            <button className="btn btn-warning" onClick={handleCreate}>
+              <i className="fas fa-plus me-2"></i>Thêm sản phẩm
+            </button>
+          </div>
+
+          <div className="row g-2 mb-3">
+            <div className="col-md-6">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Tìm theo tên hoặc mã..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="col-md-4">
+              <select className="form-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                <option value="">Tất cả danh mục</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="col-md-2">
+              <span className="badge bg-secondary py-2 px-3 w-100">{filteredProducts.length} sản phẩm</span>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-5"><div className="spinner-border text-warning"></div></div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="text-center py-5">
+              <i className="fas fa-box-open fa-3x text-muted mb-3"></i>
+              <p className="text-muted">Không có sản phẩm nào</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-dark table-hover">
+                <thead>
+                  <tr>
+                    <th style={{width: 60}}>Ảnh</th>
+                    <th>Tên sản phẩm</th>
+                    <th>Mã</th>
+                    <th>Giá</th>
+                    <th>Danh mục</th>
+                    <th>Ghi chú</th>
+                    <th style={{width: 100}}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.map(product => (
+                    <tr key={product.id}>
+                      <td>
+                        {product.image ? (
+                          <img src={product.image} alt="" style={{width: 50, height: 50, objectFit: 'cover', borderRadius: 4}} />
+                        ) : (
+                          <div className="bg-secondary d-flex align-items-center justify-content-center" style={{width: 50, height: 50, borderRadius: 4}}>
+                            <i className="fas fa-image text-muted"></i>
+                          </div>
+                        )}
+                      </td>
+                      <td className="fw-medium">{product.name}</td>
+                      <td><span className="badge bg-secondary">{product.code || '-'}</span></td>
+                      <td className="text-warning fw-bold">{product.price || '-'}</td>
+                      <td><span className="badge bg-info">{product.category || '-'}</span></td>
+                      <td className="small text-muted">{product.note || '-'}</td>
+                      <td>
+                        <button className="btn btn-sm btn-outline-primary me-1" onClick={() => handleEdit(product)} title="Sửa">
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(product)} title="Xóa">
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <ProductModal
+            show={showModal}
+            product={editingProduct}
+            categories={categories}
+            onClose={() => setShowModal(false)}
+            onSave={handleSave}
+          />
+        </div>
+      );
+    }
+
+    // Product Modal (Create/Edit)
+    function ProductModal({ show, product, categories, onClose, onSave }) {
+      const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0 });
+      const [saving, setSaving] = useState(false);
+      const [uploading, setUploading] = useState(false);
+
+      useEffect(() => {
+        if (product) {
+          setFormData({
+            name: product.name || '',
+            code: product.code || '',
+            price: product.price || '',
+            image: product.image || '',
+            category: product.category || '',
+            note: product.note || '',
+            sort_order: product.sort_order || 0
+          });
+        } else {
+          setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0 });
+        }
+      }, [product, show]);
+
+      const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('upload_preset', 'ktm_unsigned');
+          const res = await fetch('https://api.cloudinary.com/v1_1/diwxfpt92/image/upload', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (data.secure_url) setFormData(prev => ({ ...prev, image: data.secure_url }));
+        } catch (err) {
+          console.error(err);
+        }
+        setUploading(false);
+      };
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        await onSave(formData);
+        setSaving(false);
+      };
+
+      if (!show) return null;
+
+      return (
+        <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">{product ? 'Sửa Sản phẩm' : 'Thêm Sản phẩm mới'}</h5>
+                <button type="button" className="btn-close" onClick={onClose}></button>
+              </div>
+              <form onSubmit={handleSubmit}>
+                <div className="modal-body">
+                  <div className="row g-3">
+                    <div className="col-md-8">
+                      <label className="form-label">Tên sản phẩm *</label>
+                      <input type="text" className="form-control" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label">Mã sản phẩm</label>
+                      <input type="text" className="form-control" value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} placeholder="VD: KTM-01" />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Giá</label>
+                      <input type="text" className="form-control" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} placeholder="VD: 1.950.000đ" />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Danh mục</label>
+                      <select className="form-select" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})}>
+                        <option value="">Chọn danh mục</option>
+                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-12">
+                      <label className="form-label">Hình ảnh</label>
+                      <div className="d-flex gap-3 align-items-start">
+                        {formData.image ? (
+                          <div className="position-relative">
+                            <img src={formData.image} alt="" className="rounded" style={{width: 100, height: 100, objectFit: 'cover'}} />
+                            <button type="button" className="btn btn-sm btn-danger position-absolute top-0 end-0" onClick={() => setFormData({...formData, image: ''})} style={{transform: 'translate(30%, -30%)'}}>
+                              <i className="fas fa-times"></i>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="bg-light rounded d-flex align-items-center justify-content-center text-muted" style={{width: 100, height: 100}}>
+                            <i className="fas fa-image fa-2x"></i>
+                          </div>
+                        )}
+                        <div className="flex-grow-1">
+                          <input type="file" className="form-control form-control-sm" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
+                          {uploading && <div className="mt-1 text-muted small"><span className="spinner-border spinner-border-sm me-1"></span>Đang upload...</div>}
+                          <div className="mt-2 text-muted small">Hoặc dán URL:</div>
+                          <input type="url" className="form-control form-control-sm" placeholder="https://..." value={formData.image} onChange={(e) => setFormData({...formData, image: e.target.value})} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-md-9">
+                      <label className="form-label">Ghi chú</label>
+                      <input type="text" className="form-control" value={formData.note} onChange={(e) => setFormData({...formData, note: e.target.value})} placeholder="VD: Thêm dây là 2.150.000đ" />
+                    </div>
+                    <div className="col-md-3">
+                      <label className="form-label">Thứ tự</label>
+                      <input type="number" className="form-control" value={formData.sort_order} onChange={(e) => setFormData({...formData, sort_order: parseInt(e.target.value) || 0})} />
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
+                  <button type="submit" className="btn btn-warning" disabled={saving}>
+                    {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu...</> : 'Lưu'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // Video Modal (Create/Edit)
     function VideoModal({ show, video, onClose, onSave }) {
       const [formData, setFormData] = useState({
@@ -3312,6 +3596,10 @@
               <VideoList
                 showToast={showToast}
               />
+            )}
+
+            {activeMenu === 'products' && (
+              <ProductManager showToast={showToast} />
             )}
           </div>
 
