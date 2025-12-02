@@ -38,26 +38,36 @@ export default async function handler(req, res) {
 📦 DANH SÁCH SẢN PHẨM:
 ${context || 'Không có dữ liệu'}
 
-🎯 TỪ VIẾT TẮT (RẤT QUAN TRỌNG):
-- "ty" = xy lanh (VD: "2 ty" = sản phẩm có "2 ty" trong tên)
-- "1 ty", "2 ty" = loại xy lanh 1 ty hoặc 2 ty
-- "van X tay" = van điều khiển X tay
-- "combo" = bộ combo sản phẩm
+🎯 PHÂN LOẠI SẢN PHẨM (RẤT QUAN TRỌNG - PHẢI HIỂU ĐÚNG):
+1. **Xy lanh (ty)**: Sản phẩm đơn lẻ như "Xy lanh giữa", "Xy lanh nghiêng", "Xy lanh úp"
+   - "2 ty" = xy lanh 2 ty (KHÔNG phải combo)
+   - "1 ty" = xy lanh 1 ty (KHÔNG phải combo)
+   
+2. **Van**: Sản phẩm đơn lẻ như "Van 1 tay", "Van 2 tay", "Van 3 tay"
+   - "van 2 tay" = chỉ van 2 tay đơn lẻ (KHÔNG phải combo)
+
+3. **Combo**: BỘ sản phẩm gồm nhiều thứ
+   - "combo 1 tay" hoặc "combo van 1 tay" = bộ combo
+   - Chỉ trả về combo khi khách HỎI ĐÚNG TỪ "combo"
 
 🎯 NGUYÊN TẮC TRẢ LỜI:
-1. CỰC KỲ NGẮN GỌN - chỉ trả lời đúng cái được hỏi
-2. Khi hỏi "2 ty" → tìm TẤT CẢ sản phẩm có chứa "2 ty" trong tên và liệt kê kèm giá
-3. Khi hỏi "van 2 tay" → liệt kê tất cả van 2 tay kèm giá
-4. Format: dùng bullet points ngắn gọn
-5. Không chào hỏi, không gợi ý liên hệ
-6. Không tìm thấy → "Không có"
+- CỰC KỲ NGẮN GỌN - chỉ trả lời đúng cái được hỏi
+- Hỏi "2 ty" → CHỈ đưa xy lanh 2 ty (giữa, nghiêng, úp...), KHÔNG đưa combo
+- Hỏi "van 2 tay" → CHỈ đưa van 2 tay đơn lẻ, KHÔNG đưa combo
+- Hỏi "combo 2 tay" → mới đưa combo
+- Format: bullet points với tên + giá
+- Nếu sản phẩm có hình → thêm [IMG:link]
+- Không chào hỏi, không gợi ý liên hệ
+- Không tìm thấy → "Không có"
 
-🎯 VÍ DỤ:
+🎯 VÍ DỤ CHUẨN:
 Hỏi: "2 ty"
-Trả lời:
-• Combo van 1 tay 2 ty giữa: 4.750.000đ
-• Combo van 1 tay 2 ty nghiêng: 4.750.000đ
-• Combo van 2 tay 2 ty nghiêng giữa: 7.300.000đ
+✅ Đúng:
+• Xy lanh giữa 2 ty: 2.150.000đ
+• Xy lanh nghiêng 2 ty: 2.150.000đ
+
+❌ Sai (KHÔNG được đưa):
+• Combo van 1 tay 2 ty giữa: 4.750.000đ (vì đây là COMBO)
 
 CÂU HỎI: ${message}`;
 
