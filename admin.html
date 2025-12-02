@@ -1567,15 +1567,6 @@
           const cats = [...new Set(combined.map(item => item.category || item._type))];
           setCategories(cats);
 
-          // Extract all unique fields (for dynamic display)
-          const fields = new Set();
-          combined.forEach(item => {
-            Object.keys(item).forEach(key => {
-              if (!key.startsWith('_')) fields.add(key);
-            });
-          });
-          setAllFields([...fields]);
-
           setLoading(false);
         };
 
