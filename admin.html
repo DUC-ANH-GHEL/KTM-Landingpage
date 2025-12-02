@@ -844,6 +844,15 @@
       const [albums, setAlbums] = useState([]);
       const [videoFolders, setVideoFolders] = useState([]);
       const searchInputRef = useRef(null);
+      
+      // AI Chat states
+      const [showAIChat, setShowAIChat] = useState(false);
+      const [aiMessages, setAiMessages] = useState([
+        { role: 'assistant', content: 'Xin chào! Tôi là trợ lý AI của KTM. Hãy hỏi tôi về sản phẩm, giá cả, combo... Ví dụ:\n- "Giá van 2 tay bao nhiêu?"\n- "Combo nào rẻ nhất?"\n- "Sản phẩm nào có freeship?"' }
+      ]);
+      const [aiInput, setAiInput] = useState('');
+      const [aiLoading, setAiLoading] = useState(false);
+      const chatEndRef = useRef(null);
 
       // Load data từ nhiều nguồn
       useEffect(() => {
@@ -1021,6 +1030,94 @@
           // Fallback: copy URL
           copyText(url, id + '-img');
         }
+      };
+
+      // AI Chat function - Local AI using data context
+      const handleAIChat = async (message) => {
+        if (!message.trim()) return;
+        
+        // Add user message
+        const userMsg = { role: 'user', content: message };
+        setAiMessages(prev => [...prev, userMsg]);
+        setAiInput('');
+        setAiLoading(true);
+
+        // Scroll to bottom
+        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+        try {
+          // Build context from allData
+          const dataContext = allData.map(item => {
+            const fields = Object.entries(item)
+              .filter(([k]) => !k.startsWith('_'))
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(', ');
+            return fields;
+          }).join('\n');
+
+          // Call Gemini API (free)
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyCrKjmd1winF3T50krDKJUsSgJSMUvNrqc`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: `Bạn là trợ lý bán hàng của KTM - chuyên về thiết bị thủy lực, xy lanh, van tay, combo sản phẩm cho máy nông nghiệp.
+
+DANH SÁCH SẢN PHẨM VÀ GIÁ:
+${dataContext}
+
+QUY TẮC TRẢ LỜI:
+1. Trả lời ngắn gọn, đúng trọng tâm
+2. Nếu hỏi về giá, trả lời chính xác giá từ danh sách
+3. Nếu hỏi combo, gợi ý combo phù hợp với nhu cầu
+4. Nếu không có thông tin, nói "Tôi không có thông tin về sản phẩm này"
+5. Luôn thân thiện và sẵn sàng hỗ trợ
+6. Nếu sản phẩm có ghi chú (note) thì đề cập
+
+CÂU HỎI CỦA KHÁCH: ${message}`
+                }]
+              }],
+              generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 500
+              }
+            })
+          });
+
+          const data = await response.json();
+          const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Xin lỗi, tôi không thể trả lời lúc này.';
+          
+          setAiMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+        } catch (err) {
+          console.error('AI Error:', err);
+          
+          // Fallback: Simple local search
+          const lowerMsg = message.toLowerCase();
+          const matches = allData.filter(item => {
+            const text = Object.values(item).join(' ').toLowerCase();
+            return lowerMsg.split(' ').some(word => text.includes(word));
+          });
+
+          let fallbackResponse = '';
+          if (matches.length > 0) {
+            fallbackResponse = `Tìm thấy ${matches.length} sản phẩm liên quan:\n\n`;
+            matches.slice(0, 5).forEach(item => {
+              fallbackResponse += `• ${item.name}`;
+              if (item.price) fallbackResponse += ` - ${item.price}`;
+              if (item.note) fallbackResponse += ` (${item.note})`;
+              fallbackResponse += '\n';
+            });
+            if (matches.length > 5) fallbackResponse += `\n...và ${matches.length - 5} sản phẩm khác`;
+          } else {
+            fallbackResponse = 'Không tìm thấy sản phẩm phù hợp. Hãy thử từ khóa khác như "van", "combo", "xy lanh"...';
+          }
+          
+          setAiMessages(prev => [...prev, { role: 'assistant', content: fallbackResponse }]);
+        }
+
+        setAiLoading(false);
+        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       };
 
       // Render item card
@@ -1254,6 +1351,105 @@
               Bấm vào ô tìm kiếm để bắt đầu | Copy nhanh: click các nút bên cạnh thông tin
             </small>
           </div>
+
+          {/* AI Chat Button */}
+          <button
+            className="btn btn-warning btn-lg rounded-circle position-fixed shadow-lg"
+            style={{ bottom: 60, right: 30, width: 60, height: 60, zIndex: 1000 }}
+            onClick={() => setShowAIChat(!showAIChat)}
+            title="Hỏi AI"
+          >
+            <i className={`fas ${showAIChat ? 'fa-times' : 'fa-robot'} fa-lg`}></i>
+          </button>
+
+          {/* AI Chat Panel */}
+          {showAIChat && (
+            <div 
+              className="position-fixed bg-white rounded-3 shadow-lg d-flex flex-column"
+              style={{ 
+                bottom: 130, 
+                right: 30, 
+                width: 380, 
+                height: 500, 
+                zIndex: 1001,
+                maxWidth: 'calc(100vw - 60px)',
+                maxHeight: 'calc(100vh - 200px)'
+              }}
+            >
+              {/* Chat Header */}
+              <div className="bg-warning text-dark p-3 rounded-top-3 d-flex justify-content-between align-items-center">
+                <div>
+                  <i className="fas fa-robot me-2"></i>
+                  <strong>KTM AI Assistant</strong>
+                </div>
+                <button className="btn btn-sm btn-outline-dark" onClick={() => setShowAIChat(false)}>
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              {/* Chat Messages */}
+              <div className="flex-grow-1 overflow-auto p-3" style={{ background: '#f8f9fa' }}>
+                {aiMessages.map((msg, i) => (
+                  <div key={i} className={`mb-3 d-flex ${msg.role === 'user' ? 'justify-content-end' : 'justify-content-start'}`}>
+                    <div 
+                      className={`p-2 px-3 rounded-3 ${msg.role === 'user' ? 'bg-warning text-dark' : 'bg-white border'}`}
+                      style={{ maxWidth: '85%', whiteSpace: 'pre-wrap' }}
+                    >
+                      {msg.role === 'assistant' && <i className="fas fa-robot me-1 text-muted"></i>}
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {aiLoading && (
+                  <div className="d-flex justify-content-start mb-3">
+                    <div className="bg-white border p-2 px-3 rounded-3">
+                      <i className="fas fa-robot me-1 text-muted"></i>
+                      <span className="spinner-border spinner-border-sm me-2"></span>
+                      Đang suy nghĩ...
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef}></div>
+              </div>
+
+              {/* Quick suggestions */}
+              <div className="px-3 py-2 border-top d-flex gap-1 flex-wrap">
+                {['Giá van 2 tay?', 'Combo rẻ nhất?', 'Sản phẩm freeship?'].map(q => (
+                  <button
+                    key={q}
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => handleAIChat(q)}
+                    disabled={aiLoading}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+
+              {/* Chat Input */}
+              <div className="p-3 border-top">
+                <form onSubmit={(e) => { e.preventDefault(); handleAIChat(aiInput); }}>
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Hỏi về sản phẩm, giá cả..."
+                      value={aiInput}
+                      onChange={(e) => setAiInput(e.target.value)}
+                      disabled={aiLoading}
+                    />
+                    <button 
+                      className="btn btn-warning" 
+                      type="submit"
+                      disabled={aiLoading || !aiInput.trim()}
+                    >
+                      <i className="fas fa-paper-plane"></i>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
