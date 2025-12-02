@@ -604,8 +604,6 @@
         try {
           const res = await fetch(`${API_BASE}/api/albums/${album.id}`);
           const data = await res.json();
-          console.log('Album data:', data);
-          console.log('Images:', data.images);
           setImages(data.images || []);
         } catch (err) {
           console.error(err);
@@ -882,10 +880,10 @@
               const data = await res.json();
               albumsData = data.map(a => ({
                 id: a.id,
-                name: a.name,
+                name: a.title,
                 description: a.description,
-                image: a.coverUrl,
-                photoCount: a.photoCount,
+                image: a.cover,
+                photoCount: a.count,
                 _type: 'album',
                 _source: 'database'
               }));
