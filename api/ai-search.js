@@ -35,22 +35,27 @@ export default async function handler(req, res) {
       `${i + 1}. [ID: ${p.id}] ${p.name}${p.price ? ` - ${p.price}` : ''}${p.note ? ` (${p.note})` : ''}`
     ).join('\n');
 
-    const prompt = `Bạn là hệ thống tìm kiếm sản phẩm thủy lực KTM. 
+    const prompt = `Bạn là hệ thống tìm kiếm sản phẩm thủy lực KTM. Trả về CHÍNH XÁC sản phẩm phù hợp.
 
-Người dùng tìm: "${query}"
+TÌM: "${query}"
 
-Danh sách sản phẩm:
+SẢN PHẨM:
 ${productListText}
 
-QUY TẮC:
-1. "van X tay" = van có X tay điều khiển
-2. "X ty" = có X xy lanh/ty
-3. Nếu tìm "van 3 tay 2 ty" thì phải có CẢ "3 tay" VÀ "2 ty"
-4. Chỉ trả về sản phẩm THỰC SỰ khớp
+QUY TẮC QUAN TRỌNG:
+- "X tay" nghĩa là CHÍNH XÁC X tay (VD: "3 tay" chỉ match "3 tay", KHÔNG match "2 tay" hay "4 tay")
+- "X ty" hoặc "X xylanh" nghĩa là CHÍNH XÁC X xy lanh (VD: "2 ty" chỉ match "2 ty" hoặc "2 xylanh")
+- Nếu tìm "3 tay 2 ty" → sản phẩm PHẢI có cả "3 tay" VÀ "2 ty/2 xylanh"
+- KHÔNG trả về sản phẩm có số tay/ty khác với yêu cầu
 
-TRẢ LỜI: Chỉ JSON array chứa ID phù hợp, không giải thích.
-Ví dụ: ["prod_1", "prod_5"]
-Nếu không có: []`;
+VÍ DỤ:
+- Tìm "2 ty 3 tay" → CHỈ lấy sản phẩm có "3 tay" VÀ ("2 ty" hoặc "2 xylanh")
+- "Combo Van 3 tay + 2 xylanh" → ĐÚNG (3 tay, 2 xylanh)
+- "Combo van 2 tay 2 ty" → SAI (2 tay, không phải 3 tay)
+
+CHỈ TRẢ VỀ JSON ARRAY ID, KHÔNG GIẢI THÍCH:
+Ví dụ: ["id1", "id2"]
+Nếu không có sản phẩm nào phù hợp: []`;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -104,37 +109,45 @@ Nếu không có: []`;
 function smartLocalFilter(query, products) {
   const lowerQuery = query.toLowerCase();
   
-  // Extract "X tay" and "X ty"
+  // Extract "X tay" - must be exact number
   const tayMatch = lowerQuery.match(/(\d+)\s*tay/);
-  const tyMatch = lowerQuery.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
   const tayNum = tayMatch ? tayMatch[1] : null;
+  
+  // Extract "X ty" or "X xylanh" or "X xi lanh"
+  const tyMatch = lowerQuery.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
   const tyNum = tyMatch ? tyMatch[1] : null;
   
-  // Other keywords
+  // Other keywords (van, combo, nghieng, giua, etc.)
   const keywords = lowerQuery
     .replace(/\d+\s*tay/g, '')
     .replace(/\d+\s*(ty|xi\s*lanh|xylanh)/g, '')
     .split(/\s+/)
-    .filter(w => w.length >= 2);
+    .filter(w => w.length >= 2 && !['van', 'combo'].includes(w)); // van/combo quá chung
 
   const filtered = products.filter(p => {
     const name = (p.name || '').toLowerCase();
     
-    // Check tay
+    // STRICT check tay - must match exact number
     if (tayNum) {
-      const productTay = name.match(/(\d+)\s*tay/);
-      if (!productTay || productTay[1] !== tayNum) return false;
+      // Match patterns like "3 tay", "3tay", "Van 3 tay"
+      const productTayMatch = name.match(/(\d+)\s*tay/);
+      if (!productTayMatch || productTayMatch[1] !== tayNum) {
+        return false;
+      }
     }
     
-    // Check ty  
+    // STRICT check ty/xylanh - must match exact number
     if (tyNum) {
-      const productTy = name.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
-      if (!productTy || productTy[1] !== tyNum) return false;
+      // Match "2 ty", "2 xylanh", "2 xi lanh", "+ 2 xylanh"
+      const productTyMatch = name.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
+      if (!productTyMatch || productTyMatch[1] !== tyNum) {
+        return false;
+      }
     }
     
-    // Check keywords
+    // Check other specific keywords (nghieng, giua, ktm, etc.)
     if (keywords.length > 0) {
-      return keywords.some(kw => name.includes(kw));
+      return keywords.every(kw => name.includes(kw));
     }
     
     return true;
