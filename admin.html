@@ -13,13 +13,64 @@
     :root {
       --primary: #ffc107;
       --dark: #1a1a2e;
+      --success: #28a745;
+      --danger: #dc3545;
+      --info: #17a2b8;
     }
     
     body {
-      background: #f5f5f5;
+      background: #f0f2f5;
       min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
     }
     
+    /* ========== MOBILE FIRST ========== */
+    
+    /* Bottom Navigation for Mobile */
+    .mobile-bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--dark);
+      padding: 8px 0;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      z-index: 1050;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .mobile-bottom-nav .nav-items {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+    
+    .mobile-bottom-nav .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      padding: 4px 12px;
+      border-radius: 8px;
+      transition: all 0.2s;
+      font-size: 10px;
+      min-width: 60px;
+    }
+    
+    .mobile-bottom-nav .nav-item i {
+      font-size: 20px;
+      margin-bottom: 2px;
+    }
+    
+    .mobile-bottom-nav .nav-item.active,
+    .mobile-bottom-nav .nav-item:hover {
+      color: var(--primary);
+      background: rgba(255,193,7,0.1);
+    }
+    
+    /* Desktop Sidebar */
     .sidebar {
       background: var(--dark);
       min-height: 100vh;
@@ -28,6 +79,7 @@
       top: 0;
       width: 250px;
       padding-top: 20px;
+      z-index: 1040;
     }
     
     .sidebar .logo {
@@ -58,7 +110,571 @@
     .main-content {
       margin-left: 250px;
       padding: 20px;
+      padding-bottom: 20px;
     }
+    
+    /* ========== PRODUCT CARDS - MOBILE OPTIMIZED ========== */
+    
+    .product-card-mobile {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 12px;
+      position: relative;
+    }
+    
+    .product-card-mobile .card-inner {
+      display: flex;
+      padding: 10px;
+      gap: 10px;
+    }
+    
+    .product-card-mobile .thumb {
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    
+    .product-card-mobile .info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    
+    .product-card-mobile .name {
+      font-weight: 600;
+      font-size: 14px;
+      line-height: 1.3;
+      color: #333;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+    
+    .product-card-mobile .price-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    
+    .product-card-mobile .price {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--danger);
+    }
+    
+    .product-card-mobile .badge-promo {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+      color: #fff;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      animation: pulse-promo 2s infinite;
+    }
+    
+    @keyframes pulse-promo {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    .product-card-mobile .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      font-size: 11px;
+    }
+    
+    .product-card-mobile .meta-tag {
+      background: #f0f2f5;
+      color: #666;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    
+    .product-card-mobile .meta-tag.highlight {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .product-card-mobile .type-badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .product-card-mobile .type-badge.product { background: #e3f2fd; color: #1565c0; }
+    .product-card-mobile .type-badge.album { background: #e8f5e9; color: #2e7d32; }
+    .product-card-mobile .type-badge.video { background: #ffebee; color: #c62828; }
+    
+    /* Quick Actions Bar */
+    .product-card-mobile .quick-actions {
+      display: flex;
+      border-top: 1px solid #f0f2f5;
+      background: #fafafa;
+    }
+    
+    .product-card-mobile .quick-actions button {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 10px;
+      color: #666;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    
+    .product-card-mobile .quick-actions button:active {
+      background: #e0e0e0;
+    }
+    
+    .product-card-mobile .quick-actions button.copied {
+      color: var(--success);
+      background: #e8f5e9;
+    }
+    
+    .product-card-mobile .quick-actions button:not(:last-child) {
+      border-right: 1px solid #e0e0e0;
+    }
+    
+    /* ========== SEARCH HEADER - MOBILE ========== */
+    
+    .search-header-mobile {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 100;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .search-header-mobile .search-input-wrap {
+      position: relative;
+    }
+    
+    .search-header-mobile .search-input {
+      width: 100%;
+      padding: 14px 16px 14px 45px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 16px;
+      transition: all 0.2s;
+      background: #f8f9fa;
+    }
+    
+    .search-header-mobile .search-input:focus {
+      border-color: var(--primary);
+      background: #fff;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(255,193,7,0.2);
+    }
+    
+    .search-header-mobile .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #999;
+      font-size: 18px;
+    }
+    
+    .search-header-mobile .clear-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: #e0e0e0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .search-header-mobile .filter-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .search-header-mobile .filter-row::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .search-header-mobile .filter-chip {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      background: #fff;
+      font-size: 13px;
+      color: #666;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .search-header-mobile .filter-chip.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #000;
+      font-weight: 600;
+    }
+    
+    .search-header-mobile .result-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .search-header-mobile .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    
+    /* ========== GRID VIEW FOR MOBILE ========== */
+    
+    .product-grid-mobile {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      padding: 12px;
+    }
+    
+    .product-grid-mobile .grid-card {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .product-grid-mobile .grid-card .thumb-wrap {
+      position: relative;
+      aspect-ratio: 1;
+    }
+    
+    .product-grid-mobile .grid-card .thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .product-grid-mobile .grid-card .price-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      color: #fff;
+      padding: 20px 8px 8px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    
+    .product-grid-mobile .grid-card .type-badge {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+    
+    .product-grid-mobile .grid-card .promo-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+    
+    .product-grid-mobile .grid-card .card-body {
+      padding: 8px;
+    }
+    
+    .product-grid-mobile .grid-card .name {
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 4px;
+      color: #333;
+    }
+    
+    .product-grid-mobile .grid-card .meta {
+      font-size: 10px;
+      color: #888;
+    }
+    
+    .product-grid-mobile .grid-card .quick-copy {
+      display: flex;
+      margin-top: 6px;
+      gap: 4px;
+    }
+    
+    .product-grid-mobile .grid-card .quick-copy button {
+      flex: 1;
+      border: 1px solid #e0e0e0;
+      background: #fff;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+    }
+    
+    .product-grid-mobile .grid-card .quick-copy button.copied {
+      background: var(--success);
+      color: #fff;
+      border-color: var(--success);
+    }
+    
+    /* ========== LOADING & EMPTY STATES ========== */
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .empty-state i {
+      font-size: 48px;
+      color: #ddd;
+      margin-bottom: 16px;
+    }
+    
+    .empty-state p {
+      color: #888;
+      margin-bottom: 16px;
+    }
+    
+    /* ========== RESPONSIVE ========== */
+    
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      
+      .main-content {
+        margin-left: 0;
+        padding: 0;
+        padding-bottom: 80px;
+      }
+      
+      .mobile-bottom-nav {
+        display: block;
+      }
+      
+      /* Hide desktop components */
+      .desktop-only {
+        display: none !important;
+      }
+    }
+    
+    @media (min-width: 769px) {
+      .mobile-only {
+        display: none !important;
+      }
+    }
+    
+    /* ========== PREVIEW MODAL ========== */
+    
+    .preview-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .preview-modal .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      color: #fff;
+    }
+    
+    .preview-modal .preview-header .close-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 20px;
+    }
+    
+    .preview-modal .preview-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    
+    .preview-modal .preview-body img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+    
+    .preview-modal .preview-footer {
+      background: rgba(0,0,0,0.5);
+      padding: 16px;
+      color: #fff;
+    }
+    
+    .preview-modal .preview-footer .name {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .preview-modal .preview-footer .price {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+    
+    .preview-modal .preview-footer .action-btns {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .preview-modal .preview-footer .action-btns button {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    
+    /* ========== AI CHAT - MOBILE ========== */
+    
+    .ai-chat-mobile {
+      position: fixed;
+      inset: 0;
+      background: #fff;
+      z-index: 1100;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .ai-chat-mobile .chat-header {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .ai-chat-mobile .chat-header .back-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 16px;
+    }
+    
+    .ai-chat-mobile .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      background: #f0f2f5;
+    }
+    
+    .ai-chat-mobile .chat-input-area {
+      padding: 12px;
+      background: #fff;
+      border-top: 1px solid #e0e0e0;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+    
+    .ai-chat-mobile .chat-input-wrap {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .ai-chat-mobile .chat-input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 24px;
+      font-size: 16px;
+    }
+    
+    .ai-chat-mobile .chat-input:focus {
+      border-color: #667eea;
+      outline: none;
+    }
+    
+    .ai-chat-mobile .send-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      font-size: 18px;
+    }
+    
+    /* ========== OLD STYLES KEPT FOR COMPATIBILITY ========== */
     
     .card {
       border: none;
@@ -837,9 +1453,8 @@
       const [allData, setAllData] = useState([]);
       const [categories, setCategories] = useState([]);
       const [selectedCategory, setSelectedCategory] = useState('all');
-      const [allFields, setAllFields] = useState([]);
       const [copiedId, setCopiedId] = useState(null);
-      const [viewMode, setViewMode] = useState('grid'); // grid | list
+      const [viewMode, setViewMode] = useState('list'); // list | grid
       const [loading, setLoading] = useState(true);
       const [albums, setAlbums] = useState([]);
       const [videoFolders, setVideoFolders] = useState([]);
@@ -853,7 +1468,7 @@
       // AI Chat states
       const [showAIChat, setShowAIChat] = useState(false);
       const [aiMessages, setAiMessages] = useState([
-        { role: 'assistant', content: 'Xin chào! Tôi là trợ lý AI của KTM. Hãy hỏi tôi về sản phẩm, giá cả, combo... Ví dụ:\n- "Giá van 2 tay bao nhiêu?"\n- "Combo nào rẻ nhất?"\n- "Sản phẩm nào có freeship?"', attachments: [] }
+        { role: 'assistant', content: 'Xin chào! Hãy hỏi tôi về sản phẩm, giá cả... Ví dụ:\n• "Giá van 2 tay?"\n• "Combo rẻ nhất?"\n• "Freeship?"', attachments: [] }
       ]);
       const [aiInput, setAiInput] = useState('');
       const [aiLoading, setAiLoading] = useState(false);
@@ -1214,134 +1829,133 @@
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       };
 
-      // Render item card
-      const renderItemCard = (item, index) => {
+      // ========== MOBILE CARD COMPONENT ==========
+      const renderMobileCard = (item, index) => {
         const isProduct = item._type === 'product';
         const isAlbum = item._type === 'album';
         const isVideo = item._type === 'video';
+        const hasPromo = item.note && (item.note.toLowerCase().includes('free') || item.note.toLowerCase().includes('giảm') || item.note.toLowerCase().includes('sale'));
 
-        return (
-          <div key={item.id || index} className={viewMode === 'grid' ? 'col-6 col-md-4 col-lg-3' : 'col-12'}>
-            <div className={`card h-100 shadow-sm ${viewMode === 'list' ? 'd-flex flex-row' : ''}`}>
-              {/* Image */}
-              {item.image && (
-                <div className={`position-relative ${viewMode === 'list' ? '' : ''}`} style={viewMode === 'list' ? { width: 120 } : {}}>
-                  <img 
-                    src={item.image} 
-                    alt={item.name}
-                    className={`${viewMode === 'grid' ? 'card-img-top' : 'rounded-start'}`}
-                    style={{ 
-                      height: viewMode === 'grid' ? 150 : 100,
-                      width: viewMode === 'list' ? 120 : '100%',
-                      objectFit: 'cover',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => setPreviewImage({ url: item.image, name: item.name, price: item.price })}
-                  />
-                  <button
-                    className={`btn btn-sm position-absolute ${copiedId === item.id + '-img' ? 'btn-success' : 'btn-light'}`}
-                    style={{ top: 5, right: 5, opacity: 0.9 }}
+        if (viewMode === 'grid') {
+          // Grid view - compact cards
+          return (
+            <div key={item.id || index} className="grid-card">
+              <div className="thumb-wrap" onClick={() => setPreviewImage({ url: item.image, name: item.name, price: item.price, note: item.note, item })}>
+                {item.image ? (
+                  <img src={item.image} alt={item.name} className="thumb" loading="lazy" />
+                ) : (
+                  <div className="thumb d-flex align-items-center justify-content-center bg-light">
+                    <i className={`fas ${isVideo ? 'fa-video' : 'fa-image'} fa-2x text-muted`}></i>
+                  </div>
+                )}
+                {/* Price overlay */}
+                {item.price && (
+                  <div className="price-overlay">{item.price}</div>
+                )}
+                {/* Type badge */}
+                <span className={`type-badge ${isProduct ? 'product' : isAlbum ? 'album' : 'video'}`}>
+                  {isProduct ? 'SP' : isAlbum ? 'Ảnh' : 'Video'}
+                </span>
+                {/* Promo badge */}
+                {hasPromo && <span className="promo-badge">🔥 ƯU ĐÃI</span>}
+              </div>
+              <div className="card-body">
+                <div className="name">{item.name}</div>
+                {item.note && <div className="meta text-info" style={{fontSize: 10}}>{item.note}</div>}
+                <div className="quick-copy">
+                  <button 
+                    className={copiedId === item.id + '-img' ? 'copied' : ''}
                     onClick={() => copyImage(item.image, item.id)}
-                    title="Copy ảnh"
                   >
-                    <i className={`fas ${copiedId === item.id + '-img' ? 'fa-check' : 'fa-copy'}`}></i>
-                  </button>
-                  {/* Type badge */}
-                  <span className={`badge position-absolute ${isProduct ? 'bg-primary' : isAlbum ? 'bg-success' : 'bg-danger'}`} style={{ top: 5, left: 5 }}>
-                    {isProduct ? 'Sản phẩm' : isAlbum ? 'Ảnh' : 'Video'}
-                  </span>
-                </div>
-              )}
-              
-              {/* Content */}
-              <div className={`card-body ${viewMode === 'list' ? 'flex-grow-1' : ''} p-2`}>
-                <h6 className="card-title mb-1 small fw-bold">{item.name}</h6>
-                
-                {/* Dynamic fields display */}
-                <div className="small text-muted">
-                  {item.price && (
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span className="text-danger fw-bold">{item.price}</span>
-                      <button
-                        className={`btn btn-sm p-0 ${copiedId === item.id + '-price' ? 'text-success' : 'text-muted'}`}
-                        onClick={() => copyText(item.price, item.id + '-price')}
-                        title="Copy giá"
-                      >
-                        <i className={`fas ${copiedId === item.id + '-price' ? 'fa-check' : 'fa-copy'}`}></i>
-                      </button>
-                    </div>
-                  )}
-                  {item.code && <div><small className="text-muted">Mã: {item.code}</small></div>}
-                  {item.category && <div><small className="badge bg-light text-dark">{item.category}</small></div>}
-                  {item.note && <div><small className="text-info"><i className="fas fa-info-circle me-1"></i>{item.note}</small></div>}
-                  {item.folder && <div><small className="text-muted">Folder: {item.folder}</small></div>}
-                  {item.photoCount && <div><small className="text-muted">{item.photoCount} ảnh</small></div>}
-                  
-                  {/* Show any extra fields dynamically */}
-                  {Object.entries(item).map(([key, value]) => {
-                    if (['id', 'name', 'price', 'image', 'code', 'category', 'note', 'folder', 'photoCount', 'description', 'youtubeId', 'url'].includes(key)) return null;
-                    if (key.startsWith('_')) return null;
-                    if (!value) return null;
-                    return (
-                      <div key={key}>
-                        <small className="text-muted">{key}: {String(value)}</small>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Quick actions */}
-                <div className="mt-2 d-flex gap-1 flex-wrap">
-                  <button
-                    className={`btn btn-sm ${copiedId === item.id + '-name' ? 'btn-success' : 'btn-outline-secondary'}`}
-                    onClick={() => copyText(item.name, item.id + '-name')}
-                    title="Copy tên"
-                  >
-                    <i className="fas fa-font"></i>
+                    <i className="fas fa-image"></i>
                   </button>
                   {item.price && (
-                    <button
-                      className={`btn btn-sm ${copiedId === item.id + '-price2' ? 'btn-success' : 'btn-outline-danger'}`}
-                      onClick={() => copyText(item.price, item.id + '-price2')}
-                      title="Copy giá"
+                    <button 
+                      className={copiedId === item.id + '-price' ? 'copied' : ''}
+                      onClick={() => copyText(item.price, item.id + '-price')}
                     >
                       <i className="fas fa-tag"></i>
                     </button>
                   )}
-                  {item.image && (
-                    <button
-                      className={`btn btn-sm ${copiedId === item.id + '-url' ? 'btn-success' : 'btn-outline-primary'}`}
-                      onClick={() => copyText(item.image, item.id + '-url')}
-                      title="Copy link ảnh"
-                    >
-                      <i className="fas fa-link"></i>
-                    </button>
-                  )}
-                  {isVideo && item.youtubeId && (
-                    <button
-                      className={`btn btn-sm ${copiedId === item.id + '-yt' ? 'btn-success' : 'btn-outline-danger'}`}
-                      onClick={() => copyText(`https://www.youtube.com/watch?v=${item.youtubeId}`, item.id + '-yt')}
-                      title="Copy link YouTube"
-                    >
-                      <i className="fab fa-youtube"></i>
-                    </button>
-                  )}
-                  {/* Copy all info */}
-                  <button
-                    className={`btn btn-sm ${copiedId === item.id + '-all' ? 'btn-success' : 'btn-outline-warning'}`}
-                    onClick={() => {
-                      const info = Object.entries(item)
-                        .filter(([k]) => !k.startsWith('_') && item[k])
-                        .map(([k, v]) => `${k}: ${v}`)
-                        .join('\n');
-                      copyText(info, item.id + '-all');
-                    }}
-                    title="Copy tất cả thông tin"
-                  >
-                    <i className="fas fa-clipboard-list"></i>
-                  </button>
                 </div>
               </div>
+            </div>
+          );
+        }
+
+        // List view - detailed cards
+        return (
+          <div key={item.id || index} className="product-card-mobile">
+            {/* Type badge */}
+            <span className={`type-badge ${isProduct ? 'product' : isAlbum ? 'album' : 'video'}`}>
+              {isProduct ? 'Sản phẩm' : isAlbum ? 'Ảnh' : 'Video'}
+            </span>
+            
+            <div className="card-inner">
+              {/* Thumbnail */}
+              {item.image ? (
+                <img 
+                  src={item.image} 
+                  alt={item.name} 
+                  className="thumb"
+                  loading="lazy"
+                  onClick={() => setPreviewImage({ url: item.image, name: item.name, price: item.price, note: item.note, item })}
+                />
+              ) : (
+                <div className="thumb d-flex align-items-center justify-content-center bg-light">
+                  <i className={`fas ${isVideo ? 'fa-video' : 'fa-image'} fa-2x text-muted`}></i>
+                </div>
+              )}
+              
+              {/* Info */}
+              <div className="info">
+                <div>
+                  <div className="name">{item.name}</div>
+                  <div className="price-row">
+                    {item.price && <span className="price">{item.price}</span>}
+                    {hasPromo && <span className="badge-promo">🔥 ƯU ĐÃI</span>}
+                  </div>
+                </div>
+                <div className="meta">
+                  {item.code && <span className="meta-tag">#{item.code}</span>}
+                  {item.category && <span className="meta-tag">{item.category}</span>}
+                  {item.note && <span className="meta-tag highlight">{item.note}</span>}
+                  {item.folder && <span className="meta-tag">{item.folder}</span>}
+                  {isVideo && <span className="meta-tag"><i className="fab fa-youtube text-danger"></i> Video</span>}
+                </div>
+              </div>
+            </div>
+            
+            {/* Quick Actions */}
+            <div className="quick-actions">
+              <button 
+                className={copiedId === item.id + '-img' ? 'copied' : ''}
+                onClick={() => copyImage(item.image, item.id)}
+              >
+                <i className="fas fa-image"></i> Ảnh
+              </button>
+              {item.price && (
+                <button 
+                  className={copiedId === item.id + '-price' ? 'copied' : ''}
+                  onClick={() => copyText(item.price, item.id + '-price')}
+                >
+                  <i className="fas fa-tag"></i> Giá
+                </button>
+              )}
+              <button 
+                className={copiedId === item.id + '-name' ? 'copied' : ''}
+                onClick={() => copyText(item.name, item.id + '-name')}
+              >
+                <i className="fas fa-font"></i> Tên
+              </button>
+              {isVideo && item.youtubeId && (
+                <button 
+                  className={copiedId === item.id + '-yt' ? 'copied' : ''}
+                  onClick={() => copyText(`https://www.youtube.com/watch?v=${item.youtubeId}`, item.id + '-yt')}
+                >
+                  <i className="fab fa-youtube"></i>
+                </button>
+              )}
             </div>
           </div>
         );
@@ -1349,213 +1963,177 @@
 
       return (
         <div>
-          {/* Search Header */}
-          <div className="sticky-top bg-white shadow-sm p-3 mb-3 rounded" style={{ zIndex: 100 }}>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h4 className="m-0 text-warning">
-                <i className="fas fa-search me-2"></i>Tra cứu nhanh
-              </h4>
-              {/* AI Search Toggle */}
-              <div className="form-check form-switch">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="aiSearchToggle"
-                  checked={aiSearchEnabled}
-                  onChange={(e) => setAiSearchEnabled(e.target.checked)}
-                />
-                <label className="form-check-label small" htmlFor="aiSearchToggle">
-                  <i className="fas fa-robot me-1"></i>AI Search
-                </label>
-              </div>
-            </div>
-
-            {/* Main search input */}
-            <div className="input-group input-group-lg">
-              <span className="input-group-text bg-warning border-warning">
-                {aiSearching ? (
-                  <span className="spinner-border spinner-border-sm text-dark"></span>
-                ) : (
-                  <i className="fas fa-search text-dark"></i>
-                )}
-              </span>
+          {/* ========== MOBILE SEARCH HEADER ========== */}
+          <div className="search-header-mobile">
+            {/* Search Input */}
+            <div className="search-input-wrap">
+              <i className={`search-icon fas ${aiSearching ? 'fa-spinner fa-spin' : 'fa-search'}`}></i>
               <input
                 ref={searchInputRef}
                 type="text"
-                className="form-control border-warning"
-                placeholder="Gõ tên sản phẩm, mã, giá, ghi chú... (VD: van 3 tay 2 ty)"
+                className="search-input"
+                placeholder="Tìm: van 3 tay, xylanh, giá..."
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
-                autoFocus
               />
               {searchQuery && (
-<button
-                  className="btn btn-outline-secondary"
-                  onClick={() => { setSearchQuery(''); handleSearch(''); }}
-                >
+                <button className="clear-btn" onClick={() => { setSearchQuery(''); handleSearch(''); }}>
                   <i className="fas fa-times"></i>
                 </button>
               )}
             </div>
-
-            {/* View mode toggle */}
-            <div className="d-flex justify-content-between align-items-center">
-              <small className="text-muted">
-                {searchResults.length} kết quả
-                {aiSearching && <span className="ms-2 text-info"><i className="fas fa-robot"></i> AI đang lọc...</span>}
-                {aiSearchEnabled && !aiSearching && searchQuery.length >= 3 && <span className="ms-2 text-success"><i className="fas fa-check"></i> AI</span>}
-              </small>
-              <div className="btn-group btn-group-sm">
+            
+            {/* Filter Chips */}
+            <div className="filter-row">
+              <span 
+                className={`filter-chip ${selectedCategory === 'all' ? 'active' : ''}`}
+                onClick={() => filterByCategory('all')}
+              >
+                Tất cả
+              </span>
+              <span 
+                className={`filter-chip ${selectedCategory === 'product' ? 'active' : ''}`}
+                onClick={() => filterByCategory('product')}
+              >
+                <i className="fas fa-box me-1"></i>Sản phẩm
+              </span>
+              <span 
+                className={`filter-chip ${selectedCategory === 'album' ? 'active' : ''}`}
+                onClick={() => filterByCategory('album')}
+              >
+                <i className="fas fa-images me-1"></i>Ảnh
+              </span>
+              <span 
+                className={`filter-chip ${selectedCategory === 'video' ? 'active' : ''}`}
+                onClick={() => filterByCategory('video')}
+              >
+                <i className="fas fa-video me-1"></i>Video
+              </span>
+            </div>
+            
+            {/* Result Info & View Toggle */}
+            <div className="result-info">
+              <span>
+                <strong>{searchResults.length}</strong> kết quả
+                {aiSearchEnabled && searchQuery.length >= 3 && (
+                  <span className="ai-badge ms-2">
+                    <i className="fas fa-robot"></i> AI
+                  </span>
+                )}
+              </span>
+              <div className="d-flex gap-1 align-items-center">
+                {/* AI Toggle */}
+                <label className="d-flex align-items-center gap-1 me-2" style={{fontSize: 11, cursor: 'pointer'}}>
+                  <input 
+                    type="checkbox" 
+                    checked={aiSearchEnabled} 
+                    onChange={(e) => setAiSearchEnabled(e.target.checked)}
+                    style={{width: 14, height: 14}}
+                  />
+                  AI
+                </label>
+                {/* View mode */}
                 <button 
-                  className={`btn ${viewMode === 'grid' ? 'btn-warning' : 'btn-outline-secondary'}`}
-                  onClick={() => setViewMode('grid')}
-                >
-                  <i className="fas fa-th-large"></i>
-                </button>
-                <button 
-                  className={`btn ${viewMode === 'list' ? 'btn-warning' : 'btn-outline-secondary'}`}
+                  className={`btn btn-sm ${viewMode === 'list' ? 'btn-dark' : 'btn-outline-secondary'}`}
                   onClick={() => setViewMode('list')}
+                  style={{padding: '4px 8px'}}
                 >
                   <i className="fas fa-list"></i>
                 </button>
+                <button 
+                  className={`btn btn-sm ${viewMode === 'grid' ? 'btn-dark' : 'btn-outline-secondary'}`}
+                  onClick={() => setViewMode('grid')}
+                  style={{padding: '4px 8px'}}
+                >
+                  <i className="fas fa-th"></i>
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Results */}
+          {/* ========== RESULTS ========== */}
           {loading ? (
-            <div className="text-center py-5">
-              <div className="spinner-border text-warning"></div>
-              <p className="mt-2 text-muted">Đang tải dữ liệu...</p>
+            <div className="empty-state">
+              <div className="spinner-border text-warning" style={{width: 48, height: 48}}></div>
+              <p className="mt-3">Đang tải dữ liệu...</p>
             </div>
           ) : searchResults.length === 0 ? (
-            <div className="text-center py-5">
-              <i className="fas fa-search fa-3x text-muted mb-3"></i>
-              <p className="text-muted">Không tìm thấy kết quả cho "{searchQuery}"</p>
-              <button className="btn btn-outline-warning" onClick={() => { setSearchQuery(''); handleSearch(''); }}>
+            <div className="empty-state">
+              <i className="fas fa-search"></i>
+              <p>Không tìm thấy "{searchQuery}"</p>
+              <button className="btn btn-warning" onClick={() => { setSearchQuery(''); handleSearch(''); }}>
                 Xem tất cả
               </button>
             </div>
+          ) : viewMode === 'grid' ? (
+            <div className="product-grid-mobile">
+              {searchResults.map((item, index) => renderMobileCard(item, index))}
+            </div>
           ) : (
-            <div className="row g-3">
-              {searchResults.map((item, index) => renderItemCard(item, index))}
+            <div style={{padding: 12}}>
+              {searchResults.map((item, index) => renderMobileCard(item, index))}
             </div>
           )}
 
-          {/* Keyboard shortcuts hint */}
-          <div className="fixed-bottom bg-dark text-white p-2 d-none d-md-block" style={{ left: 250 }}>
-            <small>
-              <i className="fas fa-keyboard me-2"></i>
-              Bấm vào ô tìm kiếm để bắt đầu | Copy nhanh: click các nút bên cạnh thông tin
-            </small>
-          </div>
-
-          {/* AI Chat Button */}
+          {/* ========== AI CHAT BUTTON ========== */}
           <button
-            className="btn btn-warning btn-lg rounded-circle position-fixed shadow-lg"
-            style={{ bottom: 60, right: 30, width: 60, height: 60, zIndex: 1000 }}
-            onClick={() => setShowAIChat(!showAIChat)}
-            title="Hỏi AI"
+            className="btn btn-lg rounded-circle position-fixed shadow-lg"
+            style={{ 
+              bottom: 90, 
+              right: 16, 
+              width: 56, 
+              height: 56, 
+              zIndex: 1000,
+              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              color: '#fff',
+              border: 'none'
+            }}
+            onClick={() => setShowAIChat(true)}
           >
-            <i className={`fas ${showAIChat ? 'fa-times' : 'fa-robot'} fa-lg`}></i>
+            <i className="fas fa-robot fa-lg"></i>
           </button>
 
-          {/* AI Chat Panel */}
+          {/* ========== AI CHAT FULLSCREEN (MOBILE) ========== */}
           {showAIChat && (
-            <div 
-              className="position-fixed bg-white rounded-3 shadow-lg d-flex flex-column"
-              style={{ 
-                bottom: 130, 
-                right: 30, 
-                width: 380, 
-                height: 500, 
-                zIndex: 1001,
-                maxWidth: 'calc(100vw - 60px)',
-                maxHeight: 'calc(100vh - 200px)'
-              }}
-            >
-              {/* Chat Header */}
-              <div className="bg-warning text-dark p-3 rounded-top-3 d-flex justify-content-between align-items-center">
-                <div>
-                  <i className="fas fa-robot me-2"></i>
-                  <strong>KTM AI Assistant</strong>
-                </div>
-                <button className="btn btn-sm btn-outline-dark" onClick={() => setShowAIChat(false)}>
-                  <i className="fas fa-times"></i>
+            <div className="ai-chat-mobile">
+              <div className="chat-header">
+                <button className="back-btn" onClick={() => setShowAIChat(false)}>
+                  <i className="fas fa-arrow-left"></i>
                 </button>
+                <div>
+                  <strong>KTM AI Assistant</strong>
+                  <div style={{fontSize: 11, opacity: 0.8}}>Hỏi về sản phẩm, giá cả...</div>
+                </div>
               </div>
-
-              {/* Chat Messages */}
-              <div className="flex-grow-1 overflow-auto p-3" style={{ background: '#f8f9fa' }}>
+              
+              <div className="chat-messages">
                 {aiMessages.map((msg, i) => (
                   <div key={i} className={`mb-3 ${msg.role === 'user' ? 'd-flex justify-content-end' : ''}`}>
                     <div 
-                      className={`p-2 px-3 rounded-3 ${msg.role === 'user' ? 'bg-warning text-dark' : 'bg-white border'}`}
-                      style={{ maxWidth: '85%', whiteSpace: 'pre-wrap', display: 'inline-block' }}
+                      className={`p-3 rounded-3 ${msg.role === 'user' ? 'text-white' : 'bg-white border'}`}
+                      style={{ 
+                        maxWidth: '85%', 
+                        whiteSpace: 'pre-wrap',
+                        background: msg.role === 'user' ? 'linear-gradient(135deg, #667eea, #764ba2)' : undefined
+                      }}
                     >
-                      {msg.role === 'assistant' && <i className="fas fa-robot me-1 text-muted"></i>}
                       {msg.content}
                       
-                      {/* Attachments - Images/Videos */}
+                      {/* Attachments */}
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className="mt-2 d-flex flex-wrap gap-2">
-                          {msg.attachments.map((item, idx) => (
-                            <div key={idx} className="position-relative" style={{ width: 80 }}>
-                              {/* Image */}
-                              {item.image && (
+                          {msg.attachments.map((att, idx) => (
+                            <div key={idx} style={{width: 70}} className="text-center">
+                              {att.image && (
                                 <img 
-                                  src={item.image} 
-                                  alt={item.name}
-                                  className="rounded border"
-                                  style={{ width: 80, height: 60, objectFit: 'cover', cursor: 'pointer' }}
-                                  onClick={() => setPreviewImage({ url: item.image, name: item.name, price: item.price })}
+                                  src={att.image} 
+                                  className="rounded"
+                                  style={{width: 70, height: 50, objectFit: 'cover', cursor: 'pointer'}}
+                                  onClick={() => setPreviewImage({ url: att.image, name: att.name, price: att.price })}
                                 />
                               )}
-                              {/* Video indicator */}
-                              {item._type === 'video' && (
-                                <div className="position-absolute top-0 end-0">
-                                  <span className="badge bg-danger" style={{ fontSize: 8 }}>
-                                    <i className="fab fa-youtube"></i>
-                                  </span>
-                                </div>
-                              )}
-                              {/* Name */}
-                              <div className="small text-truncate" style={{ fontSize: 10 }} title={item.name}>
-                                {item.name}
-                              </div>
-                              {/* Quick actions */}
-                              <div className="d-flex gap-1 mt-1">
-                                {item.image && (
-                                  <button
-                                    className="btn btn-outline-secondary p-0"
-                                    style={{ width: 20, height: 20, fontSize: 9 }}
-                                    onClick={() => copyText(item.image, `ai-${item.id}-img`)}
-                                    title="Copy link ảnh"
-                                  >
-                                    <i className={`fas ${copiedId === `ai-${item.id}-img` ? 'fa-check text-success' : 'fa-link'}`}></i>
-                                  </button>
-                                )}
-                                {item._type === 'video' && item.youtubeId && (
-                                  <button
-                                    className="btn btn-outline-danger p-0"
-                                    style={{ width: 20, height: 20, fontSize: 9 }}
-                                    onClick={() => copyText(`https://www.youtube.com/watch?v=${item.youtubeId}`, `ai-${item.id}-yt`)}
-                                    title="Copy link YouTube"
-                                  >
-                                    <i className={`fab ${copiedId === `ai-${item.id}-yt` ? 'fa-check text-success' : 'fa-youtube'}`}></i>
-                                  </button>
-                                )}
-                                {item.price && (
-                                  <button
-                                    className="btn btn-outline-warning p-0"
-                                    style={{ width: 20, height: 20, fontSize: 9 }}
-                                    onClick={() => copyText(item.price, `ai-${item.id}-price`)}
-                                    title="Copy giá"
-                                  >
-                                    <i className={`fas ${copiedId === `ai-${item.id}-price` ? 'fa-check text-success' : 'fa-tag'}`}></i>
-                                  </button>
-                                )}
-                              </div>
+                              <div style={{fontSize: 9}} className="text-truncate">{att.name}</div>
+                              {att.price && <div style={{fontSize: 10, color: '#dc3545', fontWeight: 600}}>{att.price}</div>}
                             </div>
                           ))}
                         </div>
@@ -1564,9 +2142,8 @@
                   </div>
                 ))}
                 {aiLoading && (
-                  <div className="d-flex justify-content-start mb-3">
-                    <div className="bg-white border p-2 px-3 rounded-3">
-                      <i className="fas fa-robot me-1 text-muted"></i>
+                  <div className="mb-3">
+                    <div className="bg-white border p-3 rounded-3 d-inline-block">
                       <span className="spinner-border spinner-border-sm me-2"></span>
                       Đang suy nghĩ...
                     </div>
@@ -1574,92 +2151,77 @@
                 )}
                 <div ref={chatEndRef}></div>
               </div>
-
+              
               {/* Quick suggestions */}
-              <div className="px-3 py-2 border-top d-flex gap-1 flex-wrap">
-                {['Giá van 2 tay?', 'Combo rẻ nhất?', 'Sản phẩm freeship?'].map(q => (
+              <div className="px-3 py-2 border-top d-flex gap-2 overflow-auto">
+                {['Giá van 2 tay?', 'Combo rẻ nhất?', 'Freeship?', 'Van 3 tay?'].map(q => (
                   <button
                     key={q}
-                    className="btn btn-sm btn-outline-secondary"
+                    className="btn btn-sm btn-outline-secondary flex-shrink-0"
                     onClick={() => handleAIChat(q)}
                     disabled={aiLoading}
+                    style={{whiteSpace: 'nowrap'}}
                   >
                     {q}
                   </button>
                 ))}
               </div>
-
-              {/* Chat Input */}
-              <div className="p-3 border-top">
-                <form onSubmit={(e) => { e.preventDefault(); handleAIChat(aiInput); }}>
-                  <div className="input-group">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Hỏi về sản phẩm, giá cả..."
-                      value={aiInput}
-                      onChange={(e) => setAiInput(e.target.value)}
-                      disabled={aiLoading}
-                    />
-                    <button 
-                      className="btn btn-warning" 
-                      type="submit"
-                      disabled={aiLoading || !aiInput.trim()}
-                    >
-                      <i className="fas fa-paper-plane"></i>
-                    </button>
-                  </div>
+              
+              <div className="chat-input-area">
+                <form onSubmit={(e) => { e.preventDefault(); handleAIChat(aiInput); }} className="chat-input-wrap">
+                  <input
+                    type="text"
+                    className="chat-input"
+                    placeholder="Nhập câu hỏi..."
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    disabled={aiLoading}
+                  />
+                  <button type="submit" className="send-btn" disabled={aiLoading || !aiInput.trim()}>
+                    <i className="fas fa-paper-plane"></i>
+                  </button>
                 </form>
               </div>
             </div>
           )}
 
-          {/* Image Preview Modal */}
+          {/* ========== IMAGE PREVIEW MODAL ========== */}
           {previewImage && (
-            <div 
-              className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-              style={{ background: 'rgba(0,0,0,0.9)', zIndex: 2000 }}
-              onClick={() => setPreviewImage(null)}
-            >
-              <div className="text-center" onClick={(e) => e.stopPropagation()}>
-                <img 
-                  src={previewImage.url} 
-                  alt={previewImage.name}
-                  style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain' }}
-                  className="rounded shadow"
-                />
-                <div className="mt-3 text-white">
-                  <h5>{previewImage.name}</h5>
-                  {previewImage.price && <p className="text-warning fs-4">{previewImage.price}</p>}
-                  <div className="d-flex justify-content-center gap-2 mt-2">
+            <div className="preview-modal" onClick={() => setPreviewImage(null)}>
+              <div className="preview-header">
+                <div></div>
+                <button className="close-btn" onClick={() => setPreviewImage(null)}>
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              
+              <div className="preview-body" onClick={(e) => e.stopPropagation()}>
+                <img src={previewImage.url} alt={previewImage.name} />
+              </div>
+              
+              <div className="preview-footer" onClick={(e) => e.stopPropagation()}>
+                <div className="name">{previewImage.name}</div>
+                {previewImage.price && <div className="price">{previewImage.price}</div>}
+                {previewImage.note && <div className="mb-2" style={{fontSize: 14, color: '#17a2b8'}}>{previewImage.note}</div>}
+                
+                <div className="action-btns">
+                  <button 
+                    className={copiedId === 'preview-img' ? 'btn-success text-white' : 'btn-outline-light text-white'}
+                    style={{background: copiedId === 'preview-img' ? '#28a745' : 'rgba(255,255,255,0.2)'}}
+                    onClick={() => copyImage(previewImage.url, 'preview')}
+                  >
+                    <i className={`fas ${copiedId === 'preview-img' ? 'fa-check' : 'fa-copy'}`}></i>
+                    Copy ảnh
+                  </button>
+                  {previewImage.price && (
                     <button 
-                      className={`btn ${copiedId === 'preview-img' ? 'btn-success' : 'btn-outline-light'}`}
-                      onClick={() => copyText(previewImage.url, 'preview-img')}
+                      className={copiedId === 'preview-price' ? 'btn-success text-white' : 'btn-warning'}
+                      onClick={() => copyText(previewImage.price, 'preview-price')}
                     >
-                      <i className={`fas ${copiedId === 'preview-img' ? 'fa-check' : 'fa-link'} me-1`}></i>
-                      Copy link ảnh
+                      <i className={`fas ${copiedId === 'preview-price' ? 'fa-check' : 'fa-tag'}`}></i>
+                      Copy giá
                     </button>
-                    <button 
-                      className="btn btn-outline-light"
-                      onClick={() => {
-                        const a = document.createElement('a');
-                        a.href = previewImage.url;
-                        a.download = previewImage.name || 'image';
-                        a.target = '_blank';
-                        a.click();
-                      }}
-                    >
-                      <i className="fas fa-download me-1"></i>
-                      Tải xuống
-                    </button>
-                    <button 
-                      className="btn btn-light"
-                      onClick={() => setPreviewImage(null)}
-                    >
-                      <i className="fas fa-times me-1"></i>
-                      Đóng
-                    </button>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2544,43 +3106,6 @@
           />
           
           <div className="main-content">
-            {/* Mobile header */}
-            <div className="d-md-none bg-dark text-white p-3 mb-3 rounded">
-              <div className="d-flex justify-content-between align-items-center">
-                <span className="text-warning fw-bold"><i className="fas fa-tractor me-2"></i>KTM Admin</span>
-                <div>
-                  <a href="/" className="text-white-50 me-3"><i className="fas fa-home"></i></a>
-                  <button className="btn btn-sm btn-outline-danger" onClick={handleLogout}>
-                    <i className="fas fa-sign-out-alt"></i>
-                  </button>
-                </div>
-              </div>
-              {/* Mobile menu */}
-              <div className="d-flex gap-2 mt-3 overflow-auto pb-1">
-                <button 
-                  className={`btn btn-sm ${activeMenu === 'search' ? 'btn-warning' : 'btn-outline-warning'}`}
-                  onClick={() => setActiveMenu('search')}
-                >
-                  <i className="fas fa-search me-1"></i> Tra cứu
-                </button>
-                <button 
-                  className={`btn btn-sm ${activeMenu === 'albums' ? 'btn-warning' : 'btn-outline-light'}`}
-                  onClick={() => setActiveMenu('albums')}
-                >
-                  <i className="fas fa-images me-1"></i> Album
-                </button>
-                <button 
-                  className={`btn btn-sm ${activeMenu === 'videos' ? 'btn-warning' : 'btn-outline-light'}`}
-                  onClick={() => setActiveMenu('videos')}
-                >
-                  <i className="fas fa-video me-1"></i> Video
-                </button>
-                <button className="btn btn-sm btn-outline-secondary" disabled>
-                  <i className="fas fa-box me-1"></i> Sản phẩm
-                </button>
-              </div>
-            </div>
-
             {activeMenu === 'albums' && !selectedAlbum && (
               <AlbumList
                 albums={albums}
@@ -2610,6 +3135,51 @@
               />
             )}
           </div>
+
+          {/* ========== MOBILE BOTTOM NAVIGATION ========== */}
+          <nav className="mobile-bottom-nav">
+            <div className="nav-items">
+              <a 
+                href="#" 
+                className={`nav-item ${activeMenu === 'search' ? 'active' : ''}`}
+                onClick={(e) => { e.preventDefault(); setActiveMenu('search'); }}
+              >
+                <i className="fas fa-search"></i>
+                <span>Tra cứu</span>
+              </a>
+              <a 
+                href="#" 
+                className={`nav-item ${activeMenu === 'albums' ? 'active' : ''}`}
+                onClick={(e) => { e.preventDefault(); setActiveMenu('albums'); setSelectedAlbum(null); }}
+              >
+                <i className="fas fa-images"></i>
+                <span>Album</span>
+              </a>
+              <a 
+                href="#" 
+                className={`nav-item ${activeMenu === 'videos' ? 'active' : ''}`}
+                onClick={(e) => { e.preventDefault(); setActiveMenu('videos'); }}
+              >
+                <i className="fas fa-video"></i>
+                <span>Video</span>
+              </a>
+              <a 
+                href="/" 
+                className="nav-item"
+              >
+                <i className="fas fa-home"></i>
+                <span>Trang chủ</span>
+              </a>
+              <a 
+                href="#" 
+                className="nav-item"
+                onClick={(e) => { e.preventDefault(); handleLogout(); }}
+              >
+                <i className="fas fa-sign-out-alt"></i>
+                <span>Thoát</span>
+              </a>
+            </div>
+          </nav>
 
           <AlbumModal
             show={showAlbumModal}
