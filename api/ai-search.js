@@ -22,12 +22,18 @@ export default async function handler(req, res) {
   // Check for Gemini API key
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
+    // Fallback: do smart local filtering instead
+    console.log('No GEMINI_API_KEY, using local smart filter');
+    const matchedIds = smartLocalFilter(query, products);
+    return res.status(200).json({ matchedIds, query, fallback: true });
   }
 
   try {
+    // Limit products to avoid token limits
+    const limitedProducts = products.slice(0, 50);
+    
     // Prepare product list for AI
-    const productListText = products.map((p, i) => 
+    const productListText = limitedProducts.map((p, i) => 
       `${i + 1}. [ID: ${p.id}] ${p.name}${p.price ? ` - ${p.price}` : ''}${p.note ? ` (${p.note})` : ''}`
     ).join('\n');
 
@@ -60,7 +66,7 @@ Nếu không có sản phẩm nào phù hợp chính xác, trả về: []`;
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.1, // Low temperature for precise matching
+            temperature: 0.1,
             maxOutputTokens: 500
           }
         })
@@ -68,9 +74,11 @@ Nếu không có sản phẩm nào phù hợp chính xác, trả về: []`;
     );
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error('Gemini API error:', error);
-      return res.status(500).json({ error: 'AI API error' });
+      const errorData = await response.text();
+      console.error('Gemini API error:', response.status, errorData);
+      // Fallback to local filter
+      const matchedIds = smartLocalFilter(query, products);
+      return res.status(200).json({ matchedIds, query, fallback: true });
     }
 
     const data = await response.json();
@@ -79,13 +87,14 @@ Nếu không có sản phẩm nào phù hợp chính xác, trả về: []`;
     // Parse AI response - extract JSON array
     let matchedIds = [];
     try {
-      // Try to extract JSON from response
       const jsonMatch = aiText.match(/\[[\s\S]*?\]/);
       if (jsonMatch) {
         matchedIds = JSON.parse(jsonMatch[0]);
       }
     } catch (parseErr) {
       console.error('Parse error:', parseErr, 'AI response:', aiText);
+      // Fallback
+      matchedIds = smartLocalFilter(query, products);
     }
 
     return res.status(200).json({ 
@@ -96,6 +105,48 @@ Nếu không có sản phẩm nào phù hợp chính xác, trả về: []`;
 
   } catch (err) {
     console.error('AI Search error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    // Fallback to local filter
+    const matchedIds = smartLocalFilter(query, products);
+    return res.status(200).json({ matchedIds, query, fallback: true });
   }
+}
+
+// Smart local filter as fallback
+function smartLocalFilter(query, products) {
+  const lowerQuery = query.toLowerCase();
+  
+  // Extract numbers with context (e.g., "3 tay", "2 ty")
+  const tayMatch = lowerQuery.match(/(\d+)\s*tay/);
+  const tyMatch = lowerQuery.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
+  const tayNum = tayMatch ? tayMatch[1] : null;
+  const tyNum = tyMatch ? tyMatch[1] : null;
+  
+  // Other keywords
+  const keywords = lowerQuery
+    .replace(/\d+\s*tay/g, '')
+    .replace(/\d+\s*(ty|xi\s*lanh|xylanh)/g, '')
+    .split(/\s+/)
+    .filter(w => w.length >= 2);
+
+  return products.filter(p => {
+    const name = (p.name || '').toLowerCase();
+    
+    // Check tay requirement
+    if (tayNum) {
+      const productTay = name.match(/(\d+)\s*tay/);
+      if (!productTay || productTay[1] !== tayNum) return false;
+    }
+    
+    // Check ty requirement  
+    if (tyNum) {
+      const productTy = name.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
+      if (!productTy || productTy[1] !== tyNum) return false;
+    }
+    
+    // Check other keywords
+    const hasKeywords = keywords.length === 0 || keywords.some(kw => name.includes(kw));
+    
+    return hasKeywords;
+  }).map(p => p.id);
+}
 }
