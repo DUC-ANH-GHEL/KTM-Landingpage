@@ -68,11 +68,11 @@ function levenshteinDistance(a, b) {
 const TYPO_CORRECTIONS = {
   // Telex patterns
   'aa': 'â', 'aw': 'ă', 'ee': 'ê', 'oo': 'ô', 'ow': 'ơ', 'uw': 'ư',
-  'dd': 'đ', 'w': 'ư',
-  // Common typos
+  'dd': 'đ',
+  // Common typos - KHÔNG thay đổi xylanh vì sẽ phá regex
   'ngieng': 'nghiêng', 'ngheng': 'nghiêng', 'ngheeng': 'nghiêng',
   'giua': 'giữa', 'giu': 'giữ',
-  'xylanh': 'xy lanh', 'xilanh': 'xy lanh',
+  'vna': 'van', 'vanm': 'van',
   'ktm': 'ktm',
   'vanm': 'van', 'vna': 'van',
   'comob': 'combo', 'cmbo': 'combo',
@@ -170,8 +170,8 @@ function smartLocalFilter(query, products) {
   const tayMatch = lowerQuery.match(/(\d+)\s*tay/);
   const tayNum = tayMatch ? tayMatch[1] : null;
   
-  // 3. Extract số ty/xylanh (CHÍNH XÁC)
-  const tyMatch = lowerQuery.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
+  // 3. Extract số ty/xylanh (CHÍNH XÁC) - match nhiều pattern kể cả viết tắt
+  const tyMatch = lowerQuery.match(/(\d+)\s*(ty|xi\s*lanh|xylanh|xy\s*lanh|xylan|xylang|lanh|xilanh)/i);
   const tyNum = tyMatch ? tyMatch[1] : null;
   
   // 4. Extract folder/brand keywords (yanmar, kubota, etc.)
@@ -200,7 +200,7 @@ function smartLocalFilter(query, products) {
   // Remove số tay, số ty
   cleanQuery = cleanQuery
     .replace(/\d+\s*tay/g, '')
-    .replace(/\d+\s*(ty|xi\s*lanh|xylanh)/g, '')
+    .replace(/\d+\s*(ty|xi\s*lanh|xylanh|xy\s*lanh|xylan|xylang|lanh|xilanh)/gi, '')
     .replace(/\b(van|combo)\b/g, ''); // Quá chung
   
   // Remove folder patterns
@@ -252,7 +252,7 @@ function smartLocalFilter(query, products) {
     
     // TY filter - CHÍNH XÁC số ty/xylanh
     if (tyNum) {
-      const productTyMatch = name.match(/(\d+)\s*(ty|xi\s*lanh|xylanh)/);
+      const productTyMatch = name.match(/(\d+)\s*(ty|xi\s*lanh|xylanh|xy\s*lanh)/i);
       if (!productTyMatch || productTyMatch[1] !== tyNum) {
         return false;
       }
