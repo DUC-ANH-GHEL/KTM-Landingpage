@@ -2550,7 +2550,7 @@
                 {aiMessages.map((msg, i) => (
                   <div key={i} className={`mb-3 ${msg.role === 'user' ? 'd-flex justify-content-end' : ''}`}>
                     <div 
-                      className={`p-3 rounded-3 ${msg.role === 'user' ? 'text-white' : 'bg-white border'}`}
+                      className={`p-3 rounded-3 position-relative ${msg.role === 'user' ? 'text-white' : 'bg-white border'}`}
                       style={{ 
                         maxWidth: '85%', 
                         whiteSpace: 'pre-wrap',
@@ -2558,6 +2558,30 @@
                       }}
                     >
                       {msg.content}
+                      
+                      {/* Copy button for bot messages */}
+                      {msg.role === 'assistant' && (
+                        <button
+                          className="btn btn-sm position-absolute"
+                          style={{
+                            top: 4,
+                            right: 4,
+                            padding: '2px 6px',
+                            fontSize: 11,
+                            background: copiedId === `chat-${i}` ? '#28a745' : 'rgba(0,0,0,0.1)',
+                            border: 'none',
+                            borderRadius: 4,
+                            color: copiedId === `chat-${i}` ? '#fff' : '#666'
+                          }}
+                          onClick={() => {
+                            navigator.clipboard.writeText(msg.content);
+                            setCopiedId(`chat-${i}`);
+                            setTimeout(() => setCopiedId(null), 1500);
+                          }}
+                        >
+                          <i className={`fas ${copiedId === `chat-${i}` ? 'fa-check' : 'fa-copy'}`}></i>
+                        </button>
+                      )}
                       
                       {/* Attachments */}
                       {msg.attachments && msg.attachments.length > 0 && (
