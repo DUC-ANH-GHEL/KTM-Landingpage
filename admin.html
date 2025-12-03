@@ -3483,65 +3483,62 @@
       const [uploadStatus, setUploadStatus] = React.useState('');
 
       // Nén ảnh trước khi upload (cho file lớn từ iPhone)
-      const compressImage = (file, maxSizeMB = 2, onProgress) => {
-        return new Promise((resolve, reject) => {
-          const maxSize = maxSizeMB * 1024 * 1024;
+      const compressImage = async (file, maxSizeMB = 2, onProgress) => {
+        const maxSize = maxSizeMB * 1024 * 1024;
+        
+        // Nếu file đã nhỏ và không phải HEIC, không cần nén
+        const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.heic$/i.test(file.name);
+        if (file.size <= maxSize && !isHeic) {
+          return file;
+        }
+        
+        onProgress?.('Đang xử lý ảnh...');
+        
+        try {
+          // Dùng createImageBitmap - hỗ trợ HEIC trên Safari iOS
+          const bitmap = await createImageBitmap(file);
           
-          // Nếu file đã nhỏ, không cần nén
-          if (file.size <= maxSize) {
-            resolve(file);
-            return;
+          onProgress?.('Đang nén ảnh...');
+          
+          const canvas = document.createElement('canvas');
+          
+          // Resize (max 1200px)
+          let width = bitmap.width;
+          let height = bitmap.height;
+          const maxDimension = 1200;
+          
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height / width) * maxDimension);
+              width = maxDimension;
+            } else {
+              width = Math.round((width / height) * maxDimension);
+              height = maxDimension;
+            }
           }
           
-          onProgress?.('Đang đọc ảnh...');
+          canvas.width = width;
+          canvas.height = height;
           
-          const reader = new FileReader();
-          reader.onerror = () => reject(new Error('Không đọc được file'));
-          reader.onload = (e) => {
-            onProgress?.('Đang xử lý ảnh...');
-            
-            const img = new Image();
-            img.onerror = () => reject(new Error('Không load được ảnh'));
-            img.onload = () => {
-              onProgress?.('Đang nén ảnh...');
-              
-              const canvas = document.createElement('canvas');
-              
-              // Resize nhỏ hơn để nhanh hơn (max 1200px thay vì 1920)
-              let width = img.width;
-              let height = img.height;
-              const maxDimension = 1200;
-              
-              if (width > maxDimension || height > maxDimension) {
-                if (width > height) {
-                  height = Math.round((height / width) * maxDimension);
-                  width = maxDimension;
-                } else {
-                  width = Math.round((width / height) * maxDimension);
-                  height = maxDimension;
-                }
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(bitmap, 0, 0, width, height);
+          bitmap.close(); // Giải phóng memory
+          
+          // Convert to blob
+          return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+              if (blob) {
+                onProgress?.('Hoàn tất!');
+                resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+              } else {
+                reject(new Error('Không nén được ảnh'));
               }
-              
-              canvas.width = width;
-              canvas.height = height;
-              
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(img, 0, 0, width, height);
-              
-              // Nén 1 lần với quality 0.7 (nhanh hơn)
-              canvas.toBlob((blob) => {
-                if (blob) {
-                  onProgress?.('Hoàn tất nén!');
-                  resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-                } else {
-                  reject(new Error('Không nén được ảnh'));
-                }
-              }, 'image/jpeg', 0.7);
-            };
-            img.src = e.target.result;
-          };
-          reader.readAsDataURL(file);
-        });
+            }, 'image/jpeg', 0.7);
+          });
+        } catch (err) {
+          console.error('createImageBitmap error:', err);
+          throw new Error('Không thể xử lý ảnh. Thử chọn ảnh khác.');
+        }
       };
 
       const handleImageUpload = async (e) => {
