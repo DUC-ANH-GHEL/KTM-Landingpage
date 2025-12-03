@@ -3550,8 +3550,15 @@
         
         setUploading(true);
         try {
+          // Log file gốc
+          console.log('Original file:', file.name, file.size, file.type);
+          
           // Nén ảnh nếu file quá lớn (>2MB)
           const compressedFile = await compressImage(file, 2);
+          
+          // Log file sau nén
+          console.log('Compressed file:', compressedFile.name, compressedFile.size, compressedFile.type);
+          alert(`File gốc: ${(file.size/1024/1024).toFixed(1)}MB\nSau nén: ${(compressedFile.size/1024/1024).toFixed(1)}MB`);
           
           const fd = new FormData();
           fd.append('file', compressedFile);
