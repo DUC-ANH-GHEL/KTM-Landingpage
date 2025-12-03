@@ -3500,6 +3500,23 @@
       // State để hiển thị tiến trình
       const [uploadStatus, setUploadStatus] = React.useState('');
       
+      // Hàm format tiền VNĐ
+      const formatVND = (value) => {
+        // Lấy chỉ số từ input
+        const numbers = value.replace(/[^\d]/g, '');
+        if (!numbers) return '';
+        // Format với dấu chấm ngăn cách hàng nghìn
+        const formatted = numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return formatted + 'đ';
+      };
+      
+      // Xử lý khi nhập giá
+      const handlePriceChange = (e) => {
+        const value = e.target.value;
+        const formatted = formatVND(value);
+        setFormData({...formData, price: formatted});
+      };
+      
       // Lưu ảnh cũ để xóa khi thay ảnh mới
       const [oldImage, setOldImage] = React.useState('');
       
@@ -3763,8 +3780,9 @@
                         type="text" 
                         className="form-control" 
                         value={formData.price} 
-                        onChange={(e) => setFormData({...formData, price: e.target.value})} 
+                        onChange={handlePriceChange} 
                         placeholder="1.950.000đ"
+                        inputMode="numeric"
                         style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
                       />
                     </div>
