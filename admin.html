@@ -3509,16 +3509,37 @@
         return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + 'đ';
       };
       
+      // Lưu giá trị số thuần để so sánh
+      const [priceNumbers, setPriceNumbers] = React.useState('');
+      
       // Xử lý khi nhập giá
       const handlePriceChange = (e) => {
         const value = e.target.value;
+        // Lấy chỉ số thuần
+        const numbers = value.replace(/[^\d]/g, '');
+        
         // Nếu xóa hết thì để trống
-        if (!value || value === 'đ') {
+        if (!numbers) {
           setFormData({...formData, price: ''});
+          setPriceNumbers('');
           return;
         }
-        const formatted = formatVND(value);
-        setFormData({...formData, price: formatted});
+        
+        // Nếu số không thay đổi (user chỉ xóa đ hoặc dấu chấm) thì xóa 1 số cuối
+        if (numbers === priceNumbers && numbers.length > 0) {
+          const newNumbers = numbers.slice(0, -1);
+          if (!newNumbers) {
+            setFormData({...formData, price: ''});
+            setPriceNumbers('');
+          } else {
+            setFormData({...formData, price: formatVND(newNumbers)});
+            setPriceNumbers(newNumbers);
+          }
+          return;
+        }
+        
+        setPriceNumbers(numbers);
+        setFormData({...formData, price: formatVND(numbers)});
       };
       
       // Lưu ảnh cũ để xóa khi thay ảnh mới
