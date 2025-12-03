@@ -18,6 +18,21 @@
       --info: #17a2b8;
     }
     
+    * {
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      overflow-x: hidden;
+      max-width: 100vw;
+      width: 100%;
+    }
+    
+    /* Fix mobile horizontal scroll */
+    #root, .app-container, main, section, div {
+      max-width: 100%;
+    }
+    
     body {
       background: #f0f2f5;
       min-height: 100vh;
