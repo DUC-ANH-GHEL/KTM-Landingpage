@@ -95,7 +95,7 @@
       background: #f5f7fa;
       border-radius: 0;
       padding: 12px;
-      margin: -12px;
+      margin: 0;
       min-height: calc(100vh - 140px);
     }
     .product-header {
@@ -860,8 +860,8 @@
         padding-bottom: 80px;
       }
       
-      /* Full width content sections */
-      .main-content > div {
+      /* Full width content sections - except product-manager which has its own padding */
+      .main-content > div:not(.product-manager) {
         padding: 12px;
       }
       
