@@ -3506,13 +3506,17 @@
         const numbers = value.replace(/[^\d]/g, '');
         if (!numbers) return '';
         // Format với dấu chấm ngăn cách hàng nghìn
-        const formatted = numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        return formatted + 'đ';
+        return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + 'đ';
       };
       
       // Xử lý khi nhập giá
       const handlePriceChange = (e) => {
         const value = e.target.value;
+        // Nếu xóa hết thì để trống
+        if (!value || value === 'đ') {
+          setFormData({...formData, price: ''});
+          return;
+        }
         const formatted = formatVND(value);
         setFormData({...formData, price: formatted});
       };
