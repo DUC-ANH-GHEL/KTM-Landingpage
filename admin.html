@@ -3321,10 +3321,28 @@
       const handleCreate = () => { setEditingProduct(null); setShowModal(true); };
 
       const handleEdit = (product) => { setEditingProduct(product); setShowModal(true); };
+      
+      // Hàm xóa ảnh trên Cloudinary (dùng chung)
+      const deleteCloudinaryImageGlobal = async (imageUrl) => {
+        if (!imageUrl || !imageUrl.includes('cloudinary.com')) return;
+        try {
+          await fetch(`${API_BASE}/api/cloudinary-delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: imageUrl })
+          });
+        } catch (err) {
+          console.error('Delete cloudinary image error:', err);
+        }
+      };
 
       const handleDelete = async (product) => {
         if (!confirm(`Xóa sản phẩm "${product.name}"?`)) return;
         try {
+          // Xóa ảnh trên Cloudinary trước
+          if (product.image) {
+            await deleteCloudinaryImageGlobal(product.image);
+          }
           await fetch(`${API_BASE}/api/products?id=${product.id}`, { method: 'DELETE' });
           showToast('Đã xóa sản phẩm', 'success');
           loadProducts();
@@ -3481,6 +3499,29 @@
 
       // State để hiển thị tiến trình
       const [uploadStatus, setUploadStatus] = React.useState('');
+      
+      // Lưu ảnh cũ để xóa khi thay ảnh mới
+      const [oldImage, setOldImage] = React.useState('');
+      
+      React.useEffect(() => {
+        if (product?.image) {
+          setOldImage(product.image);
+        }
+      }, [product]);
+
+      // Hàm xóa ảnh trên Cloudinary
+      const deleteCloudinaryImage = async (imageUrl) => {
+        if (!imageUrl || !imageUrl.includes('cloudinary.com')) return;
+        try {
+          await fetch(`${API_BASE}/api/cloudinary-delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: imageUrl })
+          });
+        } catch (err) {
+          console.error('Delete cloudinary image error:', err);
+        }
+      };
 
       // Nén ảnh trước khi upload (cho file lớn từ iPhone)
       const compressImage = async (file, maxSizeMB = 2, onProgress) => {
@@ -3579,6 +3620,10 @@
           const data = await res.json();
           
           if (data.secure_url) {
+            // Xóa ảnh cũ trên Cloudinary khi upload ảnh mới thành công
+            if (formData.image && formData.image !== oldImage) {
+              deleteCloudinaryImage(formData.image);
+            }
             setFormData(prev => ({ ...prev, image: data.secure_url }));
             setUploadStatus('');
           } else {
@@ -3594,10 +3639,31 @@
         setUploading(false);
         e.target.value = '';
       };
+      
+      // Xóa ảnh hiện tại
+      const handleRemoveImage = () => {
+        if (formData.image) {
+          // Chỉ xóa ngay nếu đây là ảnh mới upload (không phải ảnh gốc của sản phẩm)
+          if (formData.image !== oldImage) {
+            deleteCloudinaryImage(formData.image);
+          }
+          setFormData(prev => ({ ...prev, image: '' }));
+        }
+      };
 
       const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
+        
+        // Xóa ảnh cũ nếu đã thay bằng ảnh mới
+        if (oldImage && formData.image && oldImage !== formData.image) {
+          await deleteCloudinaryImage(oldImage);
+        }
+        // Xóa ảnh cũ nếu đã xóa ảnh
+        if (oldImage && !formData.image) {
+          await deleteCloudinaryImage(oldImage);
+        }
+        
         await onSave(formData);
         setSaving(false);
       };
@@ -3627,7 +3693,7 @@
                           <button 
                             type="button" 
                             className="btn btn-danger position-absolute" 
-                            onClick={() => setFormData({...formData, image: ''})} 
+                            onClick={handleRemoveImage} 
                             style={{top: -10, right: -10, width: 28, height: 28, padding: 0, borderRadius: '50%', boxShadow: '0 2px 8px rgba(220,53,69,0.4)'}}
                           >
                             <i className="fas fa-times" style={{fontSize: '0.75rem'}}></i>
