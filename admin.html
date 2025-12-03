@@ -3483,8 +3483,9 @@
         const file = e.target.files?.[0];
         if (!file) return;
         
-        // Validate file type for Safari iOS
-        if (!file.type.startsWith('image/')) {
+        // Validate file type for Safari iOS - check cả name nếu type rỗng
+        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(file.name);
+        if (!isImage) {
           alert('Vui lòng chọn file ảnh!');
           return;
         }
@@ -3494,16 +3495,24 @@
           const fd = new FormData();
           fd.append('file', file);
           fd.append('upload_preset', 'ktm_unsigned');
-          const res = await fetch('https://api.cloudinary.com/v1_1/diwxfpt92/image/upload', { method: 'POST', body: fd });
+          
+          const res = await fetch('https://api.cloudinary.com/v1_1/diwxfpt92/image/upload', { 
+            method: 'POST', 
+            body: fd 
+          });
+          
           const data = await res.json();
+          
           if (data.secure_url) {
             setFormData(prev => ({ ...prev, image: data.secure_url }));
           } else {
-            alert('Upload thất bại. Vui lòng thử lại!');
+            // Log lỗi chi tiết
+            console.error('Cloudinary error:', data);
+            alert('Upload thất bại: ' + (data.error?.message || 'Lỗi không xác định'));
           }
         } catch (err) {
-          console.error(err);
-          alert('Lỗi upload ảnh. Vui lòng thử lại!');
+          console.error('Upload error:', err);
+          alert('Lỗi kết nối: ' + err.message);
         }
         setUploading(false);
         // Reset input để có thể chọn lại cùng file
