@@ -3326,7 +3326,7 @@
       const deleteCloudinaryImageGlobal = async (imageUrl) => {
         if (!imageUrl || !imageUrl.includes('cloudinary.com')) return;
         try {
-          await fetch(`${API_BASE}/api/cloudinary-delete`, {
+          await fetch(`${API_BASE}/api/products?action=delete-image`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: imageUrl })
@@ -3513,7 +3513,7 @@
       const deleteCloudinaryImage = async (imageUrl) => {
         if (!imageUrl || !imageUrl.includes('cloudinary.com')) return;
         try {
-          await fetch(`${API_BASE}/api/cloudinary-delete`, {
+          await fetch(`${API_BASE}/api/products?action=delete-image`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: imageUrl })
