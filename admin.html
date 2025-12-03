@@ -1420,9 +1420,9 @@
               <p className="text-muted">Chưa có album nào. Hãy tạo album đầu tiên!</p>
             </div>
           ) : (
-            <div className="row g-4">
+            <div className="row g-3">
               {albums.map(album => (
-                <div key={album.id} className="col-md-4 col-lg-3">
+                <div key={album.id} className="col-6 col-md-4 col-lg-3">
                   <div className="card album-card h-100" onClick={() => onSelect(album)}>
                     <img 
                       src={album.cover || 'https://via.placeholder.com/300x150?text=No+Cover'} 
@@ -3007,11 +3007,11 @@
                 </button>
               </div>
             ) : (
-              <div className="row g-4">
+              <div className="row g-3">
                 {folders.map((folder, index) => (
                   <div 
                     key={folder.id} 
-                    className="col-md-4 col-lg-3"
+                    className="col-6 col-md-4 col-lg-3"
                     draggable
                     onDragStart={(e) => handleFolderDragStart(e, folder, index)}
                     onDragEnd={handleFolderDragEnd}
