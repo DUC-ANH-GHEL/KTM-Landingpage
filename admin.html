@@ -3257,7 +3257,7 @@
                         <input
                           type="file"
                           className="form-control form-control-sm"
-                          accept="image/*"
+                          accept="image/*,image/jpeg,image/png,image/gif,image/webp"
                           onChange={handleImageUpload}
                           disabled={uploading}
                         />
@@ -3480,8 +3480,15 @@
       }, [product, show]);
 
       const handleImageUpload = async (e) => {
-        const file = e.target.files[0];
+        const file = e.target.files?.[0];
         if (!file) return;
+        
+        // Validate file type for Safari iOS
+        if (!file.type.startsWith('image/')) {
+          alert('Vui lòng chọn file ảnh!');
+          return;
+        }
+        
         setUploading(true);
         try {
           const fd = new FormData();
@@ -3489,11 +3496,18 @@
           fd.append('upload_preset', 'ktm_unsigned');
           const res = await fetch('https://api.cloudinary.com/v1_1/diwxfpt92/image/upload', { method: 'POST', body: fd });
           const data = await res.json();
-          if (data.secure_url) setFormData(prev => ({ ...prev, image: data.secure_url }));
+          if (data.secure_url) {
+            setFormData(prev => ({ ...prev, image: data.secure_url }));
+          } else {
+            alert('Upload thất bại. Vui lòng thử lại!');
+          }
         } catch (err) {
           console.error(err);
+          alert('Lỗi upload ảnh. Vui lòng thử lại!');
         }
         setUploading(false);
+        // Reset input để có thể chọn lại cùng file
+        e.target.value = '';
       };
 
       const handleSubmit = async (e) => {
@@ -3544,7 +3558,13 @@
                       <label className="btn btn-warning btn-sm px-3" style={{borderRadius: '20px'}}>
                         <i className="fas fa-camera me-1"></i>
                         {uploading ? 'Đang tải...' : 'Chọn ảnh'}
-                        <input type="file" className="d-none" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleImageUpload} 
+                          disabled={uploading}
+                          style={{position: 'absolute', left: '-9999px', opacity: 0, width: 1, height: 1}}
+                        />
                       </label>
                     </div>
                   </div>
