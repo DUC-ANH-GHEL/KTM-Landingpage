@@ -1509,6 +1509,8 @@
     function AlbumModal({ show, album, onClose, onSave, parentId }) {
       const [formData, setFormData] = useState({ slug: '', title: '', description: '', cover_url: '', parent_id: null });
       const [saving, setSaving] = useState(false);
+      const [uploadingCover, setUploadingCover] = useState(false);
+      const coverInputRef = useRef(null);
 
       useEffect(() => {
         if (album) {
@@ -1539,6 +1541,34 @@
           .replace(/[đĐ]/g, 'd')
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/(^-|-$)/g, '');
+      };
+
+      // Upload cover image to Cloudinary
+      const handleCoverUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        setUploadingCover(true);
+        try {
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+          fd.append('folder', 'ktm-albums/covers');
+          
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+            method: 'POST',
+            body: fd
+          });
+          
+          if (!res.ok) throw new Error('Upload failed');
+          
+          const data = await res.json();
+          setFormData(prev => ({ ...prev, cover_url: data.secure_url }));
+        } catch (err) {
+          console.error('Cover upload error:', err);
+          alert('Lỗi upload ảnh bìa');
+        }
+        setUploadingCover(false);
       };
 
       if (!show) return null;
@@ -1591,19 +1621,59 @@
                     ></textarea>
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">URL ảnh bìa</label>
-                    <input
-                      type="url"
-                      className="form-control"
-                      value={formData.cover_url}
-                      onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
-                      placeholder="https://..."
-                    />
+                    <label className="form-label">Ảnh bìa</label>
+                    <div className="d-flex gap-2 align-items-start">
+                      {formData.cover_url && (
+                        <div className="position-relative" style={{width: 80, height: 80}}>
+                          <img 
+                            src={formData.cover_url} 
+                            alt="Cover" 
+                            style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8}}
+                          />
+                          <button 
+                            type="button"
+                            className="btn btn-sm btn-danger position-absolute"
+                            style={{top: -8, right: -8, padding: '2px 6px', fontSize: 10}}
+                            onClick={() => setFormData(prev => ({ ...prev, cover_url: '' }))}
+                          >
+                            <i className="fas fa-times"></i>
+                          </button>
+                        </div>
+                      )}
+                      <div className="flex-grow-1">
+                        <input
+                          ref={coverInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="d-none"
+                          onChange={handleCoverUpload}
+                        />
+                        <button 
+                          type="button"
+                          className="btn btn-outline-secondary w-100 mb-2"
+                          onClick={() => coverInputRef.current?.click()}
+                          disabled={uploadingCover}
+                        >
+                          {uploadingCover ? (
+                            <><span className="spinner-border spinner-border-sm me-2"></span>Đang upload...</>
+                          ) : (
+                            <><i className="fas fa-upload me-2"></i>Upload ảnh bìa</>
+                          )}
+                        </button>
+                        <input
+                          type="url"
+                          className="form-control form-control-sm"
+                          value={formData.cover_url}
+                          onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
+                          placeholder="Hoặc dán URL ảnh..."
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
-                  <button type="submit" className="btn btn-warning" disabled={saving}>
+                  <button type="submit" className="btn btn-warning" disabled={saving || uploadingCover}>
                     {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu...</> : 'Lưu'}
                   </button>
                 </div>
@@ -1615,7 +1685,7 @@
     }
 
     // Album Detail View (manage images)
-    function AlbumDetail({ album, onBack, onRefresh, showToast, onNavigateToFolder }) {
+    function AlbumDetail({ album, onBack, onRefresh, showToast, onNavigateToFolder, onEditSubfolder, parentAlbum }) {
       const [images, setImages] = useState([]);
       const [subfolders, setSubfolders] = useState([]);
       const [loading, setLoading] = useState(true);
@@ -1954,8 +2024,16 @@
                         </div>
                         <div className="card-footer bg-transparent border-0 pt-0 text-center">
                           <button 
+                            className="btn btn-sm btn-outline-primary me-1"
+                            onClick={(e) => { e.stopPropagation(); onEditSubfolder && onEditSubfolder(folder); }}
+                            title="Sửa folder"
+                          >
+                            <i className="fas fa-edit"></i>
+                          </button>
+                          <button 
                             className="btn btn-sm btn-outline-danger"
                             onClick={(e) => { e.stopPropagation(); deleteSubfolder(folder); }}
+                            title="Xóa folder"
                           >
                             <i className="fas fa-trash"></i>
                           </button>
@@ -4637,12 +4715,31 @@
             {activeMenu === 'albums' && selectedAlbum && (
               <AlbumDetail
                 album={selectedAlbum}
-                onBack={() => setSelectedAlbum(null)}
+                parentAlbum={albumBreadcrumb.length > 0 ? albumBreadcrumb[albumBreadcrumb.length - 1] : null}
+                onBack={() => {
+                  // Go back to parent folder or album list
+                  if (selectedAlbum.parentId) {
+                    // Find parent in breadcrumb or go to list
+                    const parentIdx = albumBreadcrumb.findIndex(b => b.uuid === selectedAlbum.parentId);
+                    if (parentIdx >= 0) {
+                      setSelectedAlbum(albumBreadcrumb[parentIdx]);
+                    } else {
+                      setSelectedAlbum(null);
+                    }
+                  } else {
+                    setSelectedAlbum(null);
+                  }
+                }}
                 onRefresh={() => loadAlbums(currentAlbumFolder?.uuid)}
                 showToast={showToast}
                 onNavigateToFolder={(folder) => {
-                  // Navigate into subfolder
+                  // Navigate into subfolder - track breadcrumb
+                  setAlbumBreadcrumb(prev => [...prev, selectedAlbum]);
                   setSelectedAlbum(folder);
+                }}
+                onEditSubfolder={(folder) => {
+                  setEditingAlbum(folder);
+                  setShowAlbumModal(true);
                 }}
               />
             )}
