@@ -1506,7 +1506,7 @@
     }
 
     // Create/Edit Album Modal
-    function AlbumModal({ show, album, onClose, onSave, parentId, isFolder }) {
+    function AlbumModal({ show, album, onClose, onSave, parentId }) {
       const [formData, setFormData] = useState({ slug: '', title: '', description: '', cover_url: '', parent_id: null });
       const [saving, setSaving] = useState(false);
 
@@ -1549,14 +1549,14 @@
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">
-                  {album ? 'Sửa' : 'Tạo'} {isFolder ? 'Folder' : 'Album'}
+                  {album ? 'Sửa' : 'Tạo'} Folder
                 </h5>
                 <button type="button" className="btn-close" onClick={onClose}></button>
               </div>
               <form onSubmit={handleSubmit}>
                 <div className="modal-body">
                   <div className="mb-3">
-                    <label className="form-label">Tên {isFolder ? 'Folder' : 'Album'} *</label>
+                    <label className="form-label">Tên Folder *</label>
                     <input
                       type="text"
                       className="form-control"
@@ -1590,18 +1590,16 @@
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     ></textarea>
                   </div>
-                  {!isFolder && (
-                    <div className="mb-3">
-                      <label className="form-label">URL ảnh bìa</label>
-                      <input
-                        type="url"
-                        className="form-control"
-                        value={formData.cover_url}
-                        onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
-                        placeholder="https://..."
-                      />
-                    </div>
-                  )}
+                  <div className="mb-3">
+                    <label className="form-label">URL ảnh bìa</label>
+                    <input
+                      type="url"
+                      className="form-control"
+                      value={formData.cover_url}
+                      onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
+                      placeholder="https://..."
+                    />
+                  </div>
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
@@ -4710,7 +4708,6 @@
             show={showAlbumModal}
             album={editingAlbum}
             parentId={currentAlbumFolder?.uuid}
-            isFolder={isCreatingFolder}
             onClose={() => setShowAlbumModal(false)}
             onSave={handleSaveAlbum}
           />
