@@ -20,12 +20,12 @@ export default async function handler(req, res) {
   // GET /api/video-folders - Lấy danh sách folders với videos
   if (req.method === 'GET') {
     try {
-      const { withVideos, slug } = req.query;
+      const { withVideos, slug, parent_id } = req.query;
 
       if (slug) {
         // Get single folder by slug
         const folders = await sql`
-          SELECT id, name, slug, description, cover_image, sort_order
+          SELECT id, name, slug, description, cover_image, sort_order, parent_id
           FROM video_folders
           WHERE slug = ${slug}
         `;
@@ -43,9 +43,15 @@ export default async function handler(req, res) {
           WHERE folder_id = ${folder.id}
           ORDER BY sort_order ASC, created_at DESC
         `;
+        
+        // Get subfolders count
+        const subfolders = await sql`
+          SELECT COUNT(*)::int as count FROM video_folders WHERE parent_id = ${folder.id}
+        `;
 
         return res.status(200).json({
           ...folder,
+          subfolderCount: subfolders[0]?.count || 0,
           videos: videos.map(v => ({
             id: v.id,
             title: v.title,
@@ -57,21 +63,42 @@ export default async function handler(req, res) {
         });
       }
 
-      // Get all folders
-      const folders = await sql`
-        SELECT id, name, slug, description, cover_image, sort_order
-        FROM video_folders
-        ORDER BY sort_order ASC, created_at DESC
-      `;
+      // Build query based on parent_id
+      let folders;
+      if (parent_id === 'root' || parent_id === '') {
+        folders = await sql`
+          SELECT id, name, slug, description, cover_image, sort_order, parent_id
+          FROM video_folders
+          WHERE parent_id IS NULL
+          ORDER BY sort_order ASC, created_at DESC
+        `;
+      } else if (parent_id) {
+        folders = await sql`
+          SELECT id, name, slug, description, cover_image, sort_order, parent_id
+          FROM video_folders
+          WHERE parent_id = ${parent_id}::uuid
+          ORDER BY sort_order ASC, created_at DESC
+        `;
+      } else {
+        // Get all folders (backward compatibility)
+        folders = await sql`
+          SELECT id, name, slug, description, cover_image, sort_order, parent_id
+          FROM video_folders
+          ORDER BY sort_order ASC, created_at DESC
+        `;
+      }
 
       if (withVideos === 'true') {
-        // Get videos for each folder
+        // Get videos and subfolders for each folder
         const result = await Promise.all(folders.map(async (folder) => {
           const videos = await sql`
             SELECT id, title, youtube_id, thumbnail_url, sort_order
             FROM videos
             WHERE folder_id = ${folder.id}
             ORDER BY sort_order ASC, created_at DESC
+          `;
+          const subfolders = await sql`
+            SELECT COUNT(*)::int as count FROM video_folders WHERE parent_id = ${folder.id}
           `;
           return {
             id: folder.id,
@@ -80,7 +107,9 @@ export default async function handler(req, res) {
             description: folder.description,
             coverImage: folder.cover_image,
             sortOrder: folder.sort_order,
+            parentId: folder.parent_id,
             videoCount: videos.length,
+            subfolderCount: subfolders[0]?.count || 0,
             videos: videos.map(v => ({
               id: v.id,
               title: v.title,
@@ -94,14 +123,21 @@ export default async function handler(req, res) {
         return res.status(200).json(result);
       }
 
-      // Return folders without videos
-      const result = folders.map(f => ({
-        id: f.id,
-        name: f.name,
-        slug: f.slug,
-        description: f.description,
-        coverImage: f.cover_image,
-        sortOrder: f.sort_order
+      // Return folders without videos but with subfolder count
+      const result = await Promise.all(folders.map(async (f) => {
+        const subfolders = await sql`
+          SELECT COUNT(*)::int as count FROM video_folders WHERE parent_id = ${f.id}
+        `;
+        return {
+          id: f.id,
+          name: f.name,
+          slug: f.slug,
+          description: f.description,
+          coverImage: f.cover_image,
+          sortOrder: f.sort_order,
+          parentId: f.parent_id,
+          subfolderCount: subfolders[0]?.count || 0
+        };
       }));
 
       return res.status(200).json(result);
@@ -114,7 +150,7 @@ export default async function handler(req, res) {
   // POST /api/video-folders - Tạo folder mới
   if (req.method === 'POST') {
     try {
-      const { name, slug, description, coverImage, sortOrder } = req.body;
+      const { name, slug, description, coverImage, sortOrder, parent_id } = req.body;
 
       if (!name) {
         return res.status(400).json({ error: 'Name is required' });
@@ -128,9 +164,9 @@ export default async function handler(req, res) {
         .replace(/(^-|-$)/g, '');
 
       const rows = await sql`
-        INSERT INTO video_folders (name, slug, description, cover_image, sort_order)
-        VALUES (${name}, ${finalSlug}, ${description || null}, ${coverImage || null}, ${sortOrder || 0})
-        RETURNING id, name, slug, description, cover_image, sort_order
+        INSERT INTO video_folders (name, slug, description, cover_image, sort_order, parent_id)
+        VALUES (${name}, ${finalSlug}, ${description || null}, ${coverImage || null}, ${sortOrder || 0}, ${parent_id || null})
+        RETURNING id, name, slug, description, cover_image, sort_order, parent_id
       `;
 
       const folder = rows[0];

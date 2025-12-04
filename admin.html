@@ -1399,16 +1399,59 @@
       );
     }
 
-    // Album List View
-    function AlbumList({ albums, onSelect, onCreate, onDelete, loading }) {
+    // Album List View - Support nested folders
+    function AlbumList({ albums, onSelect, onCreate, onEdit, onDelete, loading, currentFolder, onBack, breadcrumb }) {
+      // Separate subfolders and albums with images
+      const subfolders = albums.filter(a => a.subfolderCount > 0 || a.count === 0);
+      const albumsWithImages = albums.filter(a => a.count > 0 && a.subfolderCount === 0);
+      
       return (
         <div>
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h4 className="m-0"><i className="fas fa-images me-2 text-warning"></i>Danh sách Album</h4>
-            <button className="btn btn-warning" onClick={onCreate}>
-              <i className="fas fa-plus me-2"></i>Tạo Album mới
-            </button>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <div className="d-flex align-items-center">
+              {currentFolder && (
+                <button className="btn btn-outline-secondary me-3" onClick={onBack}>
+                  <i className="fas fa-arrow-left"></i>
+                </button>
+              )}
+              <h4 className="m-0">
+                <i className="fas fa-images me-2 text-warning"></i>
+                {currentFolder ? currentFolder.title : 'Album'}
+              </h4>
+            </div>
+            <div>
+              <button className="btn btn-outline-warning me-2" onClick={() => onCreate('folder')}>
+                <i className="fas fa-folder-plus me-1"></i>Folder
+              </button>
+              <button className="btn btn-warning" onClick={() => onCreate('album')}>
+                <i className="fas fa-plus me-1"></i>Album
+              </button>
+            </div>
           </div>
+
+          {/* Breadcrumb */}
+          {breadcrumb && breadcrumb.length > 0 && (
+            <nav aria-label="breadcrumb" className="mb-3">
+              <ol className="breadcrumb mb-0">
+                <li className="breadcrumb-item">
+                  <a href="#" onClick={(e) => { e.preventDefault(); onBack('root'); }} className="text-warning">
+                    <i className="fas fa-home"></i>
+                  </a>
+                </li>
+                {breadcrumb.map((item, idx) => (
+                  <li key={item.id} className={`breadcrumb-item ${idx === breadcrumb.length - 1 ? 'active' : ''}`}>
+                    {idx === breadcrumb.length - 1 ? (
+                      item.title
+                    ) : (
+                      <a href="#" onClick={(e) => { e.preventDefault(); onBack(item); }} className="text-warning">
+                        {item.title}
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
 
           {loading ? (
             <div className="text-center py-5">
@@ -1417,26 +1460,47 @@
           ) : albums.length === 0 ? (
             <div className="text-center py-5">
               <i className="fas fa-folder-open fa-3x text-muted mb-3"></i>
-              <p className="text-muted">Chưa có album nào. Hãy tạo album đầu tiên!</p>
+              <p className="text-muted">
+                {currentFolder ? 'Folder này đang trống' : 'Chưa có album nào. Hãy tạo album đầu tiên!'}
+              </p>
             </div>
           ) : (
             <div className="row g-3">
               {albums.map(album => (
-                <div key={album.id} className="col-6 col-md-4 col-lg-3">
+                <div key={album.uuid || album.id} className="col-6 col-md-4 col-lg-3">
                   <div className="card album-card h-100" onClick={() => onSelect(album)}>
-                    <img 
-                      src={album.cover || 'https://via.placeholder.com/300x150?text=No+Cover'} 
-                      className="album-cover" 
-                      alt={album.title}
-                    />
+                    {album.subfolderCount > 0 ? (
+                      <div className="card-body text-center py-4">
+                        <i className="fas fa-folder fa-3x text-warning mb-2"></i>
+                      </div>
+                    ) : (
+                      <img 
+                        src={album.cover || 'https://via.placeholder.com/300x150?text=No+Cover'} 
+                        className="album-cover" 
+                        alt={album.title}
+                      />
+                    )}
                     <div className="card-body">
                       <h6 className="card-title mb-1">{album.title}</h6>
-                      <small className="text-muted">{album.count || 0} ảnh</small>
+                      <small className="text-muted">
+                        {album.subfolderCount > 0 && <span><i className="fas fa-folder me-1"></i>{album.subfolderCount} folder</span>}
+                        {album.subfolderCount > 0 && album.count > 0 && ' • '}
+                        {album.count > 0 && <span>{album.count} ảnh</span>}
+                        {album.subfolderCount === 0 && album.count === 0 && 'Trống'}
+                      </small>
                     </div>
                     <div className="card-footer bg-transparent border-0 pt-0">
                       <button 
+                        className="btn btn-sm btn-outline-primary me-2"
+                        onClick={(e) => { e.stopPropagation(); onEdit(album); }}
+                        title="Sửa album"
+                      >
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button 
                         className="btn btn-sm btn-outline-danger"
                         onClick={(e) => { e.stopPropagation(); onDelete(album); }}
+                        title="Xóa album"
                       >
                         <i className="fas fa-trash"></i>
                       </button>
@@ -1451,8 +1515,8 @@
     }
 
     // Create/Edit Album Modal
-    function AlbumModal({ show, album, onClose, onSave }) {
-      const [formData, setFormData] = useState({ slug: '', title: '', description: '', cover_url: '' });
+    function AlbumModal({ show, album, onClose, onSave, parentId, isFolder }) {
+      const [formData, setFormData] = useState({ slug: '', title: '', description: '', cover_url: '', parent_id: null });
       const [saving, setSaving] = useState(false);
 
       useEffect(() => {
@@ -1461,12 +1525,13 @@
             slug: album.id || '',
             title: album.title || '',
             description: album.description || '',
-            cover_url: album.cover || ''
+            cover_url: album.cover || '',
+            parent_id: album.parentId || null
           });
         } else {
-          setFormData({ slug: '', title: '', description: '', cover_url: '' });
+          setFormData({ slug: '', title: '', description: '', cover_url: '', parent_id: parentId || null });
         }
-      }, [album, show]);
+      }, [album, show, parentId]);
 
       const handleSubmit = async (e) => {
         e.preventDefault();
@@ -1492,13 +1557,15 @@
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">{album ? 'Sửa Album' : 'Tạo Album mới'}</h5>
+                <h5 className="modal-title">
+                  {album ? 'Sửa' : 'Tạo'} {isFolder ? 'Folder' : 'Album'}
+                </h5>
                 <button type="button" className="btn-close" onClick={onClose}></button>
               </div>
               <form onSubmit={handleSubmit}>
                 <div className="modal-body">
                   <div className="mb-3">
-                    <label className="form-label">Tên Album *</label>
+                    <label className="form-label">Tên {isFolder ? 'Folder' : 'Album'} *</label>
                     <input
                       type="text"
                       className="form-control"
@@ -1532,16 +1599,18 @@
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     ></textarea>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">URL ảnh bìa</label>
-                    <input
-                      type="url"
-                      className="form-control"
-                      value={formData.cover_url}
-                      onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
-                      placeholder="https://..."
-                    />
-                  </div>
+                  {!isFolder && (
+                    <div className="mb-3">
+                      <label className="form-label">URL ảnh bìa</label>
+                      <input
+                        type="url"
+                        className="form-control"
+                        value={formData.cover_url}
+                        onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
@@ -1565,6 +1634,7 @@
       const [uploadFiles, setUploadFiles] = useState([]);
       const [uploadPreviews, setUploadPreviews] = useState([]);
       const [captions, setCaptions] = useState({});
+      const [previewImage, setPreviewImage] = useState(null);
       const fileInputRef = useRef(null);
       const dropZoneRef = useRef(null);
 
@@ -1840,7 +1910,12 @@
                 <div className="image-grid">
                   {images.map((img, index) => (
                     <div key={index} className="image-item">
-                      <img src={img.src} alt={img.caption} />
+                      <img 
+                        src={img.src} 
+                        alt={img.caption} 
+                        style={{cursor: 'pointer'}}
+                        onClick={() => setPreviewImage(img)}
+                      />
                       <div className="actions">
                         <button 
                           className="btn btn-sm btn-danger"
@@ -1858,6 +1933,36 @@
               )}
             </div>
           </div>
+
+          {/* Image Preview Modal */}
+          {previewImage && (
+            <div 
+              className="modal show d-block" 
+              style={{backgroundColor: 'rgba(0,0,0,0.9)'}}
+              onClick={() => setPreviewImage(null)}
+            >
+              <div className="modal-dialog modal-fullscreen d-flex align-items-center justify-content-center">
+                <div className="position-relative" style={{maxWidth: '95vw', maxHeight: '95vh'}}>
+                  <button 
+                    className="btn btn-light position-absolute"
+                    style={{top: '-50px', right: '0', borderRadius: '50%', width: '40px', height: '40px'}}
+                    onClick={() => setPreviewImage(null)}
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <img 
+                    src={previewImage.src} 
+                    alt={previewImage.caption}
+                    style={{maxWidth: '95vw', maxHeight: '90vh', objectFit: 'contain'}}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  {previewImage.caption && (
+                    <div className="text-white text-center mt-2">{previewImage.caption}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -2778,7 +2883,7 @@
 
     // ==================== VIDEO MANAGEMENT ====================
     
-    // Video List View - Tổ chức theo Folder với Drag & Drop
+    // Video List View - Tổ chức theo Folder với Drag & Drop và nested folders
     function VideoList({ onRefresh, showToast }) {
       const [folders, setFolders] = useState([]);
       const [videos, setVideos] = useState([]);
@@ -2790,15 +2895,22 @@
       const [editingVideo, setEditingVideo] = useState(null);
       const [draggedItem, setDraggedItem] = useState(null);
       const [dragOverItem, setDragOverItem] = useState(null);
+      
+      // Nested folder navigation
+      const [currentParentFolder, setCurrentParentFolder] = useState(null);
+      const [folderBreadcrumb, setFolderBreadcrumb] = useState([]);
 
       useEffect(() => {
         loadFolders();
       }, []);
 
-      const loadFolders = async () => {
+      const loadFolders = async (parentId = null) => {
         setLoading(true);
         try {
-          const res = await fetch(`${API_BASE}/api/video-folders?withVideos=true`);
+          const url = parentId
+            ? `${API_BASE}/api/video-folders?withVideos=true&parent_id=${parentId}`
+            : `${API_BASE}/api/video-folders?withVideos=true&parent_id=root`;
+          const res = await fetch(url);
           const data = await res.json();
           setFolders(Array.isArray(data) ? data : []);
         } catch (err) {
@@ -2935,6 +3047,11 @@
 
       const handleSaveFolder = async (formData) => {
         try {
+          // Add parent_id if we're in a subfolder
+          if (!editingFolder && currentParentFolder) {
+            formData.parent_id = currentParentFolder.id;
+          }
+          
           const url = editingFolder 
             ? `${API_BASE}/api/video-folders/${editingFolder.id}`
             : `${API_BASE}/api/video-folders`;
@@ -2949,28 +3066,61 @@
 
           showToast(editingFolder ? 'Đã cập nhật folder!' : 'Đã tạo folder mới!', 'success');
           setShowFolderModal(false);
-          loadFolders();
+          loadFolders(currentParentFolder?.id);
         } catch (err) {
           showToast(err.message, 'danger');
         }
       };
 
       const handleDeleteFolder = async (folder) => {
-        if (!confirm(`Xóa folder "${folder.name}"? Videos trong folder sẽ không bị xóa.`)) return;
+        const msg = folder.subfolderCount > 0
+          ? `Xóa folder "${folder.name}"? Tất cả subfolder và videos bên trong sẽ bị xóa!`
+          : `Xóa folder "${folder.name}"? Videos trong folder sẽ không bị xóa.`;
+        if (!confirm(msg)) return;
 
         try {
           await fetch(`${API_BASE}/api/video-folders/${folder.id}`, { method: 'DELETE' });
           showToast('Đã xóa folder', 'success');
           setSelectedFolder(null);
-          loadFolders();
+          loadFolders(currentParentFolder?.id);
         } catch (err) {
           showToast('Lỗi xóa folder', 'danger');
         }
       };
 
       const handleSelectFolder = (folder) => {
-        setSelectedFolder(folder);
-        setVideos(folder.videos || []);
+        // If folder has subfolders, navigate into it
+        if (folder.subfolderCount > 0) {
+          setFolderBreadcrumb(prev => [...prev, folder]);
+          setCurrentParentFolder(folder);
+          loadFolders(folder.id);
+        } else {
+          // Show videos in folder
+          setSelectedFolder(folder);
+          setVideos(folder.videos || []);
+        }
+      };
+
+      const handleFolderBack = (target) => {
+        if (target === 'root') {
+          setFolderBreadcrumb([]);
+          setCurrentParentFolder(null);
+          loadFolders(null);
+        } else if (target) {
+          const idx = folderBreadcrumb.findIndex(b => b.id === target.id);
+          if (idx >= 0) {
+            setFolderBreadcrumb(folderBreadcrumb.slice(0, idx + 1));
+            setCurrentParentFolder(target);
+            loadFolders(target.id);
+          }
+        } else {
+          const newBreadcrumb = [...folderBreadcrumb];
+          newBreadcrumb.pop();
+          const parentFolder = newBreadcrumb[newBreadcrumb.length - 1] || null;
+          setFolderBreadcrumb(newBreadcrumb);
+          setCurrentParentFolder(parentFolder);
+          loadFolders(parentFolder?.id);
+        }
       };
 
       // Video handlers
@@ -3043,16 +3193,50 @@
       if (!selectedFolder) {
         return (
           <div>
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h4 className="m-0"><i className="fas fa-video me-2 text-warning"></i>Quản lý Video</h4>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div className="d-flex align-items-center">
+                {currentParentFolder && (
+                  <button className="btn btn-outline-secondary me-3" onClick={() => handleFolderBack()}>
+                    <i className="fas fa-arrow-left"></i>
+                  </button>
+                )}
+                <h4 className="m-0">
+                  <i className="fas fa-video me-2 text-warning"></i>
+                  {currentParentFolder ? currentParentFolder.name : 'Quản lý Video'}
+                </h4>
+              </div>
               <button className="btn btn-warning" onClick={handleCreateFolder}>
                 <i className="fas fa-folder-plus me-2"></i>Tạo Folder
               </button>
             </div>
 
+            {/* Breadcrumb */}
+            {folderBreadcrumb.length > 0 && (
+              <nav aria-label="breadcrumb" className="mb-3">
+                <ol className="breadcrumb mb-0">
+                  <li className="breadcrumb-item">
+                    <a href="#" onClick={(e) => { e.preventDefault(); handleFolderBack('root'); }} className="text-warning">
+                      <i className="fas fa-home"></i>
+                    </a>
+                  </li>
+                  {folderBreadcrumb.map((item, idx) => (
+                    <li key={item.id} className={`breadcrumb-item ${idx === folderBreadcrumb.length - 1 ? 'active' : ''}`}>
+                      {idx === folderBreadcrumb.length - 1 ? (
+                        item.name
+                      ) : (
+                        <a href="#" onClick={(e) => { e.preventDefault(); handleFolderBack(item); }} className="text-warning">
+                          {item.name}
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+            )}
+
             <p className="text-muted small mb-3">
               <i className="fas fa-info-circle me-1"></i>
-              Kéo thả để sắp xếp thứ tự folders
+              Kéo thả để sắp xếp thứ tự folders. Click vào folder có subfolder để vào bên trong.
             </p>
 
             {loading ? (
@@ -3062,9 +3246,9 @@
             ) : folders.length === 0 ? (
               <div className="text-center py-5">
                 <i className="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                <p className="text-muted">Chưa có folder video nào</p>
+                <p className="text-muted">{currentParentFolder ? 'Folder này đang trống' : 'Chưa có folder video nào'}</p>
                 <button className="btn btn-warning" onClick={handleCreateFolder}>
-                  <i className="fas fa-plus me-2"></i>Tạo folder đầu tiên
+                  <i className="fas fa-plus me-2"></i>Tạo folder{currentParentFolder ? ' con' : ' đầu tiên'}
                 </button>
               </div>
             ) : (
@@ -3094,8 +3278,14 @@
                         <i className={`fas fa-folder fa-3x mb-3 ${folder.slug === 'shorts' ? 'text-danger' : 'text-warning'}`}></i>
                         <h5 className="card-title">{folder.name}</h5>
                         <p className="text-muted mb-0">
-                          <i className="fas fa-video me-1"></i>
-                          {folder.videoCount || folder.videos?.length || 0} videos
+                          {folder.subfolderCount > 0 && (
+                            <span><i className="fas fa-folder me-1"></i>{folder.subfolderCount} folder</span>
+                          )}
+                          {folder.subfolderCount > 0 && (folder.videoCount > 0 || folder.videos?.length > 0) && ' • '}
+                          {(folder.videoCount > 0 || folder.videos?.length > 0) && (
+                            <span><i className="fas fa-video me-1"></i>{folder.videoCount || folder.videos?.length || 0} videos</span>
+                          )}
+                          {folder.subfolderCount === 0 && !folder.videoCount && !folder.videos?.length && 'Trống'}
                         </p>
                       </div>
                       <div className="card-footer bg-transparent border-0">
@@ -4094,8 +4284,13 @@
       const [selectedAlbum, setSelectedAlbum] = useState(null);
       const [showAlbumModal, setShowAlbumModal] = useState(false);
       const [editingAlbum, setEditingAlbum] = useState(null);
+      const [isCreatingFolder, setIsCreatingFolder] = useState(false);
       const [loading, setLoading] = useState(true);
       const [toasts, setToasts] = useState([]);
+      
+      // Nested folder navigation
+      const [currentAlbumFolder, setCurrentAlbumFolder] = useState(null);
+      const [albumBreadcrumb, setAlbumBreadcrumb] = useState([]);
 
       // Check session on mount
       useEffect(() => {
@@ -4170,10 +4365,13 @@
         setToasts(prev => prev.filter(t => t.id !== id));
       };
 
-      const loadAlbums = async () => {
+      const loadAlbums = async (parentId = null) => {
         setLoading(true);
         try {
-          const res = await fetch(`${API_BASE}/api/albums`);
+          const url = parentId 
+            ? `${API_BASE}/api/albums?parent_id=${parentId}`
+            : `${API_BASE}/api/albums?parent_id=root`;
+          const res = await fetch(url);
           const data = await res.json();
           setAlbums(Array.isArray(data) ? data : []);
         } catch (err) {
@@ -4183,39 +4381,95 @@
         setLoading(false);
       };
 
-      const handleCreateAlbum = () => {
+      const handleCreateAlbum = (type = 'album') => {
         setEditingAlbum(null);
+        setIsCreatingFolder(type === 'folder');
+        setShowAlbumModal(true);
+      };
+
+      const handleEditAlbum = (album) => {
+        setEditingAlbum(album);
+        setIsCreatingFolder(album.subfolderCount > 0);
         setShowAlbumModal(true);
       };
 
       const handleSaveAlbum = async (formData) => {
         try {
-          const res = await fetch(`${API_BASE}/api/albums`, {
-            method: 'POST',
+          const isEditing = editingAlbum && editingAlbum.uuid;
+          // Add parent_id if we're in a subfolder
+          if (!isEditing && currentAlbumFolder) {
+            formData.parent_id = currentAlbumFolder.uuid;
+          }
+          
+          const url = isEditing 
+            ? `${API_BASE}/api/albums/${editingAlbum.uuid || editingAlbum.id}` 
+            : `${API_BASE}/api/albums`;
+          
+          const res = await fetch(url, {
+            method: isEditing ? 'PUT' : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
           });
 
           if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.error || 'Lỗi tạo album');
+            throw new Error(err.error || (isEditing ? 'Lỗi cập nhật' : 'Lỗi tạo'));
           }
 
-          showToast('Tạo album thành công!', 'success');
+          showToast(isEditing ? 'Cập nhật thành công!' : 'Tạo thành công!', 'success');
           setShowAlbumModal(false);
-          loadAlbums();
+          loadAlbums(currentAlbumFolder?.uuid);
         } catch (err) {
           showToast(err.message, 'danger');
         }
       };
 
+      const handleSelectAlbum = (album) => {
+        // If it's a folder (has subfolders or no images), navigate into it
+        if (album.subfolderCount > 0 || album.count === 0) {
+          setAlbumBreadcrumb(prev => [...prev, album]);
+          setCurrentAlbumFolder(album);
+          loadAlbums(album.uuid);
+        } else {
+          // It's an album with images, open detail view
+          setSelectedAlbum(album);
+        }
+      };
+
+      const handleAlbumBack = (target) => {
+        if (target === 'root') {
+          setAlbumBreadcrumb([]);
+          setCurrentAlbumFolder(null);
+          loadAlbums(null);
+        } else if (target) {
+          // Navigate to specific folder in breadcrumb
+          const idx = albumBreadcrumb.findIndex(b => b.uuid === target.uuid);
+          if (idx >= 0) {
+            setAlbumBreadcrumb(albumBreadcrumb.slice(0, idx + 1));
+            setCurrentAlbumFolder(target);
+            loadAlbums(target.uuid);
+          }
+        } else {
+          // Go up one level
+          const newBreadcrumb = [...albumBreadcrumb];
+          newBreadcrumb.pop();
+          const parentFolder = newBreadcrumb[newBreadcrumb.length - 1] || null;
+          setAlbumBreadcrumb(newBreadcrumb);
+          setCurrentAlbumFolder(parentFolder);
+          loadAlbums(parentFolder?.uuid);
+        }
+      };
+
       const handleDeleteAlbum = async (album) => {
-        if (!confirm(`Xóa album "${album.title}"? Tất cả ảnh trong album sẽ bị xóa!`)) return;
+        const msg = album.subfolderCount > 0 
+          ? `Xóa folder "${album.title}"? Tất cả folder con và ảnh bên trong sẽ bị xóa!`
+          : `Xóa album "${album.title}"? Tất cả ảnh trong album sẽ bị xóa!`;
+        if (!confirm(msg)) return;
 
         try {
-          await fetch(`${API_BASE}/api/albums/${album.id}`, { method: 'DELETE' });
-          showToast('Đã xóa album', 'success');
-          loadAlbums();
+          await fetch(`${API_BASE}/api/albums/${album.uuid || album.id}`, { method: 'DELETE' });
+          showToast('Đã xóa', 'success');
+          loadAlbums(currentAlbumFolder?.uuid);
         } catch (err) {
           showToast('Lỗi xóa album', 'danger');
         }
@@ -4230,7 +4484,14 @@
         <div>
           <Sidebar 
             activeMenu={activeMenu} 
-            onMenuChange={setActiveMenu} 
+            onMenuChange={(menu) => {
+              setActiveMenu(menu);
+              if (menu === 'albums') {
+                setCurrentAlbumFolder(null);
+                setAlbumBreadcrumb([]);
+                loadAlbums(null);
+              }
+            }} 
             onLogout={handleLogout}
             currentUser={currentUser}
           />
@@ -4240,9 +4501,13 @@
               <AlbumList
                 albums={albums}
                 loading={loading}
-                onSelect={setSelectedAlbum}
+                currentFolder={currentAlbumFolder}
+                breadcrumb={albumBreadcrumb}
+                onSelect={handleSelectAlbum}
                 onCreate={handleCreateAlbum}
+                onEdit={handleEditAlbum}
                 onDelete={handleDeleteAlbum}
+                onBack={handleAlbumBack}
               />
             )}
 
@@ -4319,6 +4584,8 @@
           <AlbumModal
             show={showAlbumModal}
             album={editingAlbum}
+            parentId={currentAlbumFolder?.uuid}
+            isFolder={isCreatingFolder}
             onClose={() => setShowAlbumModal(false)}
             onSave={handleSaveAlbum}
           />

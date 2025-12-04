@@ -4,7 +4,7 @@ import { neon } from '@neondatabase/serverless';
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -90,6 +90,36 @@ export default async function handler(req, res) {
       return res.status(201).json(rows[0]);
     } catch (err) {
       console.error('POST /api/albums/[id]/images error:', err);
+      return res.status(500).json({ error: 'Database error', detail: err.message });
+    }
+  }
+
+  // PUT /api/albums/[id] - Cập nhật album
+  if (req.method === 'PUT') {
+    try {
+      const { title, description, cover_url } = req.body || {};
+      
+      if (!title) {
+        return res.status(400).json({ error: 'title is required' });
+      }
+      
+      const rows = await sql`
+        UPDATE albums 
+        SET title = ${title}, 
+            description = ${description || null}, 
+            cover_url = ${cover_url || null},
+            updated_at = NOW()
+        WHERE id::text = ${id} OR slug = ${id}
+        RETURNING *
+      `;
+      
+      if (rows.length === 0) {
+        return res.status(404).json({ error: 'Album not found' });
+      }
+      
+      return res.status(200).json({ message: 'Album updated', album: rows[0] });
+    } catch (err) {
+      console.error('PUT /api/albums/[id] error:', err);
       return res.status(500).json({ error: 'Database error', detail: err.message });
     }
   }

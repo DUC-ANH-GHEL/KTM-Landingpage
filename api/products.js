@@ -98,6 +98,29 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, inserted, total: count[0].total });
       }
       
+      // Action: migrate-nested-folders - Thêm parent_id cho albums và video_folders
+      if (action === 'migrate-nested-folders') {
+        try {
+          // Add parent_id column to albums if not exists
+          await sql`
+            ALTER TABLE albums ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES albums(id) ON DELETE CASCADE
+          `;
+          
+          // Add parent_id column to video_folders if not exists
+          await sql`
+            ALTER TABLE video_folders ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES video_folders(id) ON DELETE CASCADE
+          `;
+          
+          return res.status(200).json({ 
+            success: true, 
+            message: 'Added parent_id column to albums and video_folders tables'
+          });
+        } catch (err) {
+          console.error('Migration error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+      
       if (id) {
         const result = await sql`SELECT * FROM products WHERE id = ${id}`;
         if (result.length === 0) return res.status(404).json({ error: 'Product not found' });
