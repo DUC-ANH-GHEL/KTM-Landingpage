@@ -13,7 +13,7 @@ function HydraulicBladeProducts() {
     { stt: 63, name: "Trang Gập Van tay KTM 4 xylanh Lắp trên xới", code: "KTM-63", price: "23,200,000" },
     { stt: 64, name: "Trang Gập Van 4 tay KTM 2 xylanh nâng lắp trên xới", code: "KTM-64", price: "16,500,000" },
     { stt: 65, name: "Trang Trượt Van 4 tay KTM + bừa lăn KTM", code: "KTM-65", price: "24,200,000" },
-    { stt: 66, name: "Trang Trượt Van 4 tay KTM + bừa lăn KTM", code: "KTM-66", price: "26,200,000" },
+    { stt: 66, name: "Trang Gập Van 4 tay KTM + bừa lăn KTM", code: "KTM-66", price: "26,200,000" },
     { stt: 67, name: "Trang Trượt Van 4 tay KTM + bừa đinh KTM", code: "KTM-67", price: "22,700,000" },
     { stt: 68, name: "Trang Gập Van 4 tay KTM + bừa đinh KTM", code: "KTM-68", price: "24,700,000" },
     { stt: 69, name: "Trang Trượt Van 4 tay KTM + Khung độc lập", code: "KTM-69", price: "21,500,000" },

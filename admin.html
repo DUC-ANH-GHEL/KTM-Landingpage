@@ -1561,11 +1561,61 @@
       const [images, setImages] = useState([]);
       const [loading, setLoading] = useState(true);
       const [uploading, setUploading] = useState(false);
+      const [uploadProgress, setUploadProgress] = useState('');
       const [uploadFiles, setUploadFiles] = useState([]);
       const [uploadPreviews, setUploadPreviews] = useState([]);
       const [captions, setCaptions] = useState({});
       const fileInputRef = useRef(null);
       const dropZoneRef = useRef(null);
+
+      // Nén ảnh cho iPhone (HEIC, file lớn)
+      const compressImage = async (file, maxSizeMB = 2) => {
+        const maxSize = maxSizeMB * 1024 * 1024;
+        const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.heic$/i.test(file.name);
+        
+        if (file.size <= maxSize && !isHeic) {
+          return file;
+        }
+        
+        try {
+          const bitmap = await createImageBitmap(file);
+          const canvas = document.createElement('canvas');
+          
+          let width = bitmap.width;
+          let height = bitmap.height;
+          const maxDimension = 1200;
+          
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height / width) * maxDimension);
+              width = maxDimension;
+            } else {
+              width = Math.round((width / height) * maxDimension);
+              height = maxDimension;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(bitmap, 0, 0, width, height);
+          bitmap.close();
+          
+          return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+              if (blob) {
+                resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+              } else {
+                reject(new Error('Không nén được ảnh'));
+              }
+            }, 'image/jpeg', 0.7);
+          });
+        } catch (err) {
+          console.error('Compress error:', err);
+          throw new Error('Không thể xử lý ảnh');
+        }
+      };
 
       useEffect(() => {
         loadImages();
@@ -1585,7 +1635,10 @@
       };
 
       const handleFileSelect = (files) => {
-        const newFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+        // Validate cho iOS - check cả name nếu type rỗng
+        const newFiles = Array.from(files).filter(f => 
+          f.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(f.name)
+        );
         setUploadFiles(prev => [...prev, ...newFiles]);
         
         // Create previews
@@ -1630,8 +1683,15 @@
 
         for (let i = 0; i < uploadFiles.length; i++) {
           try {
+            setUploadProgress(`Đang xử lý ${i + 1}/${uploadFiles.length}...`);
+            
+            // Nén ảnh trước khi upload (hỗ trợ iPhone HEIC)
+            const compressedFile = await compressImage(uploadFiles[i], 2);
+            
+            setUploadProgress(`Đang upload ${i + 1}/${uploadFiles.length}...`);
+            
             // Upload to Cloudinary
-            const cloudinaryRes = await uploadToCloudinary(uploadFiles[i]);
+            const cloudinaryRes = await uploadToCloudinary(compressedFile);
             
             // Save to DB
             await fetch(`${API_BASE}/api/albums/${album.id}`, {
@@ -1651,6 +1711,7 @@
         }
 
         setUploading(false);
+        setUploadProgress('');
         setUploadFiles([]);
         setUploadPreviews([]);
         setCaptions({});
@@ -1750,7 +1811,7 @@
                       disabled={uploading}
                     >
                       {uploading ? (
-                        <><span className="spinner-border spinner-border-sm me-2"></span>Đang upload...</>
+                        <><span className="spinner-border spinner-border-sm me-2"></span>{uploadProgress || 'Đang upload...'}</>
                       ) : (
                         <><i className="fas fa-upload me-2"></i>Upload {uploadFiles.length} ảnh</>
                       )}
