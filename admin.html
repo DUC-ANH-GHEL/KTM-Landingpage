@@ -3659,12 +3659,17 @@
               right: 16, 
               width: 56, 
               height: 56, 
-              zIndex: 100,
+              zIndex: 1050,
               background: 'linear-gradient(135deg, #667eea, #764ba2)',
               color: '#fff',
-              border: 'none'
+              border: 'none',
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
+              cursor: 'pointer',
+              outline: 'none'
             }}
             onClick={() => setShowAIChat(true)}
+            onTouchStart={() => setShowAIChat(true)}
           >
             <i className="fas fa-robot fa-lg"></i>
           </button>
