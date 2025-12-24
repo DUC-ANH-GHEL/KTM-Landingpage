@@ -64,293 +64,62 @@
       display: flex;
       justify-content: space-around;
       align-items: center;
+      padding: 0 8px;
     }
     
     .mobile-bottom-nav .nav-item {
       display: flex;
       flex-direction: column;
       align-items: center;
+      gap: 4px;
+      padding: 8px 12px;
       color: rgba(255,255,255,0.6);
       text-decoration: none;
-      padding: 4px 12px;
-      border-radius: 8px;
+      font-size: 12px;
       transition: all 0.2s;
-      font-size: 10px;
+      border-radius: 8px;
       min-width: 60px;
     }
     
     .mobile-bottom-nav .nav-item i {
       font-size: 20px;
-      margin-bottom: 2px;
     }
     
-    .mobile-bottom-nav .nav-item.active,
+    .mobile-bottom-nav .nav-item.active {
+      color: var(--primary);
+      background: rgba(255,193,7,0.1);
+    }
+    
     .mobile-bottom-nav .nav-item:hover {
       color: var(--primary);
       background: rgba(255,193,7,0.1);
     }
     
-    /* Product List Styles - Beautiful & Soft Design */
-    .product-manager {
-      background: #f5f7fa;
-      border-radius: 0;
-      padding: 12px;
-      margin: 0;
-      min-height: calc(100vh - 140px);
-    }
-    .product-header {
-      background: linear-gradient(135deg, #ffc107 0%, #ffca2c 100%);
-      border-radius: 16px;
-      padding: 14px 18px;
-      margin-bottom: 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 6px 20px rgba(255,193,7,0.25);
-    }
-    .product-header h5 {
-      color: #1a1a2e;
-      font-weight: 700;
-      margin: 0;
-      font-size: 1.1rem;
-    }
-    .product-search {
-      background: #fff;
-      border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 14px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-    }
-    .product-search input,
-    .product-search select {
-      background: #fff !important;
-      border: 1.5px solid #e9ecef !important;
-      border-radius: 10px !important;
-      color: #333 !important;
-      padding: 10px 14px !important;
-    }
-    .product-search input:focus,
-    .product-search select:focus {
-      border-color: #ffc107 !important;
-      box-shadow: 0 0 0 4px rgba(255,193,7,0.15) !important;
-    }
-    .product-search input::placeholder {
-      color: #aaa !important;
-    }
-    .product-item {
-      background: #fff;
-      border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 10px;
-      border: none;
-      transition: all 0.25s ease;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-    .product-item:hover {
-      background: linear-gradient(135deg, #fffdf5 0%, #fff9e6 100%);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(255,193,7,0.12);
-    }
-    .product-item:active {
-      transform: scale(0.985);
-    }
-    .product-img {
-      width: 60px;
-      height: 60px;
-      border-radius: 12px;
-      object-fit: cover;
-      box-shadow: 0 3px 12px rgba(0,0,0,0.1);
-    }
-    .product-img-placeholder {
-      width: 60px;
-      height: 60px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .product-name {
-      font-weight: 600;
-      color: #2d3436;
-      font-size: 0.9rem;
-      line-height: 1.35;
-      margin-bottom: 5px;
-    }
-    .product-price {
-      color: #e17055;
-      font-weight: 700;
-      font-size: 0.95rem;
-    }
-    .product-badge {
-      font-size: 0.65rem;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-weight: 500;
-    }
-    .product-badge.bg-info {
-      background: linear-gradient(135deg, #e8f4fd 0%, #d6ebfa 100%) !important;
-      color: #0984e3 !important;
-    }
-    .product-badge.bg-secondary {
-      background: #f1f2f6 !important;
-      color: #636e72 !important;
-    }
-    .product-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .product-actions .btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      font-size: 0.85rem;
-    }
-    .product-actions .btn-edit {
-      background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
-      border: none;
-      color: #fff;
-    }
-    .product-actions .btn-edit:hover, .product-actions .btn-edit:active {
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(9,132,227,0.35);
-    }
-    .product-actions .btn-delete {
-      background: linear-gradient(135deg, #fab1a0 0%, #e17055 100%);
-      border: none;
-      color: #fff;
-    }
-    .product-actions .btn-delete:hover, .product-actions .btn-delete:active {
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(225,112,85,0.35);
-    }
-    .product-count {
-      background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
-      color: #fff;
-      padding: 8px 14px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      box-shadow: 0 3px 10px rgba(108,92,231,0.25);
-    }
-    .btn-add-product {
-      background: #2d3436;
-      color: #ffeaa7;
-      border: none;
-      padding: 10px 18px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      transition: all 0.2s;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.15);
-    }
-    .btn-add-product:hover, .btn-add-product:active {
-      background: #1a1a2e;
-      color: #ffeaa7;
-      transform: scale(1.03);
-    }
-    .min-width-0 {
-      min-width: 0;
-    }
-    .empty-state {
-      text-align: center;
-      padding: 50px 20px;
-      background: #fff;
-      border-radius: 20px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-    }
-    .empty-state i {
-      font-size: 3.5rem;
-      color: #ffc107;
-      margin-bottom: 16px;
-      display: block;
-    }
-    .empty-state p {
-      color: #636e72;
-      margin-bottom: 20px;
-      font-size: 0.95rem;
-    }
-    
-    /* Desktop Sidebar */
-    .sidebar {
-      background: var(--dark);
-      min-height: 100vh;
-      position: fixed;
-      left: 0;
-      top: 0;
-      width: 250px;
-      padding-top: 20px;
-      z-index: 1040;
-    }
-    
-    .sidebar .logo {
-      color: var(--primary);
-      font-weight: bold;
-      font-size: 1.5rem;
-      padding: 0 20px 20px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-    
-    .sidebar .nav-link {
-      color: rgba(255,255,255,0.7);
-      padding: 12px 20px;
-      border-left: 3px solid transparent;
-    }
-    
-    .sidebar .nav-link:hover,
-    .sidebar .nav-link.active {
-      color: #fff;
-      background: rgba(255,255,255,0.05);
-      border-left-color: var(--primary);
-    }
-    
-    .sidebar .nav-link i {
-      width: 25px;
-    }
-    
-    .main-content {
-      margin-left: 250px;
-      padding: 20px;
-      padding-bottom: 20px;
-    }
-    
-    /* ========== PRODUCT CARDS - MOBILE OPTIMIZED ========== */
-    
     .product-card-mobile {
       background: #fff;
       border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 12px;
       margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       position: relative;
     }
     
     .product-card-mobile .card-inner {
       display: flex;
-      padding: 10px;
-      gap: 10px;
+      gap: 12px;
     }
     
     .product-card-mobile .thumb {
       width: 80px;
       height: 80px;
-      border-radius: 8px;
       object-fit: cover;
+      border-radius: 8px;
       flex-shrink: 0;
-      cursor: pointer;
     }
     
     .product-card-mobile .info {
       flex: 1;
       min-width: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
     }
     
     .product-card-mobile .name {
@@ -360,6 +129,7 @@
       color: #333;
       display: -webkit-box;
       -webkit-line-clamp: 2;
+      line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
       margin-bottom: 4px;
@@ -792,6 +562,7 @@
       line-height: 1.3;
       display: -webkit-box;
       -webkit-line-clamp: 2;
+      line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
       margin-bottom: 4px;
@@ -961,6 +732,227 @@
       gap: 6px;
     }
     
+    /* ========== FLOATING ACTION BUTTON (FAB) ========== */
+    
+    .fab-container {
+      position: fixed;
+      bottom: 80px;
+      right: 16px;
+      z-index: 1040;
+      display: flex;
+      flex-direction: column-reverse;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .fab-main {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+      border: none;
+      color: #1a1a2e;
+      font-size: 24px;
+      box-shadow: 0 4px 16px rgba(255,193,7,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .fab-main:active {
+      transform: scale(0.95);
+    }
+    
+    .fab-main.open {
+      transform: rotate(45deg);
+      background: #dc3545;
+    }
+    
+    .fab-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(20px) scale(0.8);
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .fab-container.open .fab-actions {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+    
+    .fab-action {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      color: #fff;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      position: relative;
+    }
+    
+    .fab-action.product { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .fab-action.album { background: linear-gradient(135deg, #2e7d32, #4caf50); }
+    .fab-action.video { background: linear-gradient(135deg, #c62828, #e53935); }
+    
+    .fab-action .tooltip {
+      position: absolute;
+      right: 58px;
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .fab-container.open .fab-action .tooltip {
+      opacity: 1;
+    }
+    
+    /* ========== SWIPE ACTIONS ========== */
+    
+    .swipe-container {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .swipe-content {
+      transition: transform 0.2s ease-out;
+      background: #fff;
+    }
+    
+    .swipe-actions-left, .swipe-actions-right {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      display: flex;
+      align-items: stretch;
+    }
+    
+    .swipe-actions-left {
+      left: 0;
+      transform: translateX(-100%);
+    }
+    
+    .swipe-actions-right {
+      right: 0;
+      transform: translateX(100%);
+    }
+    
+    .swipe-btn {
+      width: 70px;
+      border: none;
+      color: #fff;
+      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    
+    .swipe-btn.edit { background: #0984e3; }
+    .swipe-btn.delete { background: #e17055; }
+    .swipe-btn.move { background: #6c5ce7; }
+    
+    /* ========== QUICK INLINE EDIT ========== */
+    
+    .product-card-mobile .quick-actions .action-edit {
+      color: #0984e3;
+    }
+    
+    .product-card-mobile .quick-actions .action-delete {
+      color: #e17055;
+    }
+    
+    /* ========== BULK SELECTION BAR ========== */
+    
+    .bulk-selection-bar {
+      position: fixed;
+      bottom: 60px;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #1a1a2e, #2d3436);
+      color: #fff;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 1045;
+      box-shadow: 0 -4px 16px rgba(0,0,0,0.2);
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+    
+    .bulk-selection-bar .selection-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .bulk-selection-bar .selection-count {
+      background: var(--primary);
+      color: #1a1a2e;
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .bulk-selection-bar .bulk-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .bulk-selection-bar .bulk-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .bulk-selection-bar .bulk-btn.move {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+    }
+    
+    .bulk-selection-bar .bulk-btn.delete {
+      background: linear-gradient(135deg, #e17055, #d63031);
+      color: #fff;
+    }
+    
+    .bulk-selection-bar .bulk-btn.cancel {
+      background: transparent;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+    
+    @media (min-width: 769px) {
+      .fab-container {
+        bottom: 30px;
+        right: 30px;
+      }
+      
+      .bulk-selection-bar {
+        left: 250px;
+        bottom: 0;
+      }
+    }
+    
     /* ========== AI CHAT - MOBILE ========== */
     
     .ai-chat-mobile {
@@ -1065,12 +1057,19 @@
       position: relative;
       border-radius: 8px;
       overflow: hidden;
+      transition: all 0.2s;
+    }
+    
+    .image-item.selected {
+      transform: scale(0.98);
+      box-shadow: 0 0 0 3px #0d6efd;
     }
     
     .image-item img {
       width: 100%;
       height: 120px;
       object-fit: cover;
+      transition: all 0.2s;
     }
     
     .image-item .actions {
@@ -1079,10 +1078,29 @@
       right: 5px;
       opacity: 0;
       transition: opacity 0.2s;
+      display: flex;
+      gap: 4px;
     }
     
     .image-item:hover .actions {
       opacity: 1;
+    }
+    
+    .image-item .actions .btn-info {
+      background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+      border: none;
+    }
+    
+    /* Folder tree hover */
+    .hover-bg:hover {
+      background: #f8f9fa;
+    }
+    
+    .folder-tree {
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 8px;
+      background: #fafafa;
     }
     
     .upload-zone {
@@ -1155,6 +1173,54 @@
       z-index: 9999;
     }
 
+    /* ========== SIDEBAR & MAIN CONTENT ========== */
+    
+    .sidebar {
+      background: var(--dark);
+      min-height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 250px;
+      padding-top: 20px;
+      z-index: 1040;
+    }
+    
+    .sidebar .logo {
+      color: var(--primary);
+      font-weight: bold;
+      font-size: 1.5rem;
+      padding: 0 20px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .sidebar .nav-link {
+      color: rgba(255,255,255,0.7);
+      padding: 12px 20px;
+      border-left: 3px solid transparent;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .sidebar .nav-link:hover,
+    .sidebar .nav-link.active {
+      color: #fff;
+      background: rgba(255,255,255,0.05);
+      border-left-color: var(--primary);
+    }
+    
+    .sidebar .nav-link i {
+      width: 25px;
+    }
+    
+    .main-content {
+      margin-left: 250px;
+      padding: 20px;
+      padding-bottom: 20px;
+    }
+
     @media (max-width: 768px) {
       .sidebar {
         width: 100%;
@@ -1203,6 +1269,192 @@
     .login-box .input-group:focus-within .form-control {
       border-color: var(--primary);
     }
+
+    /* --- PRODUCT LIST STYLES - BEAUTIFUL & SOFT DESIGN (ADMIN) --- */
+    .product-manager {
+      background: #f5f7fa;
+      border-radius: 0;
+      padding: 12px;
+      margin: 0;
+      min-height: calc(100vh - 140px);
+    }
+    .product-header {
+      background: linear-gradient(135deg, #ffc107 0%, #ffca2c 100%);
+      border-radius: 16px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 6px 20px rgba(255,193,7,0.25);
+    }
+    .product-header h5 {
+      color: #1a1a2e;
+      font-weight: 700;
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .product-search {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .product-search input,
+    .product-search select {
+      background: #fff !important;
+      border: 1.5px solid #e9ecef !important;
+      border-radius: 10px !important;
+      color: #333 !important;
+      padding: 10px 14px !important;
+    }
+    .product-search input:focus,
+    .product-search select:focus {
+      border-color: #ffc107 !important;
+      box-shadow: 0 0 0 4px rgba(255,193,7,0.15) !important;
+    }
+    .product-search input::placeholder {
+      color: #aaa !important;
+    }
+    .product-item {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border: none;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .product-item:hover {
+      background: linear-gradient(135deg, #fffdf5 0%, #fff9e6 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255,193,7,0.12);
+    }
+    .product-item:active {
+      transform: scale(0.985);
+    }
+    .product-img {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      object-fit: cover;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+    }
+    .product-img-placeholder {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .product-name {
+      font-weight: 600;
+      color: #2d3436;
+      font-size: 0.9rem;
+      line-height: 1.35;
+      margin-bottom: 5px;
+    }
+    .product-price {
+      color: #e17055;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .product-badge {
+      font-size: 0.65rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    .product-badge.bg-info {
+      background: linear-gradient(135deg, #e8f4fd 0%, #d6ebfa 100%) !important;
+      color: #0984e3 !important;
+    }
+    .product-badge.bg-secondary {
+      background: #f1f2f6 !important;
+      color: #636e72 !important;
+    }
+    .product-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .product-actions .btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      font-size: 0.85rem;
+    }
+    .product-actions .btn-edit {
+      background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+      border: none;
+      color: #fff;
+    }
+    .product-actions .btn-edit:hover, .product-actions .btn-edit:active {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(9,132,227,0.35);
+    }
+    .product-actions .btn-delete {
+      background: linear-gradient(135deg, #fab1a0 0%, #e17055 100%);
+      border: none;
+      color: #fff;
+    }
+    .product-actions .btn-delete:hover, .product-actions .btn-delete:active {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(225,112,85,0.35);
+    }
+    .product-count {
+      background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 3px 10px rgba(108,92,231,0.25);
+    }
+    .btn-add-product {
+      background: #2d3436;
+      color: #ffeaa7;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+    }
+    .btn-add-product:hover, .btn-add-product:active {
+      background: #1a1a2e;
+      color: #ffeaa7;
+      transform: scale(1.03);
+    }
+    .min-width-0 {
+      min-width: 0;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 50px 20px;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    }
+    .empty-state i {
+      font-size: 3.5rem;
+      color: #ffc107;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .empty-state p {
+      color: #636e72;
+      margin-bottom: 20px;
+      font-size: 0.95rem;
+    }
   </style>
 </head>
 <body>
@@ -1224,7 +1476,7 @@
     const CLOUDINARY_CLOUD_NAME = 'diwxfpt92';
     const CLOUDINARY_UPLOAD_PRESET = 'ktm_unsigned'; 
 
-    // API Base
+    // API Base - Vercel dev chạy ở port 3000, dùng chung domain
     const API_BASE = '';
 
     // ==================== LOGIN COMPONENT ====================
@@ -1751,6 +2003,61 @@
       );
     }
 
+    // Folder Tree Item Component - Hiển thị dạng cây thư mục
+    function FolderTreeItem({ folder, allAlbums, currentAlbumId, targetAlbum, onSelect, level = 0 }) {
+      const [expanded, setExpanded] = useState(true);
+      const folderId = folder.uuid || folder.id;
+      const isCurrentFolder = folderId === currentAlbumId;
+      const isSelected = targetAlbum === folderId;
+      const children = allAlbums.filter(a => a.parentId === folderId);
+      const hasChildren = children.length > 0;
+
+      return (
+        <div style={{marginLeft: level * 16 + 'px'}}>
+          <div 
+            className={`d-flex align-items-center p-2 rounded mb-1 ${isSelected ? 'bg-info text-white' : isCurrentFolder ? 'bg-light text-muted' : 'hover-bg'}`}
+            style={{
+              cursor: isCurrentFolder ? 'not-allowed' : 'pointer',
+              opacity: isCurrentFolder ? 0.5 : 1,
+              transition: 'background 0.2s'
+            }}
+            onClick={() => !isCurrentFolder && onSelect(folderId)}
+          >
+            {hasChildren && (
+              <i 
+                className={`fas fa-chevron-${expanded ? 'down' : 'right'} me-2`}
+                style={{fontSize: '10px', width: '12px', cursor: 'pointer'}}
+                onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+              ></i>
+            )}
+            {!hasChildren && <span style={{width: '20px'}}></span>}
+            <i className={`fas fa-folder${isSelected ? '-open' : ''} me-2 ${isSelected ? '' : 'text-warning'}`}></i>
+            <span className="small">{folder.title}</span>
+            {isCurrentFolder && <span className="ms-2 badge bg-secondary" style={{fontSize: '9px'}}>Hiện tại</span>}
+            {folder.count > 0 && !isCurrentFolder && (
+              <span className="ms-auto badge bg-light text-muted" style={{fontSize: '10px'}}>{folder.count}</span>
+            )}
+          </div>
+          
+          {expanded && hasChildren && (
+            <div>
+              {children.map(child => (
+                <FolderTreeItem
+                  key={child.uuid || child.id}
+                  folder={child}
+                  allAlbums={allAlbums}
+                  currentAlbumId={currentAlbumId}
+                  targetAlbum={targetAlbum}
+                  onSelect={onSelect}
+                  level={level + 1}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // Album Detail View (manage images)
     function AlbumDetail({ album, onBack, onRefresh, showToast, onNavigateToFolder, onEditSubfolder, parentAlbum }) {
       const [images, setImages] = useState([]);
@@ -1767,6 +2074,13 @@
       const [creatingFolder, setCreatingFolder] = useState(false);
       const fileInputRef = useRef(null);
       const dropZoneRef = useRef(null);
+      
+      // Move image states
+      const [showMoveModal, setShowMoveModal] = useState(false);
+      const [selectedImages, setSelectedImages] = useState([]);
+      const [allAlbums, setAllAlbums] = useState([]);
+      const [targetAlbum, setTargetAlbum] = useState('');
+      const [moving, setMoving] = useState(false);
 
       // Nén ảnh cho iPhone (HEIC, file lớn)
       const compressImage = async (file, maxSizeMB = 2) => {
@@ -1819,6 +2133,7 @@
 
       useEffect(() => {
         loadData();
+        loadAllAlbums();
       }, [album.id, album.uuid]);
 
       const loadData = async () => {
@@ -1838,6 +2153,104 @@
           showToast('Lỗi tải dữ liệu', 'danger');
         }
         setLoading(false);
+      };
+
+      // Load all albums for move dropdown
+      const loadAllAlbums = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/albums`);
+          const data = await res.json();
+          setAllAlbums(Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.error('Error loading albums:', err);
+        }
+      };
+
+      // Toggle chọn/bỏ chọn ảnh
+      const toggleSelectImage = (imgId) => {
+        setSelectedImages(prev => 
+          prev.includes(imgId) 
+            ? prev.filter(id => id !== imgId)
+            : [...prev, imgId]
+        );
+      };
+
+      // Move selected images to target album
+      const moveImages = async () => {
+        if (!targetAlbum || selectedImages.length === 0) {
+          showToast('Vui lòng chọn folder đích', 'warning');
+          return;
+        }
+
+        setMoving(true);
+        let successCount = 0;
+
+        for (const imageId of selectedImages) {
+          try {
+            const res = await fetch(`${API_BASE}/api/images/${imageId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ album_id: targetAlbum })
+            });
+            if (res.ok) successCount++;
+          } catch (err) {
+            console.error('Move error:', err);
+          }
+        }
+
+        setMoving(false);
+        setShowMoveModal(false);
+        setSelectedImages([]);
+        setTargetAlbum('');
+
+        if (successCount > 0) {
+          showToast(`Đã di chuyển ảnh thành công!`, 'success');
+          loadData();
+          onRefresh();
+        } else {
+          showToast('Di chuyển thất bại', 'danger');
+        }
+      };
+
+      // Bulk delete selected images
+      const [deleting, setDeleting] = useState(false);
+      
+      const bulkDeleteImages = async () => {
+        if (selectedImages.length === 0) return;
+        
+        if (!confirm(`Xóa ${selectedImages.length} ảnh đã chọn? Hành động này không thể hoàn tác!`)) return;
+        
+        setDeleting(true);
+        let successCount = 0;
+        
+        for (const imageId of selectedImages) {
+          try {
+            const res = await fetch(`${API_BASE}/api/images/${imageId}`, { method: 'DELETE' });
+            if (res.ok) successCount++;
+          } catch (err) {
+            console.error('Delete error:', err);
+          }
+        }
+        
+        setDeleting(false);
+        setSelectedImages([]);
+        
+        if (successCount > 0) {
+          showToast(`Đã xóa ${successCount} ảnh!`, 'success');
+          loadData();
+          onRefresh();
+        } else {
+          showToast('Xóa thất bại', 'danger');
+        }
+      };
+      
+      // Select all images
+      const selectAllImages = () => {
+        if (selectedImages.length === images.length) {
+          setSelectedImages([]);
+        } else {
+          setSelectedImages(images.map(img => img.id));
+        }
       };
 
       const createSubfolder = async () => {
@@ -2171,7 +2584,50 @@
           {/* Image Grid */}
           <div className="card">
             <div className="card-body">
-              <h6 className="mb-3"><i className="fas fa-th me-2"></i>Ảnh trong album</h6>
+              {/* Header với toolbar khi có ảnh được chọn */}
+              <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div className="d-flex align-items-center gap-2">
+                  <h6 className="m-0"><i className="fas fa-th me-2"></i>Ảnh ({images.length})</h6>
+                  {images.length > 0 && (
+                    <button 
+                      className="btn btn-sm btn-outline-secondary"
+                      onClick={selectAllImages}
+                    >
+                      {selectedImages.length === images.length ? 'Bỏ chọn' : 'Chọn tất cả'}
+                    </button>
+                  )}
+                </div>
+                
+                {/* Toolbar hiện khi có ảnh được chọn */}
+                {selectedImages.length > 0 && (
+                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                    <span className="badge bg-primary">{selectedImages.length} đã chọn</span>
+                    <button 
+                      className="btn btn-sm btn-info"
+                      onClick={() => setShowMoveModal(true)}
+                    >
+                      <i className="fas fa-folder-open me-1"></i>Di chuyển
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-danger"
+                      onClick={bulkDeleteImages}
+                      disabled={deleting}
+                    >
+                      {deleting ? (
+                        <span className="spinner-border spinner-border-sm"></span>
+                      ) : (
+                        <><i className="fas fa-trash me-1"></i>Xóa</>
+                      )}
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-outline-secondary"
+                      onClick={() => setSelectedImages([])}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                )}
+              </div>
               
               {loading ? (
                 <div className="text-center py-4">
@@ -2185,21 +2641,57 @@
               ) : (
                 <div className="image-grid">
                   {images.map((img, index) => (
-                    <div key={index} className="image-item">
+                    <div 
+                      key={index} 
+                      className={`image-item ${selectedImages.includes(img.id) ? 'selected' : ''}`}
+                      style={{position: 'relative', cursor: 'pointer'}}
+                      onClick={() => toggleSelectImage(img.id)}
+                    >
+                      {/* Checkbox góc trái */}
+                      <div 
+                        className="select-checkbox"
+                        style={{
+                          position: 'absolute',
+                          top: '6px',
+                          left: '6px',
+                          zIndex: 10,
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '4px',
+                          background: selectedImages.includes(img.id) ? '#0d6efd' : 'rgba(255,255,255,0.9)',
+                          border: selectedImages.includes(img.id) ? 'none' : '2px solid #ccc',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                        }}
+                      >
+                        {selectedImages.includes(img.id) && (
+                          <i className="fas fa-check" style={{color: '#fff', fontSize: '12px'}}></i>
+                        )}
+                      </div>
+                      
                       <img 
                         src={img.src} 
                         alt={img.caption} 
-                        style={{cursor: 'pointer'}}
-                        onClick={() => setPreviewImage(img)}
+                        style={{
+                          opacity: selectedImages.includes(img.id) ? 0.7 : 1,
+                          border: selectedImages.includes(img.id) ? '3px solid #0d6efd' : 'none',
+                          borderRadius: '8px'
+                        }}
                       />
+                      
+                      {/* Actions - chỉ hiện nút xóa khi hover */}
                       <div className="actions">
                         <button 
                           className="btn btn-sm btn-danger"
-                          onClick={() => deleteImage(img.id, index)}
+                          onClick={(e) => { e.stopPropagation(); deleteImage(img.id, index); }}
+                          title="Xóa ảnh"
                         >
                           <i className="fas fa-trash"></i>
                         </button>
                       </div>
+                      
                       {img.caption && (
                         <div className="p-2 bg-light small text-truncate">{img.caption}</div>
                       )}
@@ -2209,6 +2701,61 @@
               )}
             </div>
           </div>
+
+          {/* Move Image Modal - Dạng cây thư mục */}
+          {showMoveModal && (
+            <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+              <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content">
+                  <div className="modal-header bg-info text-white">
+                    <h5 className="modal-title">
+                      <i className="fas fa-folder-open me-2"></i>
+                      Di chuyển {selectedImages.length} ảnh
+                    </h5>
+                    <button type="button" className="btn-close btn-close-white" onClick={() => setShowMoveModal(false)}></button>
+                  </div>
+                  <div className="modal-body" style={{maxHeight: '400px', overflowY: 'auto'}}>
+                    <p className="text-muted small mb-3">Chọn thư mục đích:</p>
+                    
+                    {/* Folder Tree */}
+                    <div className="folder-tree">
+                      {allAlbums.filter(a => !a.parentId).map(folder => (
+                        <FolderTreeItem 
+                          key={folder.uuid || folder.id}
+                          folder={folder}
+                          allAlbums={allAlbums}
+                          currentAlbumId={album.uuid || album.id}
+                          targetAlbum={targetAlbum}
+                          onSelect={setTargetAlbum}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary" 
+                      onClick={() => setShowMoveModal(false)}
+                    >
+                      Hủy
+                    </button>
+                    <button 
+                      type="button" 
+                      className="btn btn-info"
+                      onClick={moveImages}
+                      disabled={!targetAlbum || moving}
+                    >
+                      {moving ? (
+                        <><span className="spinner-border spinner-border-sm me-1"></span>Đang chuyển...</>
+                      ) : (
+                        <><i className="fas fa-check me-1"></i>Di chuyển đến đây</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Image Preview Modal */}
           {previewImage && (
@@ -2245,7 +2792,7 @@
 
     // ==================== SEARCH CENTER - TRA CỨU NHANH ====================
     
-    function SearchCenter({ showToast }) {
+    function SearchCenter({ showToast, onNavigate }) {
       const [searchQuery, setSearchQuery] = useState('');
       const [searchResults, setSearchResults] = useState([]);
       const [allData, setAllData] = useState([]);
@@ -2275,106 +2822,206 @@
       
       // Modal state for image preview
       const [previewImage, setPreviewImage] = useState(null);
+      
+      // Quick Edit/Delete states
+      const [showQuickEdit, setShowQuickEdit] = useState(false);
+      const [editingItem, setEditingItem] = useState(null);
+      const [fabOpen, setFabOpen] = useState(false);
+      
+      // Product edit form
+      const [productForm, setProductForm] = useState({
+        name: '', code: '', price: '', image: '', category: '', note: ''
+      });
+      const productCategories = ['Ty xy lanh', 'Combo Van 1 tay', 'Combo Van 2 tay', 'Combo Van 3 tay', 'Combo Van 4 tay', 'Combo Van 5 tay', 'Trang gạt', 'Phụ kiện', 'Van điều khiển'];
+      
+      // Quick Edit Product
+      const handleQuickEdit = (item) => {
+        if (item._type === 'product') {
+          setEditingItem(item);
+          setProductForm({
+            name: item.name || '',
+            code: item.code || '',
+            price: item.price || '',
+            image: item.image || '',
+            category: item.category || '',
+            note: item.note || ''
+          });
+          setShowQuickEdit(true);
+        }
+      };
+      
+      // Save Quick Edit
+      const handleSaveQuickEdit = async () => {
+        if (!editingItem) return;
+        
+        try {
+          const res = await fetch(`${API_BASE}/api/products?id=${editingItem.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(productForm)
+          });
+          
+          if (!res.ok) throw new Error('Lỗi cập nhật');
+          
+          showToast('Cập nhật thành công!', 'success');
+          setShowQuickEdit(false);
+          setEditingItem(null);
+          
+          // Reload data
+          loadAllData();
+        } catch (err) {
+          showToast(err.message, 'danger');
+        }
+      };
+      
+      // Quick Delete
+      const handleQuickDelete = async (item) => {
+        const typeName = item._type === 'product' ? 'sản phẩm' : item._type === 'album' ? 'ảnh' : 'video';
+        if (!confirm(`Xóa ${typeName} "${item.name}"?`)) return;
+        
+        try {
+          let url = '';
+          if (item._type === 'product') {
+            url = `${API_BASE}/api/products?id=${item.id}`;
+          } else if (item._type === 'album') {
+            url = `${API_BASE}/api/images/${item.id}`;
+          } else if (item._type === 'video') {
+            url = `${API_BASE}/api/videos/${item.id}`;
+          }
+          
+          const res = await fetch(url, { method: 'DELETE' });
+          if (!res.ok) throw new Error('Lỗi xóa');
+          
+          showToast(`Đã xóa ${typeName}`, 'success');
+          loadAllData();
+        } catch (err) {
+          showToast(err.message, 'danger');
+        }
+      };
+      
+      // Load data function (song song hóa fetch)
+
+      // Hàm cache helper
+      const CACHE_KEY = 'ktm_admin_data_cache_v1';
+      const CACHE_TTL = 1000 * 60 * 10; // 10 phút
+
+      const loadAllData = async () => {
+        // 1. Thử lấy cache
+
+        let cache = null;
+        let usedCache = false;
+        try {
+          const raw = localStorage.getItem(CACHE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.timestamp && Date.now() - parsed.timestamp < CACHE_TTL && Array.isArray(parsed.data)) {
+              cache = parsed.data;
+              console.log('[CACHE] Using cache, items:', cache.length);
+              setAllData(cache);
+              setSearchResults(cache);
+              setLoading(false); // Dừng loading ngay khi có cache
+              usedCache = true;
+            } else {
+              console.log('[CACHE] Cache expired or invalid');
+            }
+          } else {
+            console.log('[CACHE] No cache found');
+          }
+        } catch (e) {
+          console.error('[CACHE] Error parsing cache:', e);
+        }
+
+        // Nếu có cache thì không loading, chỉ loading khi fetch mới
+        if (!usedCache) setLoading(true);
+
+        // Luôn fetch API để cập nhật cache, nhưng không block UI
+        try {
+          // Song song hóa 3 API
+          const [productsRes, albumsRes, videosRes] = await Promise.all([
+            fetch(`${API_BASE}/api/products`),
+            fetch(`${API_BASE}/api/albums`),
+            fetch(`${API_BASE}/api/video-folders?withVideos=true`)
+          ]);
+
+          // Parse JSON song song
+          const [productsData, albumsList, videosList] = await Promise.all([
+            productsRes.ok ? productsRes.json() : [],
+            albumsRes.ok ? albumsRes.json() : [],
+            videosRes.ok ? videosRes.json() : []
+          ]);
+
+          // Products
+          const products = Array.isArray(productsData)
+            ? productsData.map(p => ({ ...p, _type: 'product', _source: 'database' }))
+            : [];
+
+          // Albums & images (song song fetch images từng album)
+          setAlbums(albumsList);
+          let albumImagesData = [];
+          if (Array.isArray(albumsList) && albumsList.length > 0) {
+            // Fetch tất cả album images song song
+            const albumImageFetches = albumsList.map(album =>
+              fetch(`${API_BASE}/api/albums/${album.id}`)
+            );
+            const albumImageResArr = await Promise.all(albumImageFetches);
+            const albumImageJsonArr = await Promise.all(albumImageResArr.map(r => r.ok ? r.json() : {}));
+            albumImageJsonArr.forEach((albumDetail, idx) => {
+              const album = albumsList[idx];
+              if (albumDetail.images && albumDetail.images.length > 0) {
+                albumDetail.images.forEach(img => {
+                  albumImagesData.push({
+                    id: img.id,
+                    name: img.caption || 'Ảnh từ ' + album.title,
+                    image: img.src,
+                    folder: album.title,
+                    _type: 'album',
+                    _source: 'database'
+                  });
+                });
+              }
+            });
+          }
+
+          // Videos
+          setVideoFolders(videosList);
+          let videosData = [];
+          if (Array.isArray(videosList)) {
+            videosList.forEach(folder => {
+              if (folder.videos) {
+                folder.videos.forEach(v => {
+                  videosData.push({
+                    id: v.id,
+                    name: v.title,
+                    folder: folder.name,
+                    image: v.thumb,
+                    youtubeId: v.youtubeId,
+                    url: v.url,
+                    _type: 'video',
+                    _source: 'database'
+                  });
+                });
+              }
+            });
+          }
+
+          const combined = [...products, ...albumImagesData, ...videosData];
+          // So sánh với cache, nếu khác thì update UI và cache
+          const isDifferent = !cache || JSON.stringify(combined) !== JSON.stringify(cache);
+          if (isDifferent) {
+            setAllData(combined);
+            setSearchResults(combined);
+            try {
+              localStorage.setItem(CACHE_KEY, JSON.stringify({ data: combined, timestamp: Date.now() }));
+            } catch (e) { /* ignore */ }
+          }
+        } catch (err) {
+          console.error('Song song fetch error:', err);
+        }
+        setLoading(false);
+      };
 
       // Load data từ nhiều nguồn
       useEffect(() => {
-        const loadAllData = async () => {
-          setLoading(true);
-          
-          // 1. Load products từ Database API (ưu tiên) hoặc fallback searchData.js
-          let products = [];
-          try {
-            const res = await fetch(`${API_BASE}/api/products`);
-            if (res.ok) {
-              const dbProducts = await res.json();
-              products = dbProducts.map(p => ({
-                ...p,
-                _type: 'product',
-                _source: 'database'
-              }));
-            }
-          } catch (err) {
-            console.error('Error loading products from DB:', err);
-          }
-
-          // 2. Load images từ albums API
-          let albumImagesData = [];
-          try {
-            const res = await fetch(`${API_BASE}/api/albums`);
-            if (res.ok) {
-              const albumsList = await res.json();
-              setAlbums(albumsList);
-              
-              // Load images từ từng album
-              for (const album of albumsList) {
-                try {
-                  const albumRes = await fetch(`${API_BASE}/api/albums/${album.id}`);
-                  if (albumRes.ok) {
-                    const albumDetail = await albumRes.json();
-                    if (albumDetail.images && albumDetail.images.length > 0) {
-                      albumDetail.images.forEach(img => {
-                        albumImagesData.push({
-                          id: img.id,
-                          name: img.caption || 'Ảnh từ ' + album.title,
-                          image: img.src,
-                          folder: album.title,
-                          _type: 'album',
-                          _source: 'database'
-                        });
-                      });
-                    }
-                  }
-                } catch (e) {
-                  console.error('Error loading album images:', e);
-                }
-              }
-            }
-          } catch (err) {
-            console.error('Error loading albums:', err);
-          }
-
-          // 3. Load video folders từ API
-          let videosData = [];
-          try {
-            const res = await fetch(`${API_BASE}/api/video-folders?withVideos=true`);
-            if (res.ok) {
-              const data = await res.json();
-              setVideoFolders(data);
-              
-              // Flatten videos
-              data.forEach(folder => {
-                if (folder.videos) {
-                  folder.videos.forEach(v => {
-                    videosData.push({
-                      id: v.id,
-                      name: v.title,
-                      folder: folder.name,
-                      image: v.thumb,
-                      youtubeId: v.youtubeId,
-                      url: v.url,
-                      _type: 'video',
-                      _source: 'database'
-                    });
-                  });
-                }
-              });
-            }
-          } catch (err) {
-            console.error('Error loading videos:', err);
-          }
-
-          // Combine all data
-          const combined = [...products, ...albumImagesData, ...videosData];
-          setAllData(combined);
-          setSearchResults(combined);
-
-          // Extract unique categories
-          const cats = [...new Set(combined.map(item => item.category || item._type))];
-          setCategories(cats);
-
-          setLoading(false);
-        };
-
         loadAllData();
         
         // Focus search input
@@ -2833,6 +3480,22 @@
                   <i className="fab fa-youtube"></i>
                 </button>
               )}
+              {/* Edit button - chỉ cho sản phẩm */}
+              {isProduct && (
+                <button 
+                  className="action-edit"
+                  onClick={() => handleQuickEdit(item)}
+                >
+                  <i className="fas fa-pen"></i>
+                </button>
+              )}
+              {/* Delete button */}
+              <button 
+                className="action-delete"
+                onClick={() => handleQuickDelete(item)}
+              >
+                <i className="fas fa-trash"></i>
+              </button>
             </div>
           </div>
         );
@@ -2842,7 +3505,7 @@
       const [showFilter, setShowFilter] = useState(false);
 
       return (
-        <div>
+        <>
           {/* ========== RESULT HEADER ========== */}
           <div className="result-header">
             <span>
@@ -2880,9 +3543,20 @@
           {/* ========== RESULTS ========== */}
           <div className="search-results-area">
             {loading ? (
-              <div className="empty-state">
-                <div className="spinner-border text-warning" style={{width: 48, height: 48}}></div>
-                <p className="mt-3">Đang tải dữ liệu...</p>
+              <div>
+                {/* Skeleton list */}
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="product-card-mobile mb-2" style={{opacity:0.7}}>
+                    <div className="card-inner">
+                      <div className="thumb bg-light" style={{width:80,height:80,borderRadius:8}}></div>
+                      <div className="info" style={{flex:1,minWidth:0}}>
+                        <div className="skeleton-box mb-2" style={{height:16,width:'60%',background:'#eee',borderRadius:4}}></div>
+                        <div className="skeleton-box mb-1" style={{height:12,width:'40%',background:'#f3f3f3',borderRadius:4}}></div>
+                        <div className="skeleton-box" style={{height:10,width:'30%',background:'#f3f3f3',borderRadius:4}}></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : searchResults.length === 0 ? (
               <div className="empty-state">
@@ -3153,7 +3827,116 @@
               </div>
             </div>
           )}
-        </div>
+
+          {/* ========== FAB - FLOATING ACTION BUTTON ========== */}
+          <div className={`fab-container mobile-only ${fabOpen ? 'open' : ''}`}>
+            <div className="fab-actions">
+              <button 
+                className="fab-action product"
+                onClick={() => { setFabOpen(false); onNavigate && onNavigate('products', 'create'); }}
+              >
+                <i className="fas fa-box"></i>
+                <span className="tooltip">Thêm sản phẩm</span>
+              </button>
+              <button 
+                className="fab-action album"
+                onClick={() => { setFabOpen(false); onNavigate && onNavigate('albums', 'create'); }}
+              >
+                <i className="fas fa-images"></i>
+                <span className="tooltip">Thêm ảnh/album</span>
+              </button>
+              <button 
+                className="fab-action video"
+                onClick={() => { setFabOpen(false); onNavigate && onNavigate('videos', 'create'); }}
+              >
+                <i className="fas fa-video"></i>
+                <span className="tooltip">Thêm video</span>
+              </button>
+            </div>
+            <button 
+              className={`fab-main ${fabOpen ? 'open' : ''}`}
+              onClick={() => setFabOpen(!fabOpen)}
+            >
+              <i className="fas fa-plus"></i>
+            </button>
+          </div>
+
+          {/* ========== QUICK EDIT MODAL ========== */}
+          {showQuickEdit && editingItem && (
+            <div className="modal show d-block" style={{background: 'rgba(0,0,0,0.6)'}}>
+              <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                <div className="modal-content" style={{borderRadius: 16, maxHeight: '90vh'}}>
+                  <div className="modal-header" style={{background: 'linear-gradient(135deg, #ffc107, #ff9800)', border: 'none'}}>
+                    <h6 className="modal-title fw-bold">
+                      <i className="fas fa-pen me-2"></i>Sửa nhanh
+                    </h6>
+                    <button type="button" className="btn-close" onClick={() => setShowQuickEdit(false)}></button>
+                  </div>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <label className="form-label small fw-semibold">Tên sản phẩm</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={productForm.name}
+                        onChange={(e) => setProductForm({...productForm, name: e.target.value})}
+                      />
+                    </div>
+                    <div className="row g-2 mb-3">
+                      <div className="col-6">
+                        <label className="form-label small fw-semibold">Mã SP</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={productForm.code}
+                          onChange={(e) => setProductForm({...productForm, code: e.target.value})}
+                        />
+                      </div>
+                      <div className="col-6">
+                        <label className="form-label small fw-semibold">Giá</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={productForm.price}
+                          onChange={(e) => setProductForm({...productForm, price: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label small fw-semibold">Danh mục</label>
+                      <select
+                        className="form-select"
+                        value={productForm.category}
+                        onChange={(e) => setProductForm({...productForm, category: e.target.value})}
+                      >
+                        <option value="">-- Chọn danh mục --</option>
+                        {productCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label small fw-semibold">Ghi chú (ưu đãi)</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={productForm.note}
+                        placeholder="VD: Free ship, Giảm 10%..."
+                        onChange={(e) => setProductForm({...productForm, note: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowQuickEdit(false)}>
+                      Hủy
+                    </button>
+                    <button type="button" className="btn btn-warning" onClick={handleSaveQuickEdit}>
+                      <i className="fas fa-save me-1"></i>Lưu
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       );
     }
 
@@ -3692,10 +4475,19 @@
           if (data.secure_url) {
             setFormData(prev => ({ ...prev, coverImage: data.secure_url }));
           }
+          // Xóa cache khi cập nhật
+          localStorage.removeItem(CACHE_KEY);
+          showToast('Cập nhật thành công!', 'success');
+          setShowQuickEdit(false);
+          setEditingItem(null);
+          // Reload data
+          loadAllData();
         } catch (err) {
-          alert('Lỗi upload ảnh');
+          console.error('Cloudinary upload error:', err);
+          alert('Lỗi upload ảnh: ' + (err.message || err));
+        } finally {
+          setUploading(false);
         }
-        setUploading(false);
       };
 
       const handleSubmit = async (e) => {
@@ -3845,26 +4637,17 @@
       // Hàm xóa ảnh trên Cloudinary (dùng chung)
       const deleteCloudinaryImageGlobal = async (imageUrl) => {
         if (!imageUrl || !imageUrl.includes('cloudinary.com')) return;
+
         try {
           await fetch(`${API_BASE}/api/products?action=delete-image`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: imageUrl })
           });
-        } catch (err) {
-          console.error('Delete cloudinary image error:', err);
-        }
-      };
-
-      const handleDelete = async (product) => {
-        if (!confirm(`Xóa sản phẩm "${product.name}"?`)) return;
-        try {
-          // Xóa ảnh trên Cloudinary trước
-          if (product.image) {
-            await deleteCloudinaryImageGlobal(product.image);
-          }
-          await fetch(`${API_BASE}/api/products?id=${product.id}`, { method: 'DELETE' });
-          showToast('Đã xóa sản phẩm', 'success');
+          // Xóa cache khi xóa
+          localStorage.removeItem(CACHE_KEY);
+          showToast(`Đã xóa ${typeName}`, 'success');
+          loadAllData();
           loadProducts();
         } catch (err) {
           showToast('Lỗi xóa sản phẩm', 'danger');
@@ -3884,6 +4667,22 @@
           if (!res.ok) throw new Error('Lỗi lưu sản phẩm');
           showToast(editingProduct ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!', 'success');
           setShowModal(false);
+          loadProducts();
+        } catch (err) {
+          showToast(err.message, 'danger');
+        }
+      };
+
+      const handleDelete = async (product) => {
+        if (!confirm(`Bạn có chắc muốn xóa sản phẩm "${product.name}"?`)) return;
+        
+        try {
+          const res = await fetch(`${API_BASE}/api/products?id=${product.id}`, {
+            method: 'DELETE'
+          });
+          if (!res.ok) throw new Error('Lỗi xóa sản phẩm');
+          
+          showToast('Xóa sản phẩm thành công!', 'success');
           loadProducts();
         } catch (err) {
           showToast(err.message, 'danger');
@@ -4413,7 +5212,7 @@
             title: video.title || '',
             youtube_url: `https://www.youtube.com/watch?v=${video.youtubeId}`,
             thumbnail_url: video.thumb || '',
-            sort_order: video.sortOrder || 0
+            sort_order: video.sortOrder || 0,
           });
           setPreviewThumb(video.thumb);
         } else {
@@ -4546,7 +5345,7 @@
         if (session) {
           try {
             const data = JSON.parse(session);
-            // Check if session expired (24 hours)
+            // Check if session expired (permanent - 100 years)
             if (data.expiry > Date.now()) {
               setIsLoggedIn(true);
               setCurrentUser(data.user);
@@ -4581,11 +5380,11 @@
             throw new Error(data.error || 'Đăng nhập thất bại');
           }
 
-          // Save session
+          // Save session (permanent)
           const session = {
             user: data.user,
             token: data.token,
-            expiry: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+            expiry: Date.now() + 100 * 365 * 24 * 60 * 60 * 1000 // 100 years (permanent)
           };
           localStorage.setItem('ktm_admin_session', JSON.stringify(session));
           
@@ -4749,7 +5548,13 @@
             )}
 
             {activeMenu === 'search' && (
-              <SearchCenter showToast={showToast} />
+              <SearchCenter 
+                showToast={showToast} 
+                onNavigate={(menu, action) => {
+                  setActiveMenu(menu);
+                  // Có thể mở rộng để tự động mở modal tạo mới
+                }}
+              />
             )}
 
             {activeMenu === 'albums' && selectedAlbum && (

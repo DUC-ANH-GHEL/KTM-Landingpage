@@ -1,6 +1,11 @@
 {
+  "scripts": {
+      "_dev_disabled": "vercel dev",
+    "_start_disabled": "vercel dev",
+    "serve": "npx serve -p 8000"
+  },
   "dependencies": {
-    "aos": "^2.3.4",
-    "@neondatabase/serverless": "^0.9.0"
+    "@neondatabase/serverless": "^0.9.5",
+    "aos": "^2.3.4"
   }
 }
