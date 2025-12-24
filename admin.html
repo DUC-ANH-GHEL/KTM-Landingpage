@@ -2828,6 +2828,10 @@
       const [editingItem, setEditingItem] = useState(null);
       const [fabOpen, setFabOpen] = useState(false);
       
+      // Product Modal states
+      const [showProductModal, setShowProductModal] = useState(false);
+      const [editingProduct, setEditingProduct] = useState(null);
+      
       // Product edit form
       const [productForm, setProductForm] = useState({
         name: '', code: '', price: '', image: '', category: '', note: ''
@@ -2894,6 +2898,27 @@
           
           showToast(`Đã xóa ${typeName}`, 'success');
           loadAllData();
+        } catch (err) {
+          showToast(err.message, 'danger');
+        }
+      };
+      
+      // Handle save product from FAB modal
+      const handleSaveProduct = async (formData) => {
+        try {
+          const url = editingProduct 
+            ? `${API_BASE}/api/products?id=${editingProduct.id}`
+            : `${API_BASE}/api/products`;
+          const res = await fetch(url, {
+            method: editingProduct ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+          });
+          if (!res.ok) throw new Error('Lỗi lưu sản phẩm');
+          showToast(editingProduct ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!', 'success');
+          setShowProductModal(false);
+          setEditingProduct(null);
+          loadAllData(); // Refresh search results
         } catch (err) {
           showToast(err.message, 'danger');
         }
@@ -3274,7 +3299,7 @@
           const dataContext = productsOnly.map(item => {
             let info = `- ${item.name}`;
             if (item.code) info += ` (Mã: ${item.code})`;
-            if (item.price) info += ` - Giá: ${item.price}`;
+            if (item.price) info += ` - Giá: ${item.price.replace(/[đ\s]/g, '')}đ`;
             if (item.category) info += ` [${item.category}]`;
             if (item.note) info += ` (${item.note})`;
             return info;
@@ -3330,7 +3355,7 @@
             fallbackResponse = `Tìm thấy ${matches.length} sản phẩm liên quan:\n\n`;
             matches.slice(0, 5).forEach(item => {
               fallbackResponse += `• ${item.name}`;
-              if (item.price) fallbackResponse += ` - ${item.price}`;
+              if (item.price) fallbackResponse += ` - ${item.price.replace(/[đ\s]/g, '')}đ`;
               if (item.note) fallbackResponse += ` (${item.note})`;
               fallbackResponse += '\n';
             });
@@ -3353,6 +3378,350 @@
         }, 100);
       };
 
+      // Product Modal for FAB
+      function ProductModal({ show, product, categories, onClose, onSave }) {
+        const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0 });
+        const [saving, setSaving] = useState(false);
+        const [uploading, setUploading] = useState(false);
+        const imageInputRef = useRef(null);
+
+        // Hàm format tiền VNĐ
+        const formatVND = (value) => {
+          // Lấy chỉ số từ input
+          const numbers = value.replace(/[^\d]/g, '');
+          if (!numbers) return '';
+          // Format với dấu chấm ngăn cách hàng nghìn
+          return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + 'đ';
+        };
+
+        useEffect(() => {
+          if (product) {
+            setFormData({
+              name: product.name || '',
+              code: product.code || '',
+              price: product.price || '',
+              image: product.image || '',
+              category: product.category || '',
+              note: product.note || '',
+              sort_order: product.sort_order || 0
+            });
+            // Set price numbers từ product.price
+            if (product.price) {
+              const numbers = product.price.replace(/[^\d]/g, '');
+              setPriceNumbers(numbers);
+              setFormData(prev => ({...prev, price: formatVND(numbers)}));
+            } else {
+              setPriceNumbers('');
+            }
+          } else {
+            setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0 });
+            setPriceNumbers('');
+          }
+        }, [product, show]);
+
+        // State để hiển thị tiến trình
+        const [uploadStatus, setUploadStatus] = React.useState('');
+        
+        // Lưu giá trị số thuần để so sánh
+        const [priceNumbers, setPriceNumbers] = React.useState('');
+        
+        // Xử lý khi nhập giá
+        const handlePriceChange = (e) => {
+          const value = e.target.value;
+          // Lấy chỉ số thuần
+          const numbers = value.replace(/[^\d]/g, '');
+          
+          // Nếu xóa hết thì để trống
+          if (!numbers) {
+            setFormData({...formData, price: ''});
+            setPriceNumbers('');
+            return;
+          }
+          
+          // Nếu số không thay đổi (user chỉ xóa đ hoặc dấu chấm) thì xóa 1 số cuối
+          if (numbers === priceNumbers && numbers.length > 0) {
+            const newNumbers = numbers.slice(0, -1);
+            if (!newNumbers) {
+              setFormData({...formData, price: ''});
+              setPriceNumbers('');
+            } else {
+              setFormData({...formData, price: formatVND(newNumbers)});
+              setPriceNumbers(newNumbers);
+            }
+            return;
+          }
+          
+          setPriceNumbers(numbers);
+          setFormData({...formData, price: formatVND(numbers)});
+        };
+
+        const compressImage = async (file, maxSizeMB = 2) => {
+          const maxSize = maxSizeMB * 1024 * 1024;
+          if (file.size <= maxSize) return file;
+
+          try {
+            const bitmap = await createImageBitmap(file);
+            const canvas = document.createElement('canvas');
+            
+            let width = bitmap.width;
+            let height = bitmap.height;
+            const maxDimension = 1200;
+            
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = Math.round((height / width) * maxDimension);
+                width = maxDimension;
+              } else {
+                width = Math.round((width / height) * maxDimension);
+                height = maxDimension;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(bitmap, 0, 0, width, height);
+            bitmap.close();
+            
+            return new Promise((resolve, reject) => {
+              canvas.toBlob((blob) => {
+                if (blob) {
+                  resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+                } else {
+                  reject(new Error('Không nén được ảnh'));
+                }
+              }, 'image/jpeg', 0.8);
+            });
+          } catch (err) {
+            console.error('Compress error:', err);
+            throw new Error('Không thể xử lý ảnh. Thử chọn ảnh khác.');
+          }
+        };
+
+        const handleImageUpload = async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          
+          const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+          if (!isImage) {
+            alert('Vui lòng chọn file ảnh!');
+            return;
+          }
+          
+          setUploading(true);
+          try {
+            const compressedFile = await compressImage(file);
+            const fd = new FormData();
+            fd.append('file', compressedFile);
+            fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+            fd.append('folder', 'ktm-products');
+            
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+              method: 'POST',
+              body: fd
+            });
+            
+            const data = await res.json();
+            
+            if (!res.ok) {
+              console.error('Cloudinary error:', data);
+              throw new Error(data.error?.message || 'Upload failed');
+            }
+            
+            setFormData(prev => ({ ...prev, image: data.secure_url }));
+          } catch (err) {
+            console.error('Upload error:', err);
+            alert('Lỗi upload ảnh: ' + err.message);
+          }
+          setUploading(false);
+          e.target.value = '';
+        };
+
+        const handleSubmit = async (e) => {
+          e.preventDefault();
+          setSaving(true);
+          await onSave(formData);
+          setSaving(false);
+        };
+
+        if (!show) return null;
+
+        return (
+          <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.6)' }}>
+            <div className="modal-dialog modal-dialog-centered modal-lg">
+              <div className="modal-content" style={{ borderRadius: 16, border: 'none', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                <div className="modal-header" style={{ background: 'linear-gradient(135deg, #ffc107, #ff9800)', border: 'none', borderRadius: '16px 16px 0 0' }}>
+                  <h5 className="modal-title fw-bold text-dark">
+                    <i className="fas fa-box me-2"></i>{product ? 'Sửa sản phẩm' : 'Thêm sản phẩm mới'}
+                  </h5>
+                  <button type="button" className="btn-close" onClick={onClose}></button>
+                </div>
+                <form onSubmit={handleSubmit}>
+                  <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                    <div className="row">
+                      <div className="col-md-8">
+                        <div className="mb-3">
+                          <label className="form-label fw-semibold small text-muted mb-1">
+                            <i className="fas fa-tag me-1"></i>Tên sản phẩm *
+                          </label>
+                          <input 
+                            type="text" 
+                            className="form-control" 
+                            value={formData.name} 
+                            onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                            placeholder="Ví dụ: Xy lanh nghiêng KTM"
+                            required
+                            style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
+                          />
+                        </div>
+                        <div className="row">
+                          <div className="col-6">
+                            <label className="form-label fw-semibold small text-muted mb-1">
+                              <i className="fas fa-hashtag me-1"></i>Mã sản phẩm
+                            </label>
+                            <input 
+                              type="text" 
+                              className="form-control" 
+                              value={formData.code} 
+                              onChange={(e) => setFormData({...formData, code: e.target.value})} 
+                              placeholder="KTM-01"
+                              style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
+                            />
+                          </div>
+                          <div className="col-6">
+                            <label className="form-label fw-semibold small text-muted mb-1">
+                              <i className="fas fa-dollar-sign me-1"></i>Giá bán
+                            </label>
+                            <input 
+                              type="text" 
+                              className="form-control" 
+                              value={formData.price} 
+                              onChange={handlePriceChange} 
+                              placeholder="1.950.000đ"
+                              style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
+                            />
+                          </div>
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label fw-semibold small text-muted mb-1">
+                            <i className="fas fa-list me-1"></i>Danh mục
+                          </label>
+                          <select 
+                            className="form-select" 
+                            value={formData.category} 
+                            onChange={(e) => setFormData({...formData, category: e.target.value})}
+                            style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
+                          >
+                            <option value="">Chọn danh mục</option>
+                            {categories.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label fw-semibold small text-muted mb-1">
+                            <i className="fas fa-sticky-note me-1"></i>Ghi chú
+                          </label>
+                          <textarea 
+                            className="form-control" 
+                            rows="2" 
+                            value={formData.note} 
+                            onChange={(e) => setFormData({...formData, note: e.target.value})} 
+                            placeholder="Ví dụ: Thêm dây là 2.150.000đ"
+                            style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
+                          />
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <label className="form-label fw-semibold small text-muted mb-1">
+                          <i className="fas fa-image me-1"></i>Ảnh sản phẩm
+                        </label>
+                        <div className="mb-2">
+                          {formData.image ? (
+                            <>
+                              <img 
+                                src={formData.image} 
+                                alt="Product" 
+                                style={{width: '100%', height: 150, objectFit: 'cover', borderRadius: '12px', border: '2px solid #e9ecef'}}
+                              />
+                              <button 
+                                type="button"
+                                className="btn btn-sm btn-danger mt-2"
+                                onClick={() => setFormData({...formData, image: ''})}
+                                style={{borderRadius: '20px', fontSize: '0.75rem'}}
+                              >
+                                <i className="fas fa-times me-1"></i>Xóa ảnh
+                              </button>
+                            </>
+                          ) : (
+                            <div 
+                              className="d-flex align-items-center justify-content-center" 
+                              style={{width: '100%', height: 150, borderRadius: '12px', background: 'linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%)', border: '2px dashed #adb5bd', cursor: 'pointer'}}
+                              onClick={() => imageInputRef.current?.click()}
+                            >
+                              <div className="text-center">
+                                <i className="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                                <div className="small text-muted">Click để upload</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          ref={imageInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="d-none"
+                          onChange={handleImageUpload}
+                        />
+                        <button 
+                          type="button"
+                          className="btn btn-outline-secondary w-100"
+                          onClick={() => imageInputRef.current?.click()}
+                          disabled={uploading}
+                          style={{borderRadius: '10px'}}
+                        >
+                          {uploading ? (
+                            <><span className="spinner-border spinner-border-sm me-2"></span>Đang upload...</>
+                          ) : (
+                            <><i className="fas fa-upload me-2"></i>Upload ảnh</>
+                          )}
+                        </button>
+                        <div className="mt-2">
+                          <label className="form-label fw-semibold small text-muted mb-1">
+                            <i className="fas fa-link me-1"></i>Hoặc URL ảnh
+                          </label>
+                          <input 
+                            type="url" 
+                            className="form-control" 
+                            value={formData.image} 
+                            onChange={(e) => setFormData({...formData, image: e.target.value})} 
+                            placeholder="https://..."
+                            style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '8px', fontSize: '0.875rem'}}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="modal-footer" style={{border: 'none', padding: '20px'}}>
+                    <button type="button" className="btn btn-light px-4" onClick={onClose} style={{borderRadius: '10px'}}>
+                      Hủy
+                    </button>
+                    <button type="submit" className="btn btn-warning px-4 fw-semibold" disabled={saving} style={{borderRadius: '10px', boxShadow: '0 4px 12px rgba(255,193,7,0.3)'}}>
+                      {saving ? (
+                        <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu...</>
+                      ) : (
+                        <><i className="fas fa-check me-2"></i>Lưu sản phẩm</>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       // ========== MOBILE CARD COMPONENT ==========
       const renderMobileCard = (item, index) => {
         const isProduct = item._type === 'product';
@@ -3374,7 +3743,7 @@
                 )}
                 {/* Price overlay */}
                 {item.price && (
-                  <div className="price-overlay">{item.price}</div>
+                  <div className="price-overlay">{item.price.replace(/[đ\s]/g, '')}đ</div>
                 )}
                 {/* Type badge */}
                 <span className={`type-badge ${isProduct ? 'product' : isAlbum ? 'album' : 'video'}`}>
@@ -3396,7 +3765,7 @@
                   {item.price && (
                     <button 
                       className={copiedId === item.id + '-price' ? 'copied' : ''}
-                      onClick={() => copyText(item.price, item.id + '-price')}
+                      onClick={() => copyText(item.price.replace(/[đ\s]/g, ''), item.id + '-price')}
                     >
                       <i className="fas fa-tag"></i>
                     </button>
@@ -3436,7 +3805,7 @@
                 <div>
                   <div className="name">{item.name}</div>
                   <div className="price-row">
-                    {item.price && <span className="price">{item.price}</span>}
+                    {item.price && <span className="price">{item.price.replace(/[đ\s]/g, '')}đ</span>}
                     {hasPromo && <span className="badge-promo">🔥 ƯU ĐÃI</span>}
                   </div>
                 </div>
@@ -3461,7 +3830,7 @@
               {item.price && (
                 <button 
                   className={copiedId === item.id + '-price' ? 'copied' : ''}
-                  onClick={() => copyText(item.price, item.id + '-price')}
+                  onClick={() => copyText(item.price.replace(/[đ\s]/g, ''), item.id + '-price')}
                 >
                   <i className="fas fa-tag"></i> Giá
                 </button>
@@ -3738,7 +4107,7 @@
                                 />
                               )}
                               <div style={{fontSize: 9}} className="text-truncate">{att.name}</div>
-                              {att.price && <div style={{fontSize: 10, color: '#dc3545', fontWeight: 600}}>{att.price}</div>}
+                              {att.price && <div style={{fontSize: 10, color: '#dc3545', fontWeight: 600}}>{att.price.replace(/[đ\s]/g, '')}đ</div>}
                             </div>
                           ))}
                         </div>
@@ -3807,7 +4176,7 @@
               
               <div className="preview-footer" onClick={(e) => e.stopPropagation()}>
                 <div className="name">{previewImage.name}</div>
-                {previewImage.price && <div className="price">{previewImage.price}</div>}
+                {previewImage.price && <div className="price">{previewImage.price.replace(/[đ\s]/g, '')}đ</div>}
                 {previewImage.note && <div className="mb-2" style={{fontSize: 14, color: '#17a2b8'}}>{previewImage.note}</div>}
                 
                 <div className="action-btns">
@@ -3822,7 +4191,7 @@
                   {previewImage.price && (
                     <button 
                       className={copiedId === 'preview-price' ? 'btn-success text-white' : 'btn-warning'}
-                      onClick={() => copyText(previewImage.price, 'preview-price')}
+                      onClick={() => copyText(previewImage.price.replace(/[đ\s]/g, ''), 'preview-price')}
                     >
                       <i className={`fas ${copiedId === 'preview-price' ? 'fa-check' : 'fa-tag'}`}></i>
                       Copy giá
@@ -3833,12 +4202,21 @@
             </div>
           )}
 
-          {/* ========== FAB - FLOATING ACTION BUTTON ========== */}
+          {/* Product Modal for FAB */}
+          <ProductModal
+            show={showProductModal}
+            product={editingProduct}
+            categories={categories}
+            onClose={() => { setShowProductModal(false); setEditingProduct(null); }}
+            onSave={handleSaveProduct}
+          />
+
+      {/* ========== FAB - FLOATING ACTION BUTTON ========== */}
           <div className={`fab-container mobile-only ${fabOpen ? 'open' : ''}`}>
             <div className="fab-actions">
               <button 
                 className="fab-action product"
-                onClick={() => { setFabOpen(false); onNavigate && onNavigate('products', 'create'); }}
+                onClick={() => { setFabOpen(false); setShowProductModal(true); setEditingProduct(null); }}
               >
                 <i className="fas fa-box"></i>
                 <span className="tooltip">Thêm sản phẩm</span>
@@ -4768,7 +5146,7 @@
                         <span className="product-badge bg-secondary">{product.code}</span>
                       )}
                     </div>
-                    <div className="product-price">{product.price || 'Liên hệ'}</div>
+                    <div className="product-price">{product.price ? product.price.replace(/[đ\s]/g, '') + 'đ' : 'Liên hệ'}</div>
                     {product.note && (
                       <div className="text-muted small mt-1" style={{fontSize: '0.75rem'}}>{product.note}</div>
                     )}
