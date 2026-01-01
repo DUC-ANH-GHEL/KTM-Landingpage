@@ -1609,7 +1609,7 @@
         { id: 'albums', icon: 'fa-images', label: 'Quản lý Album' },
         { id: 'videos', icon: 'fa-video', label: 'Quản lý Video' },
         { id: 'products', icon: 'fa-box', label: 'Sản phẩm' },
-        { id: 'orders', icon: 'fa-shopping-cart', label: 'Đơn hàng', disabled: true },
+        { id: 'orders', icon: 'fa-receipt', label: 'Quản lý đơn hàng' },
         { id: 'settings', icon: 'fa-cog', label: 'Cài đặt', disabled: true },
       ];
 
@@ -5982,6 +5982,9 @@
             {activeMenu === 'products' && (
               <ProductManager showToast={showToast} />
             )}
+            {activeMenu === 'orders' && (
+              <OrderManager />
+            )}
           </div>
 
           {/* ========== MOBILE BOTTOM NAVIGATION ========== */}
@@ -6054,6 +6057,185 @@
     }
 
     ReactDOM.render(<AdminApp />, document.getElementById('root'));
+    // OrderManager component
+    function OrderManager() {
+      const [orders, setOrders] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [filterMonth, setFilterMonth] = useState('');
+      const [form, setForm] = useState({
+        customer_name: "",
+        phone: "",
+        address: "",
+        product_id: "",
+        quantity: 1,
+        status: "pending"
+      });
+      const [products, setProducts] = useState([]);
+      const [editingId, setEditingId] = useState(null);
+
+      useEffect(() => {
+        loadOrders();
+        loadProducts();
+      }, [filterMonth]);
+
+      const loadProducts = async () => {
+        const res = await fetch(`${API_BASE}/api/products`);
+        const data = await res.json();
+        setProducts(Array.isArray(data) ? data : []);
+      };
+
+      const loadOrders = async () => {
+        setLoading(true);
+        let url = `${API_BASE}/api/orders`;
+        if (filterMonth) url += `?month=${filterMonth}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        setOrders(Array.isArray(data) ? data : []);
+        setLoading(false);
+      };
+
+      const saveOrder = async () => {
+        if (!form.customer_name || !form.phone || !form.product_id) {
+          alert("Thiếu dữ liệu bắt buộc");
+          return;
+        }
+        const method = editingId ? "PUT" : "POST";
+        const url = editingId 
+          ? `${API_BASE}/api/orders/${editingId}` 
+          : `${API_BASE}/api/orders`;
+        await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form)
+        });
+        setForm({ customer_name: "", phone: "", address: "", product_id: "", quantity: 1, status: "pending" });
+        setEditingId(null);
+        loadOrders();
+      };
+
+      const editOrder = (order) => {
+        setEditingId(order.id);
+        setForm(order);
+      };
+
+      const deleteOrder = async (id) => {
+        if (!confirm("Xóa đơn hàng này?")) return;
+        await fetch(`${API_BASE}/api/orders/${id}`, { method: "DELETE" });
+        loadOrders();
+      };
+
+      return (
+        <div className="product-manager">
+          <div className="product-header">
+            <h5>Quản lý đơn hàng</h5>
+          </div>
+          <div className="product-search row g-2">
+            <div className="col-md-3">
+              <label className="form-label">Lọc theo tháng</label>
+              <input 
+                type="month" 
+                className="form-control"
+                value={filterMonth}
+                onChange={e => setFilterMonth(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="card p-3 mb-4">
+            <h6>{editingId ? "Cập nhật đơn hàng" : "Tạo đơn hàng mới"}</h6>
+            <div className="row g-3 mt-1">
+              <div className="col-md-4">
+                <label>Tên khách hàng</label>
+                <input className="form-control" 
+                  value={form.customer_name}
+                  onChange={e => setForm({...form, customer_name: e.target.value})}/>
+              </div>
+              <div className="col-md-3">
+                <label>Số điện thoại</label>
+                <input className="form-control" 
+                  value={form.phone}
+                  onChange={e => setForm({...form, phone: e.target.value})}/>
+              </div>
+              <div className="col-md-5">
+                <label>Địa chỉ</label>
+                <input className="form-control" 
+                  value={form.address}
+                  onChange={e => setForm({...form, address: e.target.value})}/>
+              </div>
+              <div className="col-md-5">
+                <label>Sản phẩm</label>
+                <select className="form-control"
+                  value={form.product_id}
+                  onChange={e => setForm({...form, product_id: e.target.value})}>
+                  <option value="">-- chọn sản phẩm --</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-2">
+                <label>Số lượng</label>
+                <input 
+                  type="number" 
+                  className="form-control"
+                  value={form.quantity}
+                  onChange={e => setForm({...form, quantity: e.target.value})}/>
+              </div>
+              <div className="col-md-3">
+                <label>Trạng thái</label>
+                <select className="form-control"
+                  value={form.status}
+                  onChange={e => setForm({...form, status: e.target.value})}>
+                  <option value="pending">Chờ xử lý</option>
+                  <option value="processing">Đang xử lý</option>
+                  <option value="done">Hoàn thành</option>
+                </select>
+              </div>
+              <div className="col-md-2 d-flex align-items-end">
+                <button className="btn btn-warning w-100" onClick={saveOrder}>
+                  {editingId ? "Cập nhật" : "Tạo mới"}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="card p-3">
+            <h6>Danh sách đơn hàng</h6>
+            {loading ? (
+              <p>Loading...</p>
+            ) : (
+              <table className="table table-bordered mt-3">
+                <thead>
+                  <tr>
+                    <th>Khách hàng</th>
+                    <th>SĐT</th>
+                    <th>Sản phẩm</th>
+                    <th>SL</th>
+                    <th>Trạng thái</th>
+                    <th>Thời gian</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map(order => (
+                    <tr key={order.id}>
+                      <td>{order.customer_name}</td>
+                      <td>{order.phone}</td>
+                      <td>{order.product_name}</td>
+                      <td>{order.quantity}</td>
+                      <td>{order.status}</td>
+                      <td>{order.created_at}</td>
+                      <td>
+                        <button className="btn btn-sm btn-primary me-1" onClick={() => editOrder(order)}>Sửa</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => deleteOrder(order.id)}>Xóa</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      );
+    }
   </script>
 </body>
 </html>
