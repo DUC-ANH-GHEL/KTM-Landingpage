@@ -1,4 +1,7 @@
 {
+  "redirects": [
+    { "source": "/admin", "destination": "/admin/", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/api/orders", "destination": "/api/orders-handler" },
     { "source": "/api/orders/:id", "destination": "/api/orders-handler?id=:id" },
