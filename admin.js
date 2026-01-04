@@ -4521,7 +4521,7 @@
         }, [month]);
 
         const stats = React.useMemo(() => {
-          const statusCounts = { pending: 0, processing: 0, done: 0, other: 0 };
+          const statusCounts = { pending: 0, processing: 0, done: 0, paid: 0, other: 0 };
           let totalQty = 0;
           let totalRevenue = 0;
           let doneRevenue = 0;
@@ -4583,9 +4583,15 @@
             totalQty += orderQty;
             totalRevenue += orderRevenue;
 
+            const isCompleted = o.status === 'done' || o.status === 'paid';
+
             if (o.status === 'pending') statusCounts.pending += 1;
             else if (o.status === 'processing') statusCounts.processing += 1;
-            else if (o.status === 'done') {
+            else if (o.status === 'paid') {
+              statusCounts.paid += 1;
+              statusCounts.done += 1;
+              doneRevenue += orderRevenue;
+            } else if (o.status === 'done') {
               statusCounts.done += 1;
               doneRevenue += orderRevenue;
             } else statusCounts.other += 1;
@@ -4606,7 +4612,7 @@
               d.orders += 1;
               d.quantity += orderQty;
               d.revenue += orderRevenue;
-              if (o.status === 'done') {
+              if (isCompleted) {
                 d.doneOrders += 1;
                 d.doneRevenue += orderRevenue;
               }
@@ -4621,12 +4627,14 @@
 
           const avgOrderValue = orders.length ? Math.round(totalRevenue / orders.length) : 0;
           const avgQtyPerOrder = orders.length ? (totalQty / orders.length) : 0;
+          const tempCommission = Math.round(doneRevenue * 0.05);
 
           return {
             statusCounts,
             totalQty,
             totalRevenue,
             doneRevenue,
+            tempCommission,
             products,
             customers,
             days,
@@ -4672,6 +4680,10 @@
                     <span className="badge rounded-pill bg-warning bg-opacity-10 text-dark">
                       <i className="fas fa-boxes-stacked me-1"></i>{formatNumber(stats.totalQty)} SL
                     </span>
+                    <span className="badge rounded-pill bg-primary bg-opacity-10 text-dark">
+                      <i className="fas fa-hand-holding-dollar me-1"></i>
+                      Đã nhận: {formatNumber(stats.statusCounts.paid)}/{formatNumber(stats.statusCounts.done)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -4708,10 +4720,10 @@
               <div className="col-6 col-md-3">
                 <div className="card p-3 border-0 shadow-sm bg-info bg-opacity-10">
                   <div className="d-flex align-items-center justify-content-between">
-                    <div className="text-muted small">Giá trị TB/đơn</div>
+                    <div className="text-muted small">Hoa hồng (tạm tính 5%)</div>
                     <i className="fas fa-chart-line text-info"></i>
                   </div>
-                  <div className="fs-4 fw-semibold text-dark">{formatVND(stats.avgOrderValue)}</div>
+                  <div className="fs-4 fw-semibold text-dark">{formatVND(stats.tempCommission)}</div>
                 </div>
               </div>
             </div>
@@ -4745,6 +4757,12 @@
                     </div>
                   </div>
                   <div className="col-6">
+                    <div className="card p-2 border-0 shadow-sm bg-primary bg-opacity-10">
+                      <div className="text-muted small">Đã nhận tiền</div>
+                      <div className="fw-semibold">{formatNumber(stats.statusCounts.paid)}</div>
+                    </div>
+                  </div>
+                  <div className="col-6">
                     <div className="card p-2 border-0 shadow-sm bg-dark bg-opacity-10">
                       <div className="text-muted small">Tổng SL</div>
                       <div className="fw-semibold">{formatNumber(stats.totalQty)}</div>
@@ -4760,6 +4778,7 @@
                       <th>Chờ xử lý</th>
                       <th>Đang vận chuyển</th>
                       <th>Hoàn thành</th>
+                      <th>Đã nhận tiền</th>
                       <th>Khác</th>
                       <th>Tổng SL</th>
                     </tr>
@@ -4769,6 +4788,7 @@
                       <td>{formatNumber(stats.statusCounts.pending)}</td>
                       <td>{formatNumber(stats.statusCounts.processing)}</td>
                       <td>{formatNumber(stats.statusCounts.done)}</td>
+                      <td>{formatNumber(stats.statusCounts.paid)}</td>
                       <td>{formatNumber(stats.statusCounts.other)}</td>
                       <td>{formatNumber(stats.totalQty)}</td>
                     </tr>
@@ -5332,6 +5352,7 @@
         if (status === 'pending') return 'Chờ xử lý';
         if (status === 'processing') return 'Đang vận chuyển';
         if (status === 'done') return 'Hoàn thành';
+        if (status === 'paid') return 'Đã nhận tiền';
         return status || '';
       };
 
@@ -5339,11 +5360,12 @@
         if (status === 'pending') return 'bg-secondary';
         if (status === 'processing') return 'bg-warning text-dark';
         if (status === 'done') return 'bg-success';
+        if (status === 'paid') return 'bg-primary';
         return 'bg-light text-dark';
       };
 
       const sortedOrders = React.useMemo(() => {
-        const statusRank = { pending: 0, processing: 1, done: 2 };
+        const statusRank = { pending: 0, processing: 1, done: 2, paid: 3 };
         const getRank = (status) => (status in statusRank ? statusRank[status] : 99);
         const getCreatedTime = (value) => {
           if (!value) return Number.POSITIVE_INFINITY;
@@ -5965,6 +5987,7 @@
                             <option value="pending">Chờ xử lý</option>
                             <option value="processing">Đang vận chuyển</option>
                             <option value="done">Hoàn thành</option>
+                            <option value="paid">Đã nhận tiền</option>
                           </select>
                         </div>
                         <div className="col-12">
