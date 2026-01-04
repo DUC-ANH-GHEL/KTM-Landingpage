@@ -5121,6 +5121,9 @@
         items: [{ product_id: "", quantity: 1 }],
         status: "pending"
       });
+      const [itemSearches, setItemSearches] = useState(['']);
+      const [openProductDropdownIdx, setOpenProductDropdownIdx] = useState(null);
+      const productDropdownRefs = useRef({});
       const [products, setProducts] = useState([]);
       const [editingId, setEditingId] = useState(null);
       const lastAutoOpenCreateTokenRef = useRef(null);
@@ -5129,6 +5132,18 @@
       const orderModalBodyRef = useRef(null);
       const lastItemsLenRef = useRef(0);
       const PHONE_LOOKUP_MIN_LEN = 3;
+
+      useEffect(() => {
+        const onDocMouseDown = (e) => {
+          if (openProductDropdownIdx == null) return;
+          const el = productDropdownRefs.current?.[openProductDropdownIdx];
+          if (el && !el.contains(e.target)) {
+            setOpenProductDropdownIdx(null);
+          }
+        };
+        document.addEventListener('mousedown', onDocMouseDown);
+        return () => document.removeEventListener('mousedown', onDocMouseDown);
+      }, [openProductDropdownIdx]);
 
       const parseMoney = (value) => {
         if (value == null) return 0;
@@ -5443,6 +5458,7 @@
           items: items.length ? items : [{ product_id: "", quantity: 1 }],
           status: order.status || "pending",
         });
+        setItemSearches(new Array(items.length ? items.length : 1).fill(''));
         setCustomerLookup(null);
         setShowModal(true);
 
@@ -5460,6 +5476,7 @@
           items: [{ product_id: presetProductId || "", quantity: 1 }],
           status: "pending"
         });
+        setItemSearches(['']);
         setCustomerLookup(null);
         setShowModal(true);
       }
@@ -5469,7 +5486,27 @@
         setShowModal(false);
         setEditingId(null);
         setForm({ customer_name: "", phone: "", address: "", items: [{ product_id: "", quantity: 1 }], status: "pending" });
+        setItemSearches(['']);
+        setOpenProductDropdownIdx(null);
         setCustomerLookup(null);
+      };
+
+      const getProductLabel = (productId) => {
+        if (!productId) return '-- chọn sản phẩm --';
+        const pid = String(productId);
+        const p = products.find(x => String(x?.id) === pid);
+        if (!p) return '-- chọn sản phẩm --';
+        return `${p.name}${p.code ? ` (${p.code})` : ''}`;
+      };
+
+      const getFilteredProducts = (idx) => {
+        const q = String(itemSearches[idx] || '').trim().toLowerCase();
+        if (!q) return products;
+        return products.filter((p) => {
+          const name = String(p?.name || '').toLowerCase();
+          const code = String(p?.code || '').toLowerCase();
+          return name.includes(q) || code.includes(q);
+        });
       };
 
       const getOrderItems = (order) => {
@@ -5906,10 +5943,13 @@
                             <button
                               type="button"
                               className="btn btn-outline-secondary btn-sm"
-                              onClick={() => setForm((prev) => ({
-                                ...prev,
-                                items: [...(Array.isArray(prev.items) ? prev.items : []), { product_id: "", quantity: 1 }],
-                              }))}
+                              onClick={() => {
+                                setForm((prev) => ({
+                                  ...prev,
+                                  items: [...(Array.isArray(prev.items) ? prev.items : []), { product_id: "", quantity: 1 }],
+                                }));
+                                setItemSearches((prev) => [...(Array.isArray(prev) ? prev : []), '']);
+                              }}
                               disabled={saving}
                             >
                               <i className="fas fa-plus me-2"></i>Thêm sản phẩm
@@ -5920,25 +5960,92 @@
                             {(Array.isArray(form.items) ? form.items : [{ product_id: "", quantity: 1 }]).map((it, idx) => (
                               <div key={idx} className="row g-2 align-items-end">
                                 <div className="col-12 col-md-8">
-                                  <select
-                                    className="form-select"
-                                    value={it.product_id}
-                                    onChange={(e) => {
-                                      const next = e.target.value;
-                                      setForm((prev) => {
-                                        const items = Array.isArray(prev.items) ? [...prev.items] : [];
-                                        items[idx] = { ...(items[idx] || { quantity: 1 }), product_id: next };
-                                        return { ...prev, items };
-                                      });
+                                  <div
+                                    className="dropdown w-100"
+                                    ref={(el) => {
+                                      productDropdownRefs.current[idx] = el;
                                     }}
-                                    required
-                                    style={{ borderRadius: 10, padding: 12 }}
                                   >
-                                    <option value="">-- chọn sản phẩm --</option>
-                                    {products.map(p => (
-                                      <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                  </select>
+                                    <button
+                                      type="button"
+                                      className="form-control text-start d-flex align-items-center justify-content-between"
+                                      style={{ borderRadius: 10, padding: 12 }}
+                                      onClick={() => {
+                                        setOpenProductDropdownIdx((prev) => (prev === idx ? null : idx));
+                                        setTimeout(() => {
+                                          const input = document.getElementById(`order-product-search-${idx}`);
+                                          if (input) input.focus();
+                                        }, 0);
+                                      }}
+                                    >
+                                      <span className={it.product_id ? '' : 'text-muted'} style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {getProductLabel(it.product_id)}
+                                      </span>
+                                      <i className="fas fa-chevron-down text-muted" style={{ marginLeft: 8, flexShrink: 0 }}></i>
+                                    </button>
+
+                                    {openProductDropdownIdx === idx && (
+                                      <div
+                                        className="dropdown-menu show w-100 p-2"
+                                        style={{ maxHeight: 320, overflowY: 'auto' }}
+                                      >
+                                        <input
+                                          id={`order-product-search-${idx}`}
+                                          className="form-control"
+                                          value={itemSearches[idx] || ''}
+                                          onChange={(e) => {
+                                            const next = e.target.value;
+                                            setItemSearches((prev) => {
+                                              const arr = Array.isArray(prev) ? [...prev] : [];
+                                              arr[idx] = next;
+                                              return arr;
+                                            });
+                                          }}
+                                          placeholder="Tìm theo tên / mã..."
+                                          style={{ borderRadius: 10, padding: 10 }}
+                                        />
+                                        <div className="mt-2" />
+                                        {getFilteredProducts(idx).length === 0 ? (
+                                          <div className="text-muted small px-2 py-1">Không có sản phẩm phù hợp</div>
+                                        ) : (
+                                          getFilteredProducts(idx).map((p) => (
+                                            <button
+                                              key={p.id}
+                                              type="button"
+                                              className="dropdown-item"
+                                              onClick={() => {
+                                                const next = String(p.id);
+                                                setForm((prev) => {
+                                                  const items = Array.isArray(prev.items) ? [...prev.items] : [];
+                                                  items[idx] = { ...(items[idx] || { quantity: 1 }), product_id: next };
+                                                  return { ...prev, items };
+                                                });
+                                                setOpenProductDropdownIdx(null);
+                                              }}
+                                            >
+                                              {p.name}{p.code ? ` (${p.code})` : ''}
+                                            </button>
+                                          ))
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Keep native required validation */}
+                                    <select
+                                      className="form-select"
+                                      value={it.product_id}
+                                      onChange={() => {}}
+                                      required
+                                      style={{ position: 'absolute', opacity: 0, height: 0, pointerEvents: 'none' }}
+                                      tabIndex={-1}
+                                      aria-hidden="true"
+                                    >
+                                      <option value="">-- chọn sản phẩm --</option>
+                                      {products.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
                                 </div>
                                 <div className="col-8 col-md-3">
                                   <input
@@ -5961,11 +6068,24 @@
                                   <button
                                     type="button"
                                     className="btn btn-outline-danger"
-                                    onClick={() => setForm((prev) => {
-                                      const items = Array.isArray(prev.items) ? [...prev.items] : [];
-                                      items.splice(idx, 1);
-                                      return { ...prev, items: items.length ? items : [{ product_id: "", quantity: 1 }] };
-                                    })}
+                                    onClick={() => {
+                                      setForm((prev) => {
+                                        const items = Array.isArray(prev.items) ? [...prev.items] : [];
+                                        items.splice(idx, 1);
+                                        return { ...prev, items: items.length ? items : [{ product_id: "", quantity: 1 }] };
+                                      });
+                                      setItemSearches((prev) => {
+                                        const arr = Array.isArray(prev) ? [...prev] : [];
+                                        arr.splice(idx, 1);
+                                        return arr.length ? arr : [''];
+                                      });
+                                      setOpenProductDropdownIdx((prev) => {
+                                        if (prev == null) return prev;
+                                        if (prev === idx) return null;
+                                        if (prev > idx) return prev - 1;
+                                        return prev;
+                                      });
+                                    }}
                                     disabled={saving || (Array.isArray(form.items) ? form.items.length : 1) <= 1}
                                     title="Xóa sản phẩm"
                                     style={{ borderRadius: 10, padding: 10 }}
