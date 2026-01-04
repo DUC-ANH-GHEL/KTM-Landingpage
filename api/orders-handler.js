@@ -31,6 +31,29 @@ async function ensureSchema() {
   // Some older schemas may not have updated_at on orders
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`;
 
+  // Order items (multi-product per order)
+  await sql`
+    CREATE TABLE IF NOT EXISTS order_items (
+      id VARCHAR(36) PRIMARY KEY,
+      order_id VARCHAR(64) NOT NULL,
+      product_id VARCHAR(64) NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS order_items_order_id_idx ON order_items(order_id)`;
+
+  // Best-effort FK cascade
+  try {
+    await sql`ALTER TABLE order_items
+      ADD CONSTRAINT order_items_order_id_fkey
+      FOREIGN KEY (order_id) REFERENCES orders(id)
+      ON DELETE CASCADE
+    `;
+  } catch {
+    // ignore
+  }
+
   // Allow orders to exist without denormalized customer fields (legacy columns)
   for (const col of ['customer_name', 'phone', 'address']) {
     try {
@@ -52,6 +75,44 @@ async function ensureSchema() {
   }
 
   _schemaEnsured = true;
+}
+
+function normalizeOrderItems(items, legacyProductId, legacyQuantity) {
+  if (Array.isArray(items) && items.length) {
+    const normalized = items
+      .map((it) => ({
+        product_id: it?.product_id,
+        quantity: Number(it?.quantity ?? 1),
+      }))
+      .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0);
+    if (normalized.length) return normalized;
+  }
+
+  if (legacyProductId) {
+    const q = Number(legacyQuantity ?? 1);
+    return [{ product_id: legacyProductId, quantity: Number.isFinite(q) && q > 0 ? q : 1 }];
+  }
+
+  return [];
+}
+
+function synthesizeItemsFromLegacy(orderRow) {
+  const items = Array.isArray(orderRow.items) ? orderRow.items : [];
+  if (items.length) return { ...orderRow, items };
+
+  if (!orderRow.product_id) return { ...orderRow, items: [] };
+  const q = Number(orderRow.quantity ?? 1);
+  const legacyItem = {
+    id: null,
+    product_id: orderRow.product_id,
+    quantity: Number.isFinite(q) && q > 0 ? q : 1,
+    product_name: orderRow.product_name || null,
+    product_price: orderRow.product_price || null,
+    product_code: orderRow.product_code || null,
+    product_note: orderRow.product_note || null,
+  };
+
+  return { ...orderRow, items: [legacyItem] };
 }
 
 async function upsertCustomerByPhone({ name, phone, address }) {
@@ -95,6 +156,7 @@ export default async function handler(req, res) {
 
   // Rewrites will pass id via query (?id=...)
   const id = req.query.id || req.body?.id;
+  const orderIdText = id != null ? String(id) : null;
 
   // Optional resource routing via rewrites (e.g. /api/customers)
   const resource = req.query.resource;
@@ -157,7 +219,7 @@ export default async function handler(req, res) {
     // GET /api/orders and GET /api/orders/:id
     if (req.method === 'GET') {
       if (id) {
-        const rows = await sql`
+        const query = `
           SELECT
             o.id,
             o.product_id,
@@ -165,19 +227,40 @@ export default async function handler(req, res) {
             o.status,
             o.created_at,
             o.customer_id,
-            p.name AS product_name,
-            p.price AS product_price,
-            p.code AS product_code,
+            p0.name AS product_name,
+            p0.price AS product_price,
+            p0.code AS product_code,
+            p0.note AS product_note,
             COALESCE(c.name, o.customer_name) AS customer_name,
             COALESCE(c.phone, o.phone) AS phone,
-            COALESCE(c.address, o.address) AS address
+            COALESCE(c.address, o.address) AS address,
+            COALESCE(
+              json_agg(
+                json_build_object(
+                  'id', oi.id,
+                  'product_id', oi.product_id,
+                  'quantity', oi.quantity,
+                  'product_name', p.name,
+                  'product_price', p.price,
+                  'product_code', p.code,
+                  'product_note', p.note
+                )
+              ) FILTER (WHERE oi.id IS NOT NULL),
+              '[]'::json
+            ) AS items,
+            COALESCE(SUM(oi.quantity) FILTER (WHERE oi.id IS NOT NULL), o.quantity, 0) AS total_quantity
           FROM orders o
-          LEFT JOIN products p ON p.id = o.product_id
           LEFT JOIN customers c ON c.id = o.customer_id
-          WHERE o.id = ${id}
+          LEFT JOIN products p0 ON p0.id = o.product_id
+          LEFT JOIN order_items oi ON oi.order_id = (o.id::text)
+          LEFT JOIN products p ON p.id = oi.product_id
+          WHERE o.id = $1
+          GROUP BY o.id, c.id, p0.id
         `;
+
+        const rows = await sql(query, [id]);
         if (!rows.length) return res.status(404).json({ error: 'Order not found' });
-        return res.status(200).json(rows[0]);
+        return res.status(200).json(synthesizeItemsFromLegacy(rows[0]));
       }
 
       const { month } = req.query;
@@ -189,25 +272,44 @@ export default async function handler(req, res) {
           o.status,
           o.created_at,
           o.customer_id,
-          p.name AS product_name,
-          p.price AS product_price,
-          p.code AS product_code,
+          p0.name AS product_name,
+          p0.price AS product_price,
+          p0.code AS product_code,
+          p0.note AS product_note,
           COALESCE(c.name, o.customer_name) AS customer_name,
           COALESCE(c.phone, o.phone) AS phone,
-          COALESCE(c.address, o.address) AS address
+          COALESCE(c.address, o.address) AS address,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', oi.id,
+                'product_id', oi.product_id,
+                'quantity', oi.quantity,
+                'product_name', p.name,
+                'product_price', p.price,
+                'product_code', p.code,
+                'product_note', p.note
+              )
+            ) FILTER (WHERE oi.id IS NOT NULL),
+            '[]'::json
+          ) AS items,
+          COALESCE(SUM(oi.quantity) FILTER (WHERE oi.id IS NOT NULL), o.quantity, 0) AS total_quantity
         FROM orders o
-        LEFT JOIN products p ON p.id = o.product_id
         LEFT JOIN customers c ON c.id = o.customer_id
+        LEFT JOIN products p0 ON p0.id = o.product_id
+        LEFT JOIN order_items oi ON oi.order_id = (o.id::text)
+        LEFT JOIN products p ON p.id = oi.product_id
       `;
       const params = [];
       if (month) {
         query += " WHERE TO_CHAR(o.created_at, 'YYYY-MM') = $1";
         params.push(month);
       }
-      query += ' ORDER BY o.created_at DESC';
+
+      query += ' GROUP BY o.id, c.id, p0.id ORDER BY o.created_at DESC';
 
       const result = await sql(query, params);
-      return res.status(200).json(result);
+      return res.status(200).json(result.map(synthesizeItemsFromLegacy));
     }
 
     // POST /api/orders
@@ -215,7 +317,7 @@ export default async function handler(req, res) {
       if (id) {
         return res.status(400).json({ error: 'Use /api/orders for creating orders (no id in URL)' });
       }
-      const { customer_name, phone, address, product_id, quantity, status } = req.body;
+      const { customer_name, phone, address, product_id, quantity, status, items } = req.body;
 
       const normalizedPhone = normalizePhone(phone);
       if (!normalizedPhone) {
@@ -228,18 +330,37 @@ export default async function handler(req, res) {
         address,
       });
 
-      await sql`
+      const normalizedItems = normalizeOrderItems(items, product_id, quantity);
+      if (!normalizedItems.length) {
+        return res.status(400).json({ error: 'items is required' });
+      }
+      const primary = normalizedItems[0];
+
+      const created = await sql`
         INSERT INTO orders (customer_id, product_id, quantity, status)
-        VALUES (${customer.id}, ${product_id}, ${quantity}, ${status})
+        VALUES (${customer.id}, ${primary.product_id}, ${primary.quantity}, ${status})
+        RETURNING id
       `;
-      return res.status(201).json({ success: true });
+
+      const orderId = created?.[0]?.id;
+      if (orderId == null) return res.status(500).json({ error: 'Failed to create order' });
+      const orderIdStr = String(orderId);
+
+      for (const it of normalizedItems) {
+        await sql`
+          INSERT INTO order_items (id, order_id, product_id, quantity)
+          VALUES (${crypto.randomUUID()}, ${orderIdStr}, ${it.product_id}, ${it.quantity})
+        `;
+      }
+
+      return res.status(201).json({ success: true, id: orderId });
     }
 
     // PUT /api/orders/:id (or PUT /api/orders with body.id)
     if (req.method === 'PUT') {
       if (!id) return res.status(400).json({ error: 'Order ID is required' });
 
-      const { customer_name, phone, address, product_id, quantity, status } = req.body;
+      const { customer_name, phone, address, product_id, quantity, status, items } = req.body;
       const normalizedPhone = normalizePhone(phone);
       if (!normalizedPhone) {
         return res.status(400).json({ error: 'phone is required' });
@@ -251,20 +372,37 @@ export default async function handler(req, res) {
         address,
       });
 
+      const normalizedItems = normalizeOrderItems(items, product_id, quantity);
+      if (!normalizedItems.length) {
+        return res.status(400).json({ error: 'items is required' });
+      }
+      const primary = normalizedItems[0];
+
       await sql`
         UPDATE orders SET
           customer_id = ${customer.id},
-          product_id = ${product_id},
-          quantity = ${quantity},
+          product_id = ${primary.product_id},
+          quantity = ${primary.quantity},
           status = ${status}
         WHERE id = ${id}
       `;
+
+      // Replace items
+      await sql`DELETE FROM order_items WHERE order_id = ${orderIdText}`;
+      for (const it of normalizedItems) {
+        await sql`
+          INSERT INTO order_items (id, order_id, product_id, quantity)
+          VALUES (${crypto.randomUUID()}, ${orderIdText}, ${it.product_id}, ${it.quantity})
+        `;
+      }
+
       return res.status(200).json({ success: true });
     }
 
     // DELETE /api/orders/:id
     if (req.method === 'DELETE') {
       if (!id) return res.status(400).json({ error: 'Order ID is required' });
+      await sql`DELETE FROM order_items WHERE order_id = ${orderIdText}`;
       await sql`DELETE FROM orders WHERE id = ${id}`;
       return res.status(200).json({ success: true });
     }

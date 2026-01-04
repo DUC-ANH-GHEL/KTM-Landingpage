@@ -768,9 +768,21 @@
         border-radius: 16px 16px 0 0 !important;
         max-height: calc(100dvh - 12px);
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* modal-body is inside a <form>, so the form must also participate in flex layout */
+      .order-modal .modal-content > form {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
       }
 
       .order-modal .modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         padding-bottom: calc(16px + env(safe-area-inset-bottom));

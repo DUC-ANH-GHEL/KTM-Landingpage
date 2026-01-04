@@ -4451,6 +4451,47 @@
           return digits ? Number(digits) : 0;
         };
 
+        const parseShipFeeFromNote = (note) => {
+          if (!note) return null;
+          const s = String(note);
+          const lower = s.toLowerCase();
+          if (
+            lower.includes('freeship') ||
+            lower.includes('free ship') ||
+            lower.includes('miễn phí ship') ||
+            lower.includes('mien phi ship') ||
+            lower.includes('miễn phí vận chuyển') ||
+            lower.includes('mien phi van chuyen')
+          ) {
+            return 0;
+          }
+
+          const m = s.match(/(?:ship|vận\s*chuyển|van\s*chuyen|\bvc\b)\s*[:=\-]?\s*([0-9][0-9\.,\s]*)(?:\s*(k|nghìn|nghin|tr|triệu|trieu|m))?/i);
+          if (!m) return null;
+
+          const digits = String(m[1] || '').replace(/[^0-9]/g, '');
+          if (!digits) return null;
+
+          let amount = Number(digits);
+          const unit = String(m[2] || '').toLowerCase();
+          if (unit === 'k' || unit.startsWith('ngh')) amount *= 1000;
+          else if (unit === 'tr' || unit.startsWith('tri') || unit === 'm') amount *= 1000000;
+          return Number.isFinite(amount) ? amount : null;
+        };
+
+        const getShipFeeForItems = (items) => {
+          const arr = Array.isArray(items) ? items : [];
+          let found = false;
+          let maxFee = 0;
+          for (const it of arr) {
+            const fee = parseShipFeeFromNote(it?.product_note);
+            if (fee == null) continue;
+            found = true;
+            if (fee > maxFee) maxFee = fee;
+          }
+          return { found, fee: maxFee };
+        };
+
         const formatNumber = (n) => {
           try {
             return Number(n || 0).toLocaleString('vi-VN');
@@ -4487,37 +4528,72 @@
 
           const customerKey = (o) => o.customer_id || o.phone || 'unknown';
 
+          const getOrderItems = (o) => {
+            if (Array.isArray(o?.items) && o.items.length) return o.items;
+            if (o?.product_id) {
+              return [{
+                product_id: o.product_id,
+                quantity: o.quantity,
+                product_price: o.product_price,
+                product_name: o.product_name,
+                product_code: o.product_code,
+                product_note: o.product_note,
+              }];
+            }
+            return [];
+          };
+
           const revenueByProduct = new Map();
           const revenueByCustomer = new Map();
           const byDay = new Map();
 
           for (const o of orders) {
-            const qty = Number(o.quantity || 0) || 0;
-            const price = parseMoney(o.product_price);
-            const revenue = qty * price;
+            const items = getOrderItems(o);
 
-            totalQty += qty;
-            totalRevenue += revenue;
+            let orderQty = 0;
+            let orderRevenueProducts = 0;
+
+            for (const it of items) {
+              const qty = Number(it?.quantity || 0) || 0;
+              const price = parseMoney(it?.product_price);
+              const revenue = qty * price;
+
+              orderQty += qty;
+              orderRevenueProducts += revenue;
+
+              const pid = it?.product_id || 'unknown';
+              const p = revenueByProduct.get(pid) || {
+                product_id: pid,
+                product_name: it?.product_name || '—',
+                product_code: it?.product_code || '',
+                orders: 0,
+                quantity: 0,
+                revenue: 0,
+              };
+              p.orders += 1;
+              p.quantity += qty;
+              p.revenue += revenue;
+              revenueByProduct.set(pid, p);
+            }
+
+            const shipInfo = getShipFeeForItems(items);
+            const orderRevenue = orderRevenueProducts + (shipInfo.found ? shipInfo.fee : 0);
+
+            totalQty += orderQty;
+            totalRevenue += orderRevenue;
 
             if (o.status === 'pending') statusCounts.pending += 1;
             else if (o.status === 'processing') statusCounts.processing += 1;
             else if (o.status === 'done') {
               statusCounts.done += 1;
-              doneRevenue += revenue;
+              doneRevenue += orderRevenue;
             } else statusCounts.other += 1;
-
-            const pid = o.product_id || 'unknown';
-            const p = revenueByProduct.get(pid) || { product_id: pid, product_name: o.product_name || '—', product_code: o.product_code || '', orders: 0, quantity: 0, revenue: 0 };
-            p.orders += 1;
-            p.quantity += qty;
-            p.revenue += revenue;
-            revenueByProduct.set(pid, p);
 
             const ck = customerKey(o);
             const c = revenueByCustomer.get(ck) || { key: ck, customer_name: o.customer_name || '', phone: o.phone || '', orders: 0, quantity: 0, revenue: 0 };
             c.orders += 1;
-            c.quantity += qty;
-            c.revenue += revenue;
+            c.quantity += orderQty;
+            c.revenue += orderRevenue;
             if (!c.customer_name && o.customer_name) c.customer_name = o.customer_name;
             if (!c.phone && o.phone) c.phone = o.phone;
             revenueByCustomer.set(ck, c);
@@ -4527,11 +4603,11 @@
               const k = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
               const d = byDay.get(k) || { day: k, orders: 0, quantity: 0, revenue: 0, doneOrders: 0, doneRevenue: 0 };
               d.orders += 1;
-              d.quantity += qty;
-              d.revenue += revenue;
+              d.quantity += orderQty;
+              d.revenue += orderRevenue;
               if (o.status === 'done') {
                 d.doneOrders += 1;
-                d.doneRevenue += revenue;
+                d.doneRevenue += orderRevenue;
               }
               byDay.set(k, d);
             }
@@ -5041,8 +5117,7 @@
         customer_name: "",
         phone: "",
         address: "",
-        product_id: "",
-        quantity: 1,
+        items: [{ product_id: "", quantity: 1 }],
         status: "pending"
       });
       const [products, setProducts] = useState([]);
@@ -5050,7 +5125,52 @@
       const lastAutoOpenCreateTokenRef = useRef(null);
       const phoneLookupTimerRef = useRef(null);
       const phoneLookupRequestIdRef = useRef(0);
+      const orderModalBodyRef = useRef(null);
+      const lastItemsLenRef = useRef(0);
       const PHONE_LOOKUP_MIN_LEN = 3;
+
+      const parseMoney = (value) => {
+        if (value == null) return 0;
+        const digits = String(value).replace(/[^0-9]/g, '');
+        return digits ? Number(digits) : 0;
+      };
+
+      const formatVND = (n) => {
+        try {
+          return `${Number(n || 0).toLocaleString('vi-VN')}đ`;
+        } catch {
+          return `${n || 0}đ`;
+        }
+      };
+
+      const parseShipFeeFromNote = (note) => {
+        if (!note) return null;
+        const s = String(note);
+        const lower = s.toLowerCase();
+
+        if (
+          lower.includes('freeship') ||
+          lower.includes('free ship') ||
+          lower.includes('miễn phí ship') ||
+          lower.includes('mien phi ship') ||
+          lower.includes('miễn phí vận chuyển') ||
+          lower.includes('mien phi van chuyen')
+        ) {
+          return 0;
+        }
+
+        const m = s.match(/(?:ship|vận\s*chuyển|van\s*chuyen|\bvc\b)\s*[:=\-]?\s*([0-9][0-9\.,\s]*)(?:\s*(k|nghìn|nghin|tr|triệu|trieu|m))?/i);
+        if (!m) return null;
+
+        const digits = String(m[1] || '').replace(/[^0-9]/g, '');
+        if (!digits) return null;
+
+        let amount = Number(digits);
+        const unit = String(m[2] || '').toLowerCase();
+        if (unit === 'k' || unit.startsWith('ngh')) amount *= 1000;
+        else if (unit === 'tr' || unit.startsWith('tri') || unit === 'm') amount *= 1000000;
+        return Number.isFinite(amount) ? amount : null;
+      };
 
       const isValidPhone = (normalizedDigits) => {
         const digits = normalizePhone(normalizedDigits);
@@ -5135,6 +5255,24 @@
           document.body.style.overflow = '';
         };
       }, [showModal]);
+
+      const itemsLen = Array.isArray(form.items) ? form.items.length : 0;
+      useEffect(() => {
+        if (!showModal) {
+          lastItemsLenRef.current = itemsLen;
+          return;
+        }
+
+        if (itemsLen > lastItemsLenRef.current) {
+          setTimeout(() => {
+            const el = orderModalBodyRef.current;
+            if (!el) return;
+            el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+          }, 0);
+        }
+
+        lastItemsLenRef.current = itemsLen;
+      }, [showModal, itemsLen]);
 
       useEffect(() => {
         return () => {
@@ -5239,7 +5377,15 @@
 
       const saveOrder = async () => {
         const normalizedPhone = normalizePhone(form.phone);
-        if (!form.customer_name || !normalizedPhone || !form.product_id) {
+        const items = Array.isArray(form.items) ? form.items : [];
+        const normalizedItems = items
+          .map((it) => ({
+            product_id: it?.product_id || '',
+            quantity: Number(it?.quantity ?? 1),
+          }))
+          .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0);
+
+        if (!form.customer_name || !normalizedPhone || normalizedItems.length === 0) {
           alert("Thiếu dữ liệu bắt buộc");
           return;
         }
@@ -5253,6 +5399,8 @@
           const url = editingId 
             ? `${API_BASE}/api/orders/${editingId}` 
             : `${API_BASE}/api/orders`;
+
+          const primary = normalizedItems[0];
           await fetch(url, {
             method,
             headers: { "Content-Type": "application/json" },
@@ -5260,13 +5408,15 @@
               customer_name: form.customer_name,
               phone: normalizedPhone,
               address: form.address,
-              product_id: form.product_id,
-              quantity: Number(form.quantity || 1),
+              // Back-compat fields (API will normalize from items anyway)
+              product_id: primary.product_id,
+              quantity: primary.quantity,
               status: form.status,
+              items: normalizedItems,
               ...(editingId ? { id: editingId } : {}),
             })
           });
-          setForm({ customer_name: "", phone: "", address: "", product_id: "", quantity: 1, status: "pending" });
+          setForm({ customer_name: "", phone: "", address: "", items: [{ product_id: "", quantity: 1 }], status: "pending" });
           setEditingId(null);
           setShowModal(false);
           loadOrders();
@@ -5277,12 +5427,19 @@
 
       const editOrder = (order) => {
         setEditingId(order.id);
+
+        const items = Array.isArray(order.items) && order.items.length
+          ? order.items.map((it) => ({
+              product_id: it?.product_id || '',
+              quantity: Number(it?.quantity ?? 1) || 1,
+            })).filter((it) => it.product_id)
+          : [{ product_id: order.product_id || '', quantity: Number(order.quantity || 1) || 1 }];
+
         setForm({
           customer_name: order.customer_name || "",
           phone: normalizePhone(order.phone || ""),
           address: order.address || "",
-          product_id: order.product_id || "",
-          quantity: Number(order.quantity || 1),
+          items: items.length ? items : [{ product_id: "", quantity: 1 }],
           status: order.status || "pending",
         });
         setCustomerLookup(null);
@@ -5299,8 +5456,7 @@
           customer_name: "",
           phone: "",
           address: "",
-          product_id: presetProductId || "",
-          quantity: 1,
+          items: [{ product_id: presetProductId || "", quantity: 1 }],
           status: "pending"
         });
         setCustomerLookup(null);
@@ -5311,8 +5467,64 @@
         if (saving) return;
         setShowModal(false);
         setEditingId(null);
-        setForm({ customer_name: "", phone: "", address: "", product_id: "", quantity: 1, status: "pending" });
+        setForm({ customer_name: "", phone: "", address: "", items: [{ product_id: "", quantity: 1 }], status: "pending" });
         setCustomerLookup(null);
+      };
+
+      const getOrderItems = (order) => {
+        if (Array.isArray(order?.items) && order.items.length) return order.items;
+        if (order?.product_id) return [{ product_id: order.product_id, quantity: Number(order.quantity || 1) || 1, product_name: order.product_name }];
+        return [];
+      };
+
+      const getOrderTotalQty = (order) => {
+        const items = getOrderItems(order);
+        const sum = items.reduce((acc, it) => acc + (Number(it?.quantity || 0) || 0), 0);
+        if (sum > 0) return sum;
+        const legacy = Number(order?.total_quantity ?? order?.quantity ?? 0);
+        return Number.isFinite(legacy) ? legacy : 0;
+      };
+
+      const getOrderProductSummary = (order) => {
+        const items = getOrderItems(order);
+        if (!items.length) return '—';
+        const firstName = items[0]?.product_name || order?.product_name || '—';
+        if (items.length === 1) return firstName;
+        return `${firstName} + ${items.length - 1} sp`;
+      };
+
+      const getOrderShipInfo = (items) => {
+        const arr = Array.isArray(items) ? items : [];
+        let found = false;
+        let maxFee = 0;
+        for (const it of arr) {
+          const pid = String(it?.product_id || '');
+          const p = products.find(x => String(x?.id) === pid);
+          const note = it?.product_note ?? p?.note ?? null;
+          const fee = parseShipFeeFromNote(note);
+          if (fee == null) continue;
+          found = true;
+          if (fee > maxFee) maxFee = fee;
+        }
+        return { found, fee: maxFee };
+      };
+
+      const getItemsSubtotal = (items) => {
+        const arr = Array.isArray(items) ? items : [];
+        return arr.reduce((sum, it) => {
+          const qty = Number(it?.quantity || 0) || 0;
+          const pid = String(it?.product_id || '');
+          const p = products.find(x => String(x?.id) === pid);
+          const unitPrice = parseMoney(it?.product_price ?? p?.price);
+          return sum + (qty * unitPrice);
+        }, 0);
+      };
+
+      const getOrderTotalMoney = (order) => {
+        const items = getOrderItems(order);
+        const subtotal = getItemsSubtotal(items);
+        const ship = getOrderShipInfo(items).fee;
+        return subtotal + ship;
       };
 
       const deleteOrder = async (id) => {
@@ -5405,8 +5617,9 @@
                         </div>
 
                         <div className="mt-2 small">
-                          <div><span className="text-muted">Sản phẩm:</span> <span className="fw-semibold">{order.product_name || '—'}</span></div>
-                          <div><span className="text-muted">Số lượng:</span> <span className="fw-semibold">{order.quantity}</span></div>
+                          <div><span className="text-muted">Sản phẩm:</span> <span className="fw-semibold">{getOrderProductSummary(order)}</span></div>
+                          <div><span className="text-muted">Số lượng:</span> <span className="fw-semibold">{getOrderTotalQty(order)}</span></div>
+                          <div><span className="text-muted">Tổng tiền:</span> <span className="fw-semibold">{formatVND(getOrderTotalMoney(order))}</span></div>
                           <div><span className="text-muted">Thời gian:</span> {formatDateTime(order.created_at)}</div>
                         </div>
 
@@ -5440,6 +5653,7 @@
                         <th>SĐT</th>
                         <th>Sản phẩm</th>
                         <th>SL</th>
+                        <th>Tổng tiền</th>
                         <th>Trạng thái</th>
                         <th>Thời gian</th>
                         <th></th>
@@ -5450,8 +5664,9 @@
                         <tr key={order.id}>
                           <td>{order.customer_name}</td>
                           <td>{order.phone}</td>
-                          <td>{order.product_name}</td>
-                          <td>{order.quantity}</td>
+                          <td>{getOrderProductSummary(order)}</td>
+                          <td>{getOrderTotalQty(order)}</td>
+                          <td className="fw-semibold">{formatVND(getOrderTotalMoney(order))}</td>
                           <td><span className={`badge ${getStatusBadgeClass(order.status)}`}>{getStatusLabel(order.status)}</span></td>
                           <td>{formatDateTime(order.created_at)}</td>
                           <td>
@@ -5476,7 +5691,7 @@
           {/* Order create/edit modal */}
           {showModal && (
             <div className="modal show d-block order-modal" style={{ background: 'rgba(0,0,0,0.6)' }} role="dialog" aria-modal="true">
-              <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                 <div className="modal-content" style={{ borderRadius: 16 }}>
                   <div className="modal-header" style={{ background: 'linear-gradient(135deg, #ffc107, #ffca2c)', border: 'none', borderRadius: '16px 16px 0 0' }}>
                     <h5 className="modal-title fw-bold text-dark mb-0">
@@ -5491,7 +5706,7 @@
                       saveOrder();
                     }}
                   >
-                    <div className="modal-body">
+                    <div className="modal-body" ref={orderModalBodyRef}>
                       <div className="row g-3">
                         <div className="col-12">
                           <label className="form-label fw-semibold small text-muted mb-1">Tên khách hàng *</label>
@@ -5555,31 +5770,111 @@
                           />
                         </div>
                         <div className="col-12 col-md-8">
-                          <label className="form-label fw-semibold small text-muted mb-1">Sản phẩm *</label>
-                          <select
-                            className="form-select"
-                            value={form.product_id}
-                            onChange={e => setForm({ ...form, product_id: e.target.value })}
-                            required
-                            style={{ borderRadius: 10, padding: 12 }}
-                          >
-                            <option value="">-- chọn sản phẩm --</option>
-                            {products.map(p => (
-                              <option key={p.id} value={p.id}>{p.name}</option>
+                          <div className="d-flex align-items-center justify-content-between">
+                            <label className="form-label fw-semibold small text-muted mb-1">Sản phẩm *</label>
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary btn-sm"
+                              onClick={() => setForm((prev) => ({
+                                ...prev,
+                                items: [...(Array.isArray(prev.items) ? prev.items : []), { product_id: "", quantity: 1 }],
+                              }))}
+                              disabled={saving}
+                            >
+                              <i className="fas fa-plus me-2"></i>Thêm sản phẩm
+                            </button>
+                          </div>
+
+                          <div className="d-grid gap-2">
+                            {(Array.isArray(form.items) ? form.items : [{ product_id: "", quantity: 1 }]).map((it, idx) => (
+                              <div key={idx} className="row g-2 align-items-end">
+                                <div className="col-12 col-md-8">
+                                  <select
+                                    className="form-select"
+                                    value={it.product_id}
+                                    onChange={(e) => {
+                                      const next = e.target.value;
+                                      setForm((prev) => {
+                                        const items = Array.isArray(prev.items) ? [...prev.items] : [];
+                                        items[idx] = { ...(items[idx] || { quantity: 1 }), product_id: next };
+                                        return { ...prev, items };
+                                      });
+                                    }}
+                                    required
+                                    style={{ borderRadius: 10, padding: 12 }}
+                                  >
+                                    <option value="">-- chọn sản phẩm --</option>
+                                    {products.map(p => (
+                                      <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="col-8 col-md-3">
+                                  <input
+                                    type="number"
+                                    className="form-control"
+                                    value={it.quantity}
+                                    onChange={(e) => {
+                                      const nextQty = e.target.value;
+                                      setForm((prev) => {
+                                        const items = Array.isArray(prev.items) ? [...prev.items] : [];
+                                        items[idx] = { ...(items[idx] || { product_id: "" }), quantity: nextQty };
+                                        return { ...prev, items };
+                                      });
+                                    }}
+                                    min="1"
+                                    style={{ borderRadius: 10, padding: 12 }}
+                                  />
+                                </div>
+                                <div className="col-4 col-md-1 d-flex justify-content-end">
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline-danger"
+                                    onClick={() => setForm((prev) => {
+                                      const items = Array.isArray(prev.items) ? [...prev.items] : [];
+                                      items.splice(idx, 1);
+                                      return { ...prev, items: items.length ? items : [{ product_id: "", quantity: 1 }] };
+                                    })}
+                                    disabled={saving || (Array.isArray(form.items) ? form.items.length : 1) <= 1}
+                                    title="Xóa sản phẩm"
+                                    style={{ borderRadius: 10, padding: 10 }}
+                                  >
+                                    <i className="fas fa-trash"></i>
+                                  </button>
+                                </div>
+                              </div>
                             ))}
-                          </select>
+                          </div>
                         </div>
-                        <div className="col-12 col-md-4">
-                          <label className="form-label fw-semibold small text-muted mb-1">Số lượng</label>
-                          <input
-                            type="number"
-                            className="form-control"
-                            value={form.quantity}
-                            onChange={e => setForm({ ...form, quantity: e.target.value })}
-                            min="1"
-                            style={{ borderRadius: 10, padding: 12 }}
-                          />
-                        </div>
+
+                        {(() => {
+                          const items = Array.isArray(form.items) ? form.items : [];
+                          const normalizedItems = items.filter(it => it?.product_id);
+                          const subtotal = getItemsSubtotal(normalizedItems);
+                          const shipInfo = getOrderShipInfo(normalizedItems);
+                          const total = subtotal + (shipInfo.found ? shipInfo.fee : 0);
+
+                          return (
+                            <div className="col-12">
+                              <div className="d-flex flex-column gap-1 small bg-light rounded-3 p-3">
+                                <div className="d-flex justify-content-between">
+                                  <span className="text-muted">Tạm tính</span>
+                                  <span className="fw-semibold">{formatVND(subtotal)}</span>
+                                </div>
+                                {shipInfo.found && (
+                                  <div className="d-flex justify-content-between">
+                                    <span className="text-muted">Ship</span>
+                                    <span className="fw-semibold">{formatVND(shipInfo.fee)}</span>
+                                  </div>
+                                )}
+                                <div className="d-flex justify-content-between pt-1 border-top">
+                                  <span className="text-muted">Tổng</span>
+                                  <span className="fw-bold">{formatVND(total)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                     <div className="modal-footer" style={{ border: 'none' }}>
