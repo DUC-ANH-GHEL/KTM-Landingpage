@@ -4560,10 +4560,10 @@
         }, [orders, month]);
 
         return (
-          <div className="product-manager pb-5 mb-4">
+          <div className="product-manager pb-5 mb-4 stats-manager">
             <Loading show={loadingStats} />
             <div className="product-header">
-              <h5><i className="fas fa-chart-column me-2"></i>Thống kê</h5>
+              <h5 className="mb-0"><i className="fas fa-chart-column me-2 text-warning"></i>Thống kê</h5>
               <button className="btn btn-outline-secondary btn-sm" onClick={loadStats} disabled={loadingStats}>
                 <i className="fas fa-rotate me-2"></i>Làm mới
               </button>
@@ -4585,8 +4585,16 @@
                   </div>
                 </div>
                 <div className="col-12 col-md-7 d-flex gap-2 justify-content-md-end">
-                  <div className="text-muted small align-self-center">
-                    {orders.length} đơn • {formatNumber(stats.uniqueCustomers)} khách
+                  <div className="d-flex flex-wrap gap-2 align-self-center">
+                    <span className="badge rounded-pill bg-dark bg-opacity-10 text-dark">
+                      <i className="fas fa-receipt me-1"></i>{formatNumber(orders.length)} đơn
+                    </span>
+                    <span className="badge rounded-pill bg-info bg-opacity-10 text-dark">
+                      <i className="fas fa-user me-1"></i>{formatNumber(stats.uniqueCustomers)} khách
+                    </span>
+                    <span className="badge rounded-pill bg-warning bg-opacity-10 text-dark">
+                      <i className="fas fa-boxes-stacked me-1"></i>{formatNumber(stats.totalQty)} SL
+                    </span>
                   </div>
                 </div>
               </div>
@@ -4594,59 +4602,73 @@
 
             <div className="row g-2">
               <div className="col-6 col-md-3">
-                <div className="card p-3">
-                  <div className="text-muted small">Tổng đơn</div>
-                  <div className="fs-4 fw-semibold">{formatNumber(orders.length)}</div>
+                <div className="card p-3 border-0 shadow-sm bg-dark bg-opacity-10">
+                  <div className="d-flex align-items-center justify-content-between">
+                    <div className="text-muted small">Tổng đơn</div>
+                    <i className="fas fa-receipt text-dark"></i>
+                  </div>
+                  <div className="fs-4 fw-semibold text-dark">{formatNumber(orders.length)}</div>
                 </div>
               </div>
               <div className="col-6 col-md-3">
-                <div className="card p-3">
-                  <div className="text-muted small">Doanh thu (tạm tính)</div>
-                  <div className="fs-4 fw-semibold">{formatVND(stats.totalRevenue)}</div>
+                <div className="card p-3 border-0 shadow-sm bg-warning bg-opacity-10">
+                  <div className="d-flex align-items-center justify-content-between">
+                    <div className="text-muted small">Doanh thu (tạm tính)</div>
+                    <i className="fas fa-sack-dollar text-warning"></i>
+                  </div>
+                  <div className="fs-4 fw-semibold text-dark">{formatVND(stats.totalRevenue)}</div>
                 </div>
               </div>
               <div className="col-6 col-md-3">
-                <div className="card p-3">
-                  <div className="text-muted small">Doanh thu (Hoàn thành)</div>
-                  <div className="fs-4 fw-semibold">{formatVND(stats.doneRevenue)}</div>
+                <div className="card p-3 border-0 shadow-sm bg-success bg-opacity-10">
+                  <div className="d-flex align-items-center justify-content-between">
+                    <div className="text-muted small">Doanh thu (Hoàn thành)</div>
+                    <i className="fas fa-circle-check text-success"></i>
+                  </div>
+                  <div className="fs-4 fw-semibold text-dark">{formatVND(stats.doneRevenue)}</div>
                 </div>
               </div>
               <div className="col-6 col-md-3">
-                <div className="card p-3">
-                  <div className="text-muted small">Giá trị TB/đơn</div>
-                  <div className="fs-4 fw-semibold">{formatVND(stats.avgOrderValue)}</div>
+                <div className="card p-3 border-0 shadow-sm bg-info bg-opacity-10">
+                  <div className="d-flex align-items-center justify-content-between">
+                    <div className="text-muted small">Giá trị TB/đơn</div>
+                    <i className="fas fa-chart-line text-info"></i>
+                  </div>
+                  <div className="fs-4 fw-semibold text-dark">{formatVND(stats.avgOrderValue)}</div>
                 </div>
               </div>
             </div>
 
             <div className="card p-3 mt-3">
               <div className="d-flex align-items-center justify-content-between">
-                <h6 className="mb-0">Tổng quan trạng thái</h6>
-                <span className="text-muted small">SL TB/đơn: {stats.avgQtyPerOrder ? stats.avgQtyPerOrder.toFixed(2) : '0.00'}</span>
+                <h6 className="mb-0"><i className="fas fa-layer-group me-2 text-warning"></i>Tổng quan trạng thái</h6>
+                <span className="badge rounded-pill bg-dark bg-opacity-10 text-dark">
+                  SL TB/đơn: {stats.avgQtyPerOrder ? stats.avgQtyPerOrder.toFixed(2) : '0.00'}
+                </span>
               </div>
               {/* Mobile: compact cards */}
               <div className="d-md-none mt-2">
                 <div className="row g-2">
                   <div className="col-6">
-                    <div className="card p-2">
+                    <div className="card p-2 border-0 shadow-sm bg-secondary bg-opacity-10">
                       <div className="text-muted small">Chờ xử lý</div>
                       <div className="fw-semibold">{formatNumber(stats.statusCounts.pending)}</div>
                     </div>
                   </div>
                   <div className="col-6">
-                    <div className="card p-2">
+                    <div className="card p-2 border-0 shadow-sm bg-warning bg-opacity-10">
                       <div className="text-muted small">Đang xử lý</div>
                       <div className="fw-semibold">{formatNumber(stats.statusCounts.processing)}</div>
                     </div>
                   </div>
                   <div className="col-6">
-                    <div className="card p-2">
+                    <div className="card p-2 border-0 shadow-sm bg-success bg-opacity-10">
                       <div className="text-muted small">Hoàn thành</div>
                       <div className="fw-semibold">{formatNumber(stats.statusCounts.done)}</div>
                     </div>
                   </div>
                   <div className="col-6">
-                    <div className="card p-2">
+                    <div className="card p-2 border-0 shadow-sm bg-dark bg-opacity-10">
                       <div className="text-muted small">Tổng SL</div>
                       <div className="fw-semibold">{formatNumber(stats.totalQty)}</div>
                     </div>
@@ -4680,13 +4702,13 @@
 
             <div className="card p-3 mt-3">
               <div className="d-flex align-items-center justify-content-between">
-                <h6 className="mb-0">Top sản phẩm (theo doanh thu)</h6>
-                <span className="text-muted small">Top 10</span>
+                <h6 className="mb-0"><i className="fas fa-box me-2 text-info"></i>Top sản phẩm</h6>
+                <span className="badge rounded-pill bg-info bg-opacity-10 text-dark">Theo doanh thu • Top 10</span>
               </div>
               {/* Mobile: card list */}
               <div className="d-md-none mt-2">
                 {stats.products.slice(0, 10).map((p) => (
-                  <div key={p.product_id} className="card mb-2 p-2">
+                  <div key={p.product_id} className="card mb-2 p-2 border-0 shadow-sm border-start border-4 border-info">
                     <div className="d-flex justify-content-between align-items-start gap-2">
                       <div className="fw-semibold" style={{ minWidth: 0, flex: 1 }}>
                         <div className="text-truncate">{p.product_name}</div>
@@ -4729,13 +4751,13 @@
 
             <div className="card p-3 mt-3">
               <div className="d-flex align-items-center justify-content-between">
-                <h6 className="mb-0">Top khách hàng (theo doanh thu)</h6>
-                <span className="text-muted small">Top 10</span>
+                <h6 className="mb-0"><i className="fas fa-user-group me-2 text-warning"></i>Top khách hàng</h6>
+                <span className="badge rounded-pill bg-warning bg-opacity-10 text-dark">Theo doanh thu • Top 10</span>
               </div>
               {/* Mobile: card list */}
               <div className="d-md-none mt-2">
                 {stats.customers.slice(0, 10).map((c) => (
-                  <div key={c.key} className="card mb-2 p-2">
+                  <div key={c.key} className="card mb-2 p-2 border-0 shadow-sm border-start border-4 border-warning">
                     <div className="d-flex justify-content-between align-items-start gap-2">
                       <div className="fw-semibold" style={{ minWidth: 0, flex: 1 }}>
                         <div className="text-truncate">{c.customer_name || '—'}</div>
@@ -4777,13 +4799,13 @@
 
             <div className="card p-3 mt-3 mb-4">
               <div className="d-flex align-items-center justify-content-between">
-                <h6 className="mb-0">Theo ngày</h6>
-                <span className="text-muted small">Doanh thu (tạm tính) & hoàn thành</span>
+                <h6 className="mb-0"><i className="fas fa-calendar-day me-2 text-success"></i>Theo ngày</h6>
+                <span className="badge rounded-pill bg-success bg-opacity-10 text-dark">DT (tạm tính) & hoàn thành</span>
               </div>
               {/* Mobile: card list */}
               <div className="d-md-none mt-2">
                 {stats.days.map((d) => (
-                  <div key={d.day} className="card mb-2 p-2">
+                  <div key={d.day} className="card mb-2 p-2 border-0 shadow-sm border-start border-4 border-success">
                     <div className="d-flex justify-content-between align-items-start gap-2">
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div className="fw-semibold">{d.day}</div>
