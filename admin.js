@@ -392,24 +392,19 @@
         try {
           // Nén ảnh trước khi upload (convert HEIC -> JPEG)
           const compressedFile = await compressCoverImage(file);
-          
-          const fd = new FormData();
-          fd.append('file', compressedFile);
-          fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-          fd.append('folder', 'ktm-albums/covers');
-          
-          const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-            method: 'POST',
-            body: fd
+
+          const data = await window.KTM.cloudinary.uploadImage({
+            file: compressedFile,
+            cloudName: CLOUDINARY_CLOUD_NAME,
+            uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+            folder: 'ktm-albums/covers',
           });
-          
-          const data = await res.json();
-          
-          if (!res.ok) {
+
+          if (!data.secure_url) {
             console.error('Cloudinary error:', data);
             throw new Error(data.error?.message || 'Upload failed');
           }
-          
+
           setFormData(prev => ({ ...prev, cover_url: data.secure_url }));
         } catch (err) {
           console.error('Cover upload error:', err);
@@ -670,13 +665,17 @@
         setLoading(true);
         try {
           // Load images
-          const res = await fetch(`${API_BASE}/api/albums/${album.uuid || album.id}`);
-          const data = await res.json();
+          const data = await window.KTM.api.getJSON(
+            `${API_BASE}/api/albums/${album.uuid || album.id}`,
+            'Lỗi tải dữ liệu'
+          );
           setImages(data.images || []);
           
           // Load subfolders
-          const subRes = await fetch(`${API_BASE}/api/albums?parent_id=${album.uuid || album.id}`);
-          const subData = await subRes.json();
+          const subData = await window.KTM.api.getJSON(
+            `${API_BASE}/api/albums?parent_id=${album.uuid || album.id}`,
+            'Lỗi tải dữ liệu'
+          );
           setSubfolders(Array.isArray(subData) ? subData : []);
         } catch (err) {
           console.error(err);
@@ -688,8 +687,7 @@
       // Load all albums for move dropdown
       const loadAllAlbums = async () => {
         try {
-          const res = await fetch(`${API_BASE}/api/albums`);
-          const data = await res.json();
+          const data = await window.KTM.api.getJSON(`${API_BASE}/api/albums`, 'Lỗi tải album');
           setAllAlbums(Array.isArray(data) ? data : []);
         } catch (err) {
           console.error('Error loading albums:', err);
@@ -717,12 +715,12 @@
 
         for (const imageId of selectedImages) {
           try {
-            const res = await fetch(`${API_BASE}/api/images/${imageId}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ album_id: targetAlbum })
-            });
-            if (res.ok) successCount++;
+            await window.KTM.api.putJSON(
+              `${API_BASE}/api/images/${imageId}`,
+              { album_id: targetAlbum },
+              'Lỗi di chuyển ảnh'
+            );
+            successCount++;
           } catch (err) {
             console.error('Move error:', err);
           }
@@ -755,8 +753,11 @@
         
         for (const imageId of selectedImages) {
           try {
-            const res = await fetch(`${API_BASE}/api/images/${imageId}`, { method: 'DELETE' });
-            if (res.ok) successCount++;
+            await window.KTM.api.deleteJSON(
+              `${API_BASE}/api/images/${imageId}`,
+              'Lỗi xóa ảnh'
+            );
+            successCount++;
           } catch (err) {
             console.error('Delete error:', err);
           }
@@ -796,17 +797,15 @@
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/(^-|-$)/g, '');
           
-          const res = await fetch(`${API_BASE}/api/albums`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          await window.KTM.api.postJSON(
+            `${API_BASE}/api/albums`,
+            {
               slug: slug + '-' + Date.now(),
               title: newFolderName,
-              parent_id: album.uuid || album.id
-            })
-          });
-          
-          if (!res.ok) throw new Error('Lỗi tạo folder');
+              parent_id: album.uuid || album.id,
+            },
+            'Lỗi tạo folder'
+          );
           
           showToast('Tạo folder thành công!', 'success');
           setNewFolderName('');
@@ -823,7 +822,10 @@
         if (!confirm(`Xóa folder "${folder.title}"? Tất cả nội dung bên trong sẽ bị xóa!`)) return;
         
         try {
-          await fetch(`${API_BASE}/api/albums/${folder.uuid || folder.id}`, { method: 'DELETE' });
+          await window.KTM.api.deleteJSON(
+            `${API_BASE}/api/albums/${folder.uuid || folder.id}`,
+            'Lỗi xóa folder'
+          );
           showToast('Đã xóa folder', 'success');
           loadData();
           onRefresh();
@@ -855,22 +857,19 @@
       };
 
       const uploadToCloudinary = async (file) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-        formData.append('folder', `ktm-albums/${album.id}`);
-
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-          method: 'POST',
-          body: formData
+        const data = await window.KTM.cloudinary.uploadImage({
+          file,
+          cloudName: CLOUDINARY_CLOUD_NAME,
+          uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+          folder: `ktm-albums/${album.id}`,
         });
 
-        if (!res.ok) {
-          const err = await res.json();
-          console.error('Cloudinary error:', err);
-          throw new Error(err.error?.message || 'Upload failed');
+        if (!data.secure_url) {
+          console.error('Cloudinary error:', data);
+          throw new Error(data.error?.message || 'Upload failed');
         }
-        return await res.json();
+
+        return data;
       };
 
       const handleUpload = async () => {
@@ -892,15 +891,15 @@
             const cloudinaryRes = await uploadToCloudinary(compressedFile);
             
             // Save to DB
-            await fetch(`${API_BASE}/api/albums/${album.id}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
+            await window.KTM.api.postJSON(
+              `${API_BASE}/api/albums/${album.id}`,
+              {
                 url: cloudinaryRes.secure_url,
                 caption: captions[i] || uploadFiles[i].name.replace(/\.[^/.]+$/, ''),
-                sort_order: images.length + i
-              })
-            });
+                sort_order: images.length + i,
+              },
+              'Lỗi lưu ảnh'
+            );
             
             successCount++;
           } catch (err) {
@@ -928,7 +927,7 @@
         
         try {
           // Note: Cần API delete image - tạm thời chỉ reload
-          await fetch(`${API_BASE}/api/images/${imageId}`, { method: 'DELETE' });
+          await window.KTM.api.deleteJSON(`${API_BASE}/api/images/${imageId}`, 'Lỗi xóa ảnh');
           showToast('Đã xóa ảnh', 'success');
           loadData();
           onRefresh();
@@ -1389,13 +1388,11 @@
         if (!editingItem) return;
         
         try {
-          const res = await fetch(`${API_BASE}/api/products?id=${editingItem.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(productForm)
-          });
-          
-          if (!res.ok) throw new Error('Lỗi cập nhật');
+          await window.KTM.api.putJSON(
+            `${API_BASE}/api/products?id=${editingItem.id}`,
+            productForm,
+            'Lỗi cập nhật'
+          );
           
           showToast('Cập nhật thành công!', 'success');
           setShowQuickEdit(false);
@@ -1422,9 +1419,8 @@
           } else if (item._type === 'video') {
             url = `${API_BASE}/api/videos/${item.id}`;
           }
-          
-          const res = await fetch(url, { method: 'DELETE' });
-          if (!res.ok) throw new Error('Lỗi xóa');
+
+          await window.KTM.api.deleteJSON(url, 'Lỗi xóa');
           
           showToast(`Đã xóa ${typeName}`, 'success');
           loadAllData();
@@ -1439,12 +1435,13 @@
           const url = editingProduct 
             ? `${API_BASE}/api/products?id=${editingProduct.id}`
             : `${API_BASE}/api/products`;
-          const res = await fetch(url, {
-            method: editingProduct ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-          });
-          if (!res.ok) throw new Error('Lỗi lưu sản phẩm');
+
+          if (editingProduct) {
+            await window.KTM.api.putJSON(url, formData, 'Lỗi lưu sản phẩm');
+          } else {
+            await window.KTM.api.postJSON(url, formData, 'Lỗi lưu sản phẩm');
+          }
+
           showToast(editingProduct ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!', 'success');
           setShowProductModal(false);
           setEditingProduct(null);
@@ -1465,25 +1462,18 @@
 
         let cache = null;
         let usedCache = false;
-        try {
-          const raw = localStorage.getItem(CACHE_KEY);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed && parsed.timestamp && Date.now() - parsed.timestamp < CACHE_TTL && Array.isArray(parsed.data)) {
-              cache = parsed.data;
-              console.log('[CACHE] Using cache, items:', cache.length);
-              setAllData(cache);
-              setSearchResults(cache);
-              setLoading(false); // Dừng loading ngay khi có cache
-              usedCache = true;
-            } else {
-              console.log('[CACHE] Cache expired or invalid');
-            }
-          } else {
-            console.log('[CACHE] No cache found');
-          }
-        } catch (e) {
-          console.error('[CACHE] Error parsing cache:', e);
+        const cacheResult = window.KTM.cache.read(CACHE_KEY, { ttlMs: CACHE_TTL, validate: Array.isArray });
+        if (cacheResult.hit) {
+          cache = cacheResult.value;
+          console.log('[CACHE] Using cache, items:', cache.length);
+          setAllData(cache);
+          setSearchResults(cache);
+          setLoading(false); // Dừng loading ngay khi có cache
+          usedCache = true;
+        } else {
+          if (cacheResult.status === 'miss') console.log('[CACHE] No cache found');
+          else if (cacheResult.status === 'expired' || cacheResult.status === 'invalid') console.log('[CACHE] Cache expired or invalid');
+          else if (cacheResult.status === 'error') console.error('[CACHE] Error parsing cache');
         }
 
         // Nếu có cache thì không loading, chỉ loading khi fetch mới
@@ -1491,18 +1481,20 @@
 
         // Luôn fetch API để cập nhật cache, nhưng không block UI
         try {
-          // Song song hóa 3 API
-          const [productsRes, albumsRes, videosRes] = await Promise.all([
-            fetch(`${API_BASE}/api/products`),
-            fetch(`${API_BASE}/api/albums`),
-            fetch(`${API_BASE}/api/video-folders?withVideos=true`)
-          ]);
+          const safeGetJSON = async (url, fallback) => {
+            try {
+              const data = await window.KTM.api.getJSON(url, 'Lỗi tải dữ liệu');
+              return data ?? fallback;
+            } catch (_err) {
+              return fallback;
+            }
+          };
 
-          // Parse JSON song song
+          // Song song hóa 3 API
           const [productsData, albumsList, videosList] = await Promise.all([
-            productsRes.ok ? productsRes.json() : [],
-            albumsRes.ok ? albumsRes.json() : [],
-            videosRes.ok ? videosRes.json() : []
+            safeGetJSON(`${API_BASE}/api/products`, []),
+            safeGetJSON(`${API_BASE}/api/albums`, []),
+            safeGetJSON(`${API_BASE}/api/video-folders?withVideos=true`, [])
           ]);
 
           // Products
@@ -1514,12 +1506,9 @@
           setAlbums(albumsList);
           let albumImagesData = [];
           if (Array.isArray(albumsList) && albumsList.length > 0) {
-            // Fetch tất cả album images song song
-            const albumImageFetches = albumsList.map(album =>
-              fetch(`${API_BASE}/api/albums/${album.id}`)
+            const albumImageJsonArr = await Promise.all(
+              albumsList.map(album => safeGetJSON(`${API_BASE}/api/albums/${album.id}`, {}))
             );
-            const albumImageResArr = await Promise.all(albumImageFetches);
-            const albumImageJsonArr = await Promise.all(albumImageResArr.map(r => r.ok ? r.json() : {}));
             albumImageJsonArr.forEach((albumDetail, idx) => {
               const album = albumsList[idx];
               if (albumDetail.images && albumDetail.images.length > 0) {
@@ -1565,9 +1554,7 @@
           if (isDifferent) {
             setAllData(combined);
             setSearchResults(combined);
-            try {
-              localStorage.setItem(CACHE_KEY, JSON.stringify({ data: combined, timestamp: Date.now() }));
-            } catch (e) { /* ignore */ }
+            window.KTM.cache.write(CACHE_KEY, combined);
           }
         } catch (err) {
           console.error('Song song fetch error:', err);
@@ -1600,29 +1587,23 @@
             _type: item._type
           }));
 
-          const response = await fetch(`${API_BASE}/api/ai-search`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              query: query,
-              products: productList
-            })
-          });
+          const data = await window.KTM.api.postJSON(
+            `${API_BASE}/api/ai-search`,
+            { query: query, products: productList },
+            'AI Search error'
+          );
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data.matchedIds && data.matchedIds.length > 0) {
-              // Filter results to only include AI-matched items
-              const aiFiltered = basicResults.filter(item => 
-                data.matchedIds.includes(item.id)
-              );
-              if (aiFiltered.length > 0) {
-                setSearchResults(aiFiltered);
-              }
-            } else if (data.matchedIds && data.matchedIds.length === 0) {
-              // AI found no matches - show empty
-              setSearchResults([]);
+          if (data && data.matchedIds && data.matchedIds.length > 0) {
+            // Filter results to only include AI-matched items
+            const aiFiltered = basicResults.filter(item => 
+              data.matchedIds.includes(item.id)
+            );
+            if (aiFiltered.length > 0) {
+              setSearchResults(aiFiltered);
             }
+          } else if (data && data.matchedIds && data.matchedIds.length === 0) {
+            // AI found no matches - show empty
+            setSearchResults([]);
           }
         } catch (err) {
           console.error('AI Search error:', err);
@@ -1705,7 +1686,7 @@
 
       // Copy helpers
       const copyText = (text, id) => {
-        navigator.clipboard.writeText(text).then(() => {
+        window.KTM.clipboard.writeText(text).then(() => {
           setCopiedId(id);
           showToast('Đã copy!', 'success');
           setTimeout(() => setCopiedId(null), 1500);
@@ -1714,11 +1695,7 @@
 
       const copyImage = async (url, id) => {
         try {
-          const response = await fetch(url);
-          const blob = await response.blob();
-          await navigator.clipboard.write([
-            new ClipboardItem({ [blob.type]: blob })
-          ]);
+          await window.KTM.clipboard.writeImageFromUrl(url);
           setCopiedId(id + '-img');
           showToast('Đã copy ảnh!', 'success');
           setTimeout(() => setCopiedId(null), 1500);
@@ -1847,21 +1824,15 @@
             : dataContext;
 
           // Call backend API (unified)
-          const response = await fetch(`${API_BASE}/api/ai-chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          const data = await window.KTM.api.postJSON(
+            `${API_BASE}/api/ai-chat`,
+            {
               message: message,
               context: fullContext,
               audience: 'admin'
-            })
-          });
-
-          const data = await response.json();
-          
-          if (!response.ok) {
-            throw new Error(data.error || 'API error');
-          }
+            },
+            'API error'
+          );
           
           const aiResponse = data.response || 'Xin lỗi, tôi không thể trả lời lúc này.';
           
@@ -1917,13 +1888,7 @@
         const imageInputRef = useRef(null);
 
         // Hàm format tiền VNĐ
-        const formatVND = (value) => {
-          // Lấy chỉ số từ input
-          const numbers = value.replace(/[^\d]/g, '');
-          if (!numbers) return '';
-          // Format với dấu chấm ngăn cách hàng nghìn
-          return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + 'đ';
-        };
+        const formatVND = (digits) => window.KTM.money.formatVNDInputDigits(digits);
 
         useEffect(() => {
           if (product) {
@@ -1938,7 +1903,7 @@
             });
             // Set price numbers từ product.price
             if (product.price) {
-              const numbers = product.price.replace(/[^\d]/g, '');
+              const numbers = window.KTM.money.getDigits(product.price);
               setPriceNumbers(numbers);
               setFormData(prev => ({...prev, price: formatVND(numbers)}));
             } else {
@@ -1958,32 +1923,9 @@
         
         // Xử lý khi nhập giá
         const handlePriceChange = (e) => {
-          const value = e.target.value;
-          // Lấy chỉ số thuần
-          const numbers = value.replace(/[^\d]/g, '');
-          
-          // Nếu xóa hết thì để trống
-          if (!numbers) {
-            setFormData({...formData, price: ''});
-            setPriceNumbers('');
-            return;
-          }
-          
-          // Nếu số không thay đổi (user chỉ xóa đ hoặc dấu chấm) thì xóa 1 số cuối
-          if (numbers === priceNumbers && numbers.length > 0) {
-            const newNumbers = numbers.slice(0, -1);
-            if (!newNumbers) {
-              setFormData({...formData, price: ''});
-              setPriceNumbers('');
-            } else {
-              setFormData({...formData, price: formatVND(newNumbers)});
-              setPriceNumbers(newNumbers);
-            }
-            return;
-          }
-          
-          setPriceNumbers(numbers);
-          setFormData({...formData, price: formatVND(numbers)});
+          const next = window.KTM.money.nextPriceInputState(e.target.value, priceNumbers);
+          setPriceNumbers(next.digits);
+          setFormData({ ...formData, price: next.price });
         };
 
         const compressImage = async (file, maxSizeMB = 2) => {
@@ -2043,23 +1985,19 @@
           setUploading(true);
           try {
             const compressedFile = await compressImage(file);
-            const fd = new FormData();
-            fd.append('file', compressedFile);
-            fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-            fd.append('folder', 'ktm-products');
-            
-            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-              method: 'POST',
-              body: fd
+
+            const data = await window.KTM.cloudinary.uploadImage({
+              file: compressedFile,
+              cloudName: CLOUDINARY_CLOUD_NAME,
+              uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+              folder: 'ktm-products',
             });
-            
-            const data = await res.json();
-            
-            if (!res.ok) {
+
+            if (!data.secure_url) {
               console.error('Cloudinary error:', data);
               throw new Error(data.error?.message || 'Upload failed');
             }
-            
+
             setFormData(prev => ({ ...prev, image: data.secure_url }));
           } catch (err) {
             console.error('Upload error:', err);
@@ -2623,7 +2561,7 @@
                             color: copiedId === `chat-${i}` ? '#fff' : '#666'
                           }}
                           onClick={() => {
-                            navigator.clipboard.writeText(msg.content);
+                            window.KTM.clipboard.writeText(msg.content);
                             setCopiedId(`chat-${i}`);
                             setTimeout(() => setCopiedId(null), 1500);
                           }}
@@ -2882,8 +2820,7 @@
           const url = parentId
             ? `${API_BASE}/api/video-folders?withVideos=true&parent_id=${parentId}`
             : `${API_BASE}/api/video-folders?withVideos=true&parent_id=root`;
-          const res = await fetch(url);
-          const data = await res.json();
+          const data = await window.KTM.api.getJSON(url, 'Lỗi tải danh sách folder');
           setFolders(Array.isArray(data) ? data : []);
         } catch (err) {
           console.error(err);
@@ -2894,8 +2831,10 @@
 
       const loadVideosInFolder = async (folderId) => {
         try {
-          const res = await fetch(`${API_BASE}/api/videos?folderId=${folderId}`);
-          const data = await res.json();
+          const data = await window.KTM.api.getJSON(
+            `${API_BASE}/api/videos?folderId=${folderId}`,
+            'Lỗi tải video'
+          );
           setVideos(Array.isArray(data) ? data : []);
         } catch (err) {
           console.error(err);
@@ -2921,13 +2860,15 @@
 
       const saveFolderOrder = async (orderedFolders) => {
         try {
-          await Promise.all(orderedFolders.map((folder, idx) => 
-            fetch(`${API_BASE}/api/video-folders/${folder.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ sortOrder: idx })
-            })
-          ));
+          await Promise.all(
+            orderedFolders.map((folder, idx) =>
+              window.KTM.api.putJSON(
+                `${API_BASE}/api/video-folders/${folder.id}`,
+                { sortOrder: idx },
+                'Lỗi cập nhật thứ tự'
+              )
+            )
+          );
           showToast('Đã cập nhật thứ tự!', 'success');
         } catch (err) {
           showToast('Lỗi cập nhật thứ tự', 'danger');
@@ -2954,13 +2895,15 @@
 
       const saveVideoOrder = async (orderedVideos) => {
         try {
-          await Promise.all(orderedVideos.map((video, idx) => 
-            fetch(`${API_BASE}/api/videos/${video.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ sort_order: idx })
-            })
-          ));
+          await Promise.all(
+            orderedVideos.map((video, idx) =>
+              window.KTM.api.putJSON(
+                `${API_BASE}/api/videos/${video.id}`,
+                { sort_order: idx },
+                'Lỗi cập nhật thứ tự'
+              )
+            )
+          );
           showToast('Đã cập nhật thứ tự!', 'success');
         } catch (err) {
           showToast('Lỗi cập nhật thứ tự', 'danger');
@@ -2989,14 +2932,11 @@
           const url = editingFolder 
             ? `${API_BASE}/api/video-folders/${editingFolder.id}`
             : `${API_BASE}/api/video-folders`;
-          
-          const res = await fetch(url, {
-            method: editingFolder ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-          });
-
-          if (!res.ok) throw new Error('Lỗi lưu folder');
+          if (editingFolder) {
+            await window.KTM.api.putJSON(url, formData, 'Lỗi lưu folder');
+          } else {
+            await window.KTM.api.postJSON(url, formData, 'Lỗi lưu folder');
+          }
 
           showToast(editingFolder ? 'Đã cập nhật folder!' : 'Đã tạo folder mới!', 'success');
           setShowFolderModal(false);
@@ -3013,7 +2953,10 @@
         if (!confirm(msg)) return;
 
         try {
-          await fetch(`${API_BASE}/api/video-folders/${folder.id}`, { method: 'DELETE' });
+          await window.KTM.api.deleteJSON(
+            `${API_BASE}/api/video-folders/${folder.id}`,
+            'Lỗi xóa folder'
+          );
           showToast('Đã xóa folder', 'success');
           setSelectedFolder(null);
           loadFolders(currentParentFolder?.id);
@@ -3076,16 +3019,11 @@
           const url = editingVideo 
             ? `${API_BASE}/api/videos/${editingVideo.id}`
             : `${API_BASE}/api/videos`;
-          
-          const res = await fetch(url, {
-            method: editingVideo ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-          });
 
-          if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || 'Lỗi lưu video');
+          if (editingVideo) {
+            await window.KTM.api.putJSON(url, formData, 'Lỗi lưu video');
+          } else {
+            await window.KTM.api.postJSON(url, formData, 'Lỗi lưu video');
           }
 
           showToast(editingVideo ? 'Cập nhật thành công!' : 'Thêm video thành công!', 'success');
@@ -3103,7 +3041,7 @@
         if (!confirm(`Xóa video "${video.title}"?`)) return;
 
         try {
-          await fetch(`${API_BASE}/api/videos/${video.id}`, { method: 'DELETE' });
+          await window.KTM.api.deleteJSON(`${API_BASE}/api/videos/${video.id}`, 'Lỗi xóa video');
           showToast('Đã xóa video', 'success');
           loadFolders();
           if (selectedFolder) {
@@ -3116,7 +3054,7 @@
 
       const copyLink = (video) => {
         const url = `https://www.youtube.com/watch?v=${video.youtubeId}`;
-        navigator.clipboard.writeText(url).then(() => {
+        window.KTM.clipboard.writeText(url).then(() => {
           showToast('Đã copy link!', 'success');
         }).catch(() => {
           showToast('Không thể copy link', 'danger');
@@ -3377,21 +3315,18 @@
         if (!file) return;
 
         setUploading(true);
-        const form = new FormData();
-        form.append('file', file);
-        form.append('upload_preset', 'ktm_unsigned');
 
         try {
-          const res = await fetch('https://api.cloudinary.com/v1_1/diwxfpt92/image/upload', {
-            method: 'POST',
-            body: form
+          const data = await window.KTM.cloudinary.uploadImage({
+            file,
+            cloudName: CLOUDINARY_CLOUD_NAME,
+            uploadPreset: CLOUDINARY_UPLOAD_PRESET,
           });
-          const data = await res.json();
           if (data.secure_url) {
             setFormData(prev => ({ ...prev, coverImage: data.secure_url }));
           }
           // Xóa cache khi cập nhật
-          localStorage.removeItem(CACHE_KEY);
+          window.KTM.cache.remove(CACHE_KEY);
           showToast('Cập nhật thành công!', 'success');
           setShowQuickEdit(false);
           setEditingItem(null);
@@ -3535,8 +3470,7 @@
       const loadProducts = async () => {
         setLoading(true);
         try {
-          const res = await fetch(`${API_BASE}/api/products`);
-          const data = await res.json();
+          const data = await window.KTM.api.getJSON(`${API_BASE}/api/products`, 'Lỗi tải sản phẩm');
           setProducts(Array.isArray(data) ? data : []);
         } catch (err) {
           console.error(err);
@@ -3554,13 +3488,13 @@
         if (!imageUrl || !imageUrl.includes('cloudinary.com')) return;
 
         try {
-          await fetch(`${API_BASE}/api/products?action=delete-image`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: imageUrl })
-          });
+          await window.KTM.api.postJSON(
+            `${API_BASE}/api/products?action=delete-image`,
+            { url: imageUrl },
+            'Lỗi xóa ảnh'
+          );
           // Xóa cache khi xóa
-          localStorage.removeItem(CACHE_KEY);
+          window.KTM.cache.remove(CACHE_KEY);
           showToast(`Đã xóa ${typeName}`, 'success');
           loadAllData();
           loadProducts();
@@ -3574,12 +3508,11 @@
           const url = editingProduct 
             ? `${API_BASE}/api/products?id=${editingProduct.id}`
             : `${API_BASE}/api/products`;
-          const res = await fetch(url, {
-            method: editingProduct ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-          });
-          if (!res.ok) throw new Error('Lỗi lưu sản phẩm');
+          if (editingProduct) {
+            await window.KTM.api.putJSON(url, formData, 'Lỗi lưu sản phẩm');
+          } else {
+            await window.KTM.api.postJSON(url, formData, 'Lỗi lưu sản phẩm');
+          }
           showToast(editingProduct ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!', 'success');
           setShowModal(false);
           loadProducts();
@@ -3592,10 +3525,10 @@
         if (!confirm(`Bạn có chắc muốn xóa sản phẩm "${product.name}"?`)) return;
         
         try {
-          const res = await fetch(`${API_BASE}/api/products?id=${product.id}`, {
-            method: 'DELETE'
-          });
-          if (!res.ok) throw new Error('Lỗi xóa sản phẩm');
+          await window.KTM.api.deleteJSON(
+            `${API_BASE}/api/products?id=${product.id}`,
+            'Lỗi xóa sản phẩm'
+          );
           
           showToast('Xóa sản phẩm thành công!', 'success');
           loadProducts();
@@ -3735,45 +3668,16 @@
       const [uploadStatus, setUploadStatus] = React.useState('');
       
       // Hàm format tiền VNĐ
-      const formatVND = (value) => {
-        // Lấy chỉ số từ input
-        const numbers = value.replace(/[^\d]/g, '');
-        if (!numbers) return '';
-        // Format với dấu chấm ngăn cách hàng nghìn
-        return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + 'đ';
-      };
+      const formatVND = (digits) => window.KTM.money.formatVNDInputDigits(digits);
       
       // Lưu giá trị số thuần để so sánh
       const [priceNumbers, setPriceNumbers] = React.useState('');
       
       // Xử lý khi nhập giá
       const handlePriceChange = (e) => {
-        const value = e.target.value;
-        // Lấy chỉ số thuần
-        const numbers = value.replace(/[^\d]/g, '');
-        
-        // Nếu xóa hết thì để trống
-        if (!numbers) {
-          setFormData({...formData, price: ''});
-          setPriceNumbers('');
-          return;
-        }
-        
-        // Nếu số không thay đổi (user chỉ xóa đ hoặc dấu chấm) thì xóa 1 số cuối
-        if (numbers === priceNumbers && numbers.length > 0) {
-          const newNumbers = numbers.slice(0, -1);
-          if (!newNumbers) {
-            setFormData({...formData, price: ''});
-            setPriceNumbers('');
-          } else {
-            setFormData({...formData, price: formatVND(newNumbers)});
-            setPriceNumbers(newNumbers);
-          }
-          return;
-        }
-        
-        setPriceNumbers(numbers);
-        setFormData({...formData, price: formatVND(numbers)});
+        const next = window.KTM.money.nextPriceInputState(e.target.value, priceNumbers);
+        setPriceNumbers(next.digits);
+        setFormData({ ...formData, price: next.price });
       };
       
       // Lưu ảnh cũ để xóa khi thay ảnh mới
@@ -3789,11 +3693,11 @@
       const deleteCloudinaryImage = async (imageUrl) => {
         if (!imageUrl || !imageUrl.includes('cloudinary.com')) return;
         try {
-          await fetch(`${API_BASE}/api/products?action=delete-image`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: imageUrl })
-          });
+          await window.KTM.api.postJSON(
+            `${API_BASE}/api/products?action=delete-image`,
+            { url: imageUrl },
+            'Lỗi xóa ảnh'
+          );
         } catch (err) {
           console.error('Delete cloudinary image error:', err);
         }
@@ -3883,17 +3787,12 @@
           
           const compressedSizeMB = (compressedFile.size / 1024 / 1024).toFixed(1);
           setUploadStatus(`Đã nén: ${compressedSizeMB}MB - Đang upload...`);
-          
-          const fd = new FormData();
-          fd.append('file', compressedFile);
-          fd.append('upload_preset', 'ktm_unsigned');
-          
-          const res = await fetch('https://api.cloudinary.com/v1_1/diwxfpt92/image/upload', { 
-            method: 'POST', 
-            body: fd 
+
+          const data = await window.KTM.cloudinary.uploadImage({
+            file: compressedFile,
+            cloudName: CLOUDINARY_CLOUD_NAME,
+            uploadPreset: CLOUDINARY_UPLOAD_PRESET,
           });
-          
-          const data = await res.json();
           
           if (data.secure_url) {
             // Xóa ảnh cũ trên Cloudinary khi upload ảnh mới thành công
@@ -4285,17 +4184,11 @@
         setLoginError('');
         
         try {
-          const res = await fetch(`${API_BASE}/api/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-          });
-
-          const data = await res.json();
-
-          if (!res.ok) {
-            throw new Error(data.error || 'Đăng nhập thất bại');
-          }
+          const data = await window.KTM.api.postJSON(
+            `${API_BASE}/api/auth/login`,
+            { username, password },
+            'Đăng nhập thất bại'
+          );
 
           // Save session (permanent)
           const session = {
@@ -4335,8 +4228,7 @@
           const url = parentId 
             ? `${API_BASE}/api/albums?parent_id=${parentId}`
             : `${API_BASE}/api/albums?parent_id=root`;
-          const res = await fetch(url);
-          const data = await res.json();
+          const data = await window.KTM.api.getJSON(url, 'Lỗi tải danh sách album');
           setAlbums(Array.isArray(data) ? data : []);
         } catch (err) {
           console.error(err);
@@ -4366,16 +4258,11 @@
           const url = isEditing 
             ? `${API_BASE}/api/albums/${editingAlbum.uuid || editingAlbum.id}` 
             : `${API_BASE}/api/albums`;
-          
-          const res = await fetch(url, {
-            method: isEditing ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-          });
 
-          if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || (isEditing ? 'Lỗi cập nhật' : 'Lỗi tạo'));
+          if (isEditing) {
+            await window.KTM.api.putJSON(url, formData, 'Lỗi cập nhật');
+          } else {
+            await window.KTM.api.postJSON(url, formData, 'Lỗi tạo');
           }
 
           showToast(isEditing ? 'Cập nhật thành công!' : 'Tạo thành công!', 'success');
@@ -4420,7 +4307,10 @@
         if (!confirm(msg)) return;
 
         try {
-          await fetch(`${API_BASE}/api/albums/${album.uuid || album.id}`, { method: 'DELETE' });
+          await window.KTM.api.deleteJSON(
+            `${API_BASE}/api/albums/${album.uuid || album.id}`,
+            'Lỗi xóa album'
+          );
           showToast('Đã xóa', 'success');
           loadAlbums(currentAlbumFolder?.uuid);
         } catch (err) {
@@ -4445,68 +4335,21 @@
         const [loadingStats, setLoadingStats] = useState(true);
         const [orders, setOrders] = useState([]);
 
-        const parseMoney = (value) => {
-          if (!value) return 0;
-          const digits = String(value).replace(/[^0-9]/g, '');
-          return digits ? Number(digits) : 0;
-        };
-
-        const parseShipFeeFromNote = (note) => {
-          if (!note) return null;
-          const s = String(note);
-          const lower = s.toLowerCase();
-          if (
-            lower.includes('freeship') ||
-            lower.includes('free ship') ||
-            lower.includes('miễn phí ship') ||
-            lower.includes('mien phi ship') ||
-            lower.includes('miễn phí vận chuyển') ||
-            lower.includes('mien phi van chuyen')
-          ) {
-            return 0;
-          }
-
-          const m = s.match(/(?:ship|vận\s*chuyển|van\s*chuyen|\bvc\b)\s*[:=\-]?\s*([0-9][0-9\.,\s]*)(?:\s*(k|nghìn|nghin|tr|triệu|trieu|m))?/i);
-          if (!m) return null;
-
-          const digits = String(m[1] || '').replace(/[^0-9]/g, '');
-          if (!digits) return null;
-
-          let amount = Number(digits);
-          const unit = String(m[2] || '').toLowerCase();
-          if (unit === 'k' || unit.startsWith('ngh')) amount *= 1000;
-          else if (unit === 'tr' || unit.startsWith('tri') || unit === 'm') amount *= 1000000;
-          return Number.isFinite(amount) ? amount : null;
-        };
-
-        const getShipFeeForItems = (items) => {
-          const arr = Array.isArray(items) ? items : [];
-          let found = false;
-          let maxFee = 0;
-          for (const it of arr) {
-            const fee = parseShipFeeFromNote(it?.product_note);
-            if (fee == null) continue;
-            found = true;
-            if (fee > maxFee) maxFee = fee;
-          }
-          return { found, fee: maxFee };
-        };
-
-        const formatNumber = (n) => {
-          try {
-            return Number(n || 0).toLocaleString('vi-VN');
-          } catch {
-            return String(n || 0);
-          }
-        };
-
-        const formatVND = (n) => `${formatNumber(n)}đ`;
+        const {
+          parseMoney,
+          parseShipFeeFromNote,
+          getShipFeeForItems,
+          formatNumber,
+          formatVND
+        } = window.KTM.money;
 
         const loadStats = async () => {
           setLoadingStats(true);
           try {
-            const res = await fetch(`${API_BASE}/api/orders?month=${encodeURIComponent(month)}`);
-            const data = await res.json();
+            const data = await window.KTM.api.getJSON(
+              `${API_BASE}/api/orders?month=${encodeURIComponent(month)}`,
+              'Lỗi tải thống kê'
+            );
             setOrders(Array.isArray(data) ? data : []);
           } catch (e) {
             console.error('Load stats error:', e);
@@ -4530,20 +4373,7 @@
 
           const customerKey = (o) => o.customer_id || o.phone || 'unknown';
 
-          const getOrderItems = (o) => {
-            if (Array.isArray(o?.items) && o.items.length) return o.items;
-            if (o?.product_id) {
-              return [{
-                product_id: o.product_id,
-                quantity: o.quantity,
-                product_price: o.product_price,
-                product_name: o.product_name,
-                product_code: o.product_code,
-                product_note: o.product_note,
-              }];
-            }
-            return [];
-          };
+          const getOrderItems = (o) => window.KTM.orders.getOrderItems(o);
 
           const revenueByProduct = new Map();
           const revenueByCustomer = new Map();
@@ -5187,69 +5017,18 @@
       }, [openProductDropdownIdx]);
 
       const parseMoney = (value) => {
-        if (value == null) return 0;
-        const digits = String(value).replace(/[^0-9]/g, '');
-        return digits ? Number(digits) : 0;
+        return window.KTM.money.parseMoney(value);
       };
 
-      const parseSignedMoney = (value) => {
-        if (value == null || value === '') return 0;
-        if (typeof value === 'number') return Number.isFinite(value) ? Math.trunc(value) : 0;
-        const s = String(value).trim();
-        if (!s) return 0;
-        const isNeg = /^\s*-/.test(s);
-        const digits = s.replace(/[^0-9]/g, '');
-        const n = digits ? Number(digits) : 0;
-        return isNeg ? -n : n;
-      };
+      const parseSignedMoney = (value) => window.KTM.money.parseSignedMoney(value);
 
-      const formatVND = (n) => {
-        try {
-          return `${Number(n || 0).toLocaleString('vi-VN')}đ`;
-        } catch {
-          return `${n || 0}đ`;
-        }
-      };
+      const formatVND = (n) => window.KTM.money.formatVND(n);
 
-      const parseShipFeeFromNote = (note) => {
-        if (!note) return null;
-        const s = String(note);
-        const lower = s.toLowerCase();
+      const parseShipFeeFromNote = (note) => window.KTM.money.parseShipFeeFromNote(note);
 
-        if (
-          lower.includes('freeship') ||
-          lower.includes('free ship') ||
-          lower.includes('miễn phí ship') ||
-          lower.includes('mien phi ship') ||
-          lower.includes('miễn phí vận chuyển') ||
-          lower.includes('mien phi van chuyen')
-        ) {
-          return 0;
-        }
+      const isValidPhone = (normalizedDigits) => window.KTM.phone.isValid(normalizedDigits);
 
-        const m = s.match(/(?:ship|vận\s*chuyển|van\s*chuyen|\bvc\b)\s*[:=\-]?\s*([0-9][0-9\.,\s]*)(?:\s*(k|nghìn|nghin|tr|triệu|trieu|m))?/i);
-        if (!m) return null;
-
-        const digits = String(m[1] || '').replace(/[^0-9]/g, '');
-        if (!digits) return null;
-
-        let amount = Number(digits);
-        const unit = String(m[2] || '').toLowerCase();
-        if (unit === 'k' || unit.startsWith('ngh')) amount *= 1000;
-        else if (unit === 'tr' || unit.startsWith('tri') || unit === 'm') amount *= 1000000;
-        return Number.isFinite(amount) ? amount : null;
-      };
-
-      const isValidPhone = (normalizedDigits) => {
-        const digits = normalizePhone(normalizedDigits);
-        // Allow 9-12 digits to cover common VN formats (0xxxxxxxxx, 84xxxxxxxxx, etc.)
-        return digits.length >= 9 && digits.length <= 12;
-      };
-
-      const normalizePhone = (value) => {
-        if (!value) return '';
-        return String(value).replace(/[^0-9]/g, '');
-      };
+      const normalizePhone = (value) => window.KTM.phone.normalize(value);
 
       const lookupCustomerByPhone = async (rawPhone) => {
         const phone = normalizePhone(rawPhone);
@@ -5258,8 +5037,10 @@
         const requestId = ++phoneLookupRequestIdRef.current;
         setCustomerLookup({ status: 'loading', phone });
         try {
-          const res = await fetch(`${API_BASE}/api/customers?phone=${encodeURIComponent(phone)}`);
-          const data = await res.json();
+          const data = await window.KTM.api.getJSON(
+            `${API_BASE}/api/customers?phone=${encodeURIComponent(phone)}`,
+            'Lỗi tra cứu khách'
+          );
           if (phoneLookupRequestIdRef.current !== requestId) return;
 
           if (data && data.exists && data.customer) {
@@ -5383,46 +5164,14 @@
       };
 
       const sortedOrders = React.useMemo(() => {
-        const statusRank = { pending: 0, processing: 1, done: 2, paid: 3 };
-        const getRank = (status) => (status in statusRank ? statusRank[status] : 99);
-        const getCreatedTime = (value) => {
-          if (!value) return Number.POSITIVE_INFINITY;
-          const t = new Date(value).getTime();
-          return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
-        };
-
-        return [...(orders || [])].sort((a, b) => {
-          const ra = getRank(a?.status);
-          const rb = getRank(b?.status);
-          if (ra !== rb) return ra - rb;
-
-          const ta = getCreatedTime(a?.created_at);
-          const tb = getCreatedTime(b?.created_at);
-          // Newest first within the same status
-          if (ta !== tb) return tb - ta;
-
-          const ia = Number(a?.id);
-          const ib = Number(b?.id);
-          if (Number.isFinite(ia) && Number.isFinite(ib)) return ib - ia;
-          return String(a?.id || '').localeCompare(String(b?.id || ''));
-        });
+        return window.KTM.orders.sortOrders(orders);
       }, [orders]);
 
-      const formatDateTime = (value) => {
-        if (!value) return '';
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return String(value);
-        try {
-          return d.toLocaleString('vi-VN');
-        } catch {
-          return d.toISOString();
-        }
-      };
+      const formatDateTime = (value) => window.KTM.date.formatDateTime(value);
 
       const loadProducts = async () => {
         try {
-          const res = await fetch(`${API_BASE}/api/products`);
-          const data = await res.json();
+          const data = await window.KTM.api.getJSON(`${API_BASE}/api/products`, 'Lỗi tải sản phẩm');
           setProducts(Array.isArray(data) ? data : []);
         } catch (e) {
           console.error('Load products error:', e);
@@ -5435,8 +5184,7 @@
         try {
           let url = `${API_BASE}/api/orders`;
           if (filterMonth) url += `?month=${filterMonth}`;
-          const res = await fetch(url);
-          const data = await res.json();
+          const data = await window.KTM.api.getJSON(url, 'Lỗi tải đơn hàng');
           setOrders(Array.isArray(data) ? data : []);
         } catch (e) {
           console.error('Load orders error:', e);
@@ -5466,33 +5214,39 @@
         }
         setSaving(true);
         try {
-          const method = editingId ? "PUT" : "POST";
           const url = editingId 
             ? `${API_BASE}/api/orders/${editingId}` 
             : `${API_BASE}/api/orders`;
 
           const primary = normalizedItems[0];
-          await fetch(url, {
-            method,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              customer_name: form.customer_name,
-              phone: normalizedPhone,
-              address: form.address,
-              adjustment_amount: parseSignedMoney(form.adjustment_amount),
-              adjustment_note: (form.adjustment_note || '').trim(),
-              // Back-compat fields (API will normalize from items anyway)
-              product_id: primary.product_id,
-              quantity: primary.quantity,
-              status: form.status,
-              items: normalizedItems,
-              ...(editingId ? { id: editingId } : {}),
-            })
-          });
+          const payload = {
+            customer_name: form.customer_name,
+            phone: normalizedPhone,
+            address: form.address,
+            adjustment_amount: parseSignedMoney(form.adjustment_amount),
+            adjustment_note: (form.adjustment_note || '').trim(),
+            // Back-compat fields (API will normalize from items anyway)
+            product_id: primary.product_id,
+            quantity: primary.quantity,
+            status: form.status,
+            items: normalizedItems,
+            ...(editingId ? { id: editingId } : {}),
+          };
+
+          if (editingId) {
+            await window.KTM.api.putJSON(url, payload, 'Lỗi lưu đơn hàng');
+          } else {
+            await window.KTM.api.postJSON(url, payload, 'Lỗi lưu đơn hàng');
+          }
           setForm({ customer_name: "", phone: "", address: "", items: [{ product_id: "", quantity: 1 }], adjustment_amount: 0, adjustment_note: "", status: "pending" });
           setEditingId(null);
           setShowModal(false);
           loadOrders();
+        } catch (err) {
+          console.error(err);
+          if (typeof showToast === 'function') showToast(err.message, 'danger');
+          else alert(err.message);
+          return;
         } finally {
           setSaving(false);
         }
@@ -5570,62 +5324,21 @@
         });
       };
 
-      const getOrderItems = (order) => {
-        if (Array.isArray(order?.items) && order.items.length) return order.items;
-        if (order?.product_id) return [{ product_id: order.product_id, quantity: Number(order.quantity || 1) || 1, product_name: order.product_name }];
-        return [];
+      const getProductById = (pid) => {
+        if (!pid) return null;
+        const id = String(pid);
+        return products.find(x => String(x?.id) === id) || null;
       };
 
-      const getOrderTotalQty = (order) => {
-        const items = getOrderItems(order);
-        const sum = items.reduce((acc, it) => acc + (Number(it?.quantity || 0) || 0), 0);
-        if (sum > 0) return sum;
-        const legacy = Number(order?.total_quantity ?? order?.quantity ?? 0);
-        return Number.isFinite(legacy) ? legacy : 0;
-      };
+      const getOrderItems = (order) => window.KTM.orders.getOrderItems(order);
 
-      const getOrderProductSummary = (order) => {
-        const items = getOrderItems(order);
-        if (!items.length) return '—';
+      const getOrderTotalQty = (order) => window.KTM.orders.getOrderTotalQty(order);
 
-        const names = items
-          .map((it) => {
-            const fromItem = it?.product_name;
-            if (fromItem) return String(fromItem);
-            const pid = String(it?.product_id || '');
-            const p = products.find(x => String(x?.id) === pid);
-            return p?.name ? String(p.name) : '';
-          })
-          .filter(Boolean);
+      const getOrderProductSummary = (order) => window.KTM.orders.getOrderProductSummary(order, getProductById);
 
-        if (names.length) return names.join(' + ');
+      const getOrderItemRows = (order) => window.KTM.orders.getOrderItemRows(order, getProductById);
 
-        // Final fallback (legacy)
-        return order?.product_name || '—';
-      };
-
-      const getOrderItemRows = (order) => {
-        const items = getOrderItems(order);
-        if (!items.length) return [];
-
-        return items
-          .map((it) => {
-            const fromItem = it?.product_name;
-            const pid = String(it?.product_id || '');
-            const p = products.find(x => String(x?.id) === pid);
-            const name = (fromItem || p?.name || '').toString().trim();
-            const qty = Number(it?.quantity ?? 1) || 1;
-            return { name, qty };
-          })
-          .filter((x) => x.name);
-      };
-
-      const getOrderAdjustmentMoney = (order) => {
-        const v = order?.adjustment_amount;
-        if (typeof v === 'number') return Number.isFinite(v) ? Math.trunc(v) : 0;
-        const n = Number(v);
-        return Number.isFinite(n) ? Math.trunc(n) : 0;
-      };
+      const getOrderAdjustmentMoney = (order) => window.KTM.orders.getOrderAdjustmentMoney(order);
 
       const getOrderCopyText = (order) => {
         const items = getOrderItems(order);
@@ -5664,28 +5377,10 @@
         return parts.filter(Boolean).join('\n');
       };
 
-      const copyTextToClipboard = async (text) => {
-        if (navigator?.clipboard?.writeText) {
-          await navigator.clipboard.writeText(text);
-          return;
-        }
-
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand('copy');
-        document.body.removeChild(ta);
-        if (!ok) throw new Error('copy_failed');
-      };
-
       const handleCopyOrder = async (order) => {
         try {
           const text = getOrderCopyText(order);
-          await copyTextToClipboard(text);
+          await window.KTM.clipboard.writeText(text);
           if (typeof showToast === 'function') showToast('Đã copy thông tin đơn hàng', 'success');
           else alert('Đã copy thông tin đơn hàng');
         } catch (err) {
@@ -5695,47 +5390,22 @@
         }
       };
 
-      const getOrderShipInfo = (items) => {
-        const arr = Array.isArray(items) ? items : [];
-        let found = false;
-        let maxFee = 0;
-        for (const it of arr) {
-          const pid = String(it?.product_id || '');
-          const p = products.find(x => String(x?.id) === pid);
-          const note = it?.product_note ?? p?.note ?? null;
-          const fee = parseShipFeeFromNote(note);
-          if (fee == null) continue;
-          found = true;
-          if (fee > maxFee) maxFee = fee;
-        }
-        return { found, fee: maxFee };
-      };
+      const getOrderShipInfo = (items) => window.KTM.orders.getOrderShipInfo(items, getProductById);
 
-      const getItemsSubtotal = (items) => {
-        const arr = Array.isArray(items) ? items : [];
-        return arr.reduce((sum, it) => {
-          const qty = Number(it?.quantity || 0) || 0;
-          const pid = String(it?.product_id || '');
-          const p = products.find(x => String(x?.id) === pid);
-          const unitPrice = parseMoney(it?.product_price ?? p?.price);
-          return sum + (qty * unitPrice);
-        }, 0);
-      };
+      const getItemsSubtotal = (items) => window.KTM.orders.getItemsSubtotal(items, getProductById);
 
-      const getOrderTotalMoney = (order) => {
-        const items = getOrderItems(order);
-        const subtotal = getItemsSubtotal(items);
-        const ship = getOrderShipInfo(items).fee;
-        const adj = getOrderAdjustmentMoney(order);
-        return subtotal + ship + adj;
-      };
+      const getOrderTotalMoney = (order) => window.KTM.orders.getOrderTotalMoney(order, getProductById);
 
       const deleteOrder = async (id) => {
         if (!confirm("Xóa đơn hàng này?")) return;
         setDeletingId(id);
         try {
-          await fetch(`${API_BASE}/api/orders/${id}`, { method: "DELETE" });
+          await window.KTM.api.deleteJSON(`${API_BASE}/api/orders/${id}`, 'Lỗi xóa đơn hàng');
           loadOrders();
+        } catch (err) {
+          console.error(err);
+          if (typeof showToast === 'function') showToast(err.message, 'danger');
+          else alert(err.message);
         } finally {
           setDeletingId(null);
         }

@@ -5,6 +5,7 @@ import { transform } from 'esbuild';
 const root = path.resolve(process.cwd());
 
 const targets = [
+  { input: 'admin-helpers.js', output: 'dist/admin-helpers.js' },
   { input: 'admin.js', output: 'dist/admin.js' },
   { input: 'app.js', output: 'dist/app.js' },
 
