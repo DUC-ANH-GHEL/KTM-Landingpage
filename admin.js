@@ -2359,12 +2359,12 @@
                   <i className="fas fa-receipt"></i> Tạo đơn
                 </button>
               )}
-              <button 
+              {/* <button 
                 className={copiedId === item.id + '-img' ? 'copied' : ''}
                 onClick={() => copyImage(item.image, item.id)}
               >
                 <i className="fas fa-image"></i> Ảnh
-              </button>
+              </button> */}
               {item.price && (
                 <button 
                   className={copiedId === item.id + '-price' ? 'copied' : ''}
