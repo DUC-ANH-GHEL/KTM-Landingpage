@@ -3,6 +3,8 @@
     { "source": "/api/orders", "destination": "/api/orders-handler" },
     { "source": "/api/orders/:id", "destination": "/api/orders-handler?id=:id" },
 
+    { "source": "/api/customers", "destination": "/api/orders-handler?resource=customers" },
+
     { "source": "/api/video-folders", "destination": "/api/video-folders-handler" },
     { "source": "/api/video-folders/:id", "destination": "/api/video-folders-handler?id=:id" }
   ]

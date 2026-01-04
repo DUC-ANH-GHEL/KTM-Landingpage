@@ -4599,6 +4599,7 @@
       const [deletingId, setDeletingId] = useState(null);
       const [filterMonth, setFilterMonth] = useState('');
       const [showModal, setShowModal] = useState(false);
+      const [customerLookup, setCustomerLookup] = useState(null);
       const [form, setForm] = useState({
         customer_name: "",
         phone: "",
@@ -4610,6 +4611,64 @@
       const [products, setProducts] = useState([]);
       const [editingId, setEditingId] = useState(null);
       const lastAutoOpenCreateTokenRef = useRef(null);
+      const phoneLookupTimerRef = useRef(null);
+      const phoneLookupRequestIdRef = useRef(0);
+
+      const normalizePhone = (value) => {
+        if (!value) return '';
+        return String(value).replace(/[^0-9]/g, '');
+      };
+
+      const lookupCustomerByPhone = async (rawPhone) => {
+        const phone = normalizePhone(rawPhone);
+        if (!phone) return;
+
+        const requestId = ++phoneLookupRequestIdRef.current;
+        setCustomerLookup({ status: 'loading', phone });
+        try {
+          const res = await fetch(`${API_BASE}/api/customers?phone=${encodeURIComponent(phone)}`);
+          const data = await res.json();
+          if (phoneLookupRequestIdRef.current !== requestId) return;
+
+          if (data && data.exists && data.customer) {
+            setCustomerLookup({ status: 'found', phone, customer: data.customer });
+            setForm((prev) => {
+              if (normalizePhone(prev.phone) !== phone) return prev;
+              return {
+                ...prev,
+                customer_name: data.customer.name || prev.customer_name,
+                address: data.customer.address || prev.address,
+              };
+            });
+            return;
+          }
+
+          setCustomerLookup({ status: 'not-found', phone });
+        } catch (e) {
+          if (phoneLookupRequestIdRef.current !== requestId) return;
+          console.error('Customer lookup error:', e);
+          setCustomerLookup({ status: 'error', phone });
+        }
+      };
+
+      const handlePhoneChange = (nextPhone) => {
+        setForm((prev) => ({ ...prev, phone: nextPhone }));
+
+        if (phoneLookupTimerRef.current) {
+          clearTimeout(phoneLookupTimerRef.current);
+          phoneLookupTimerRef.current = null;
+        }
+
+        const normalized = normalizePhone(nextPhone);
+        if (normalized.length < 8) {
+          setCustomerLookup(null);
+          return;
+        }
+
+        phoneLookupTimerRef.current = setTimeout(() => {
+          lookupCustomerByPhone(nextPhone);
+        }, 350);
+      };
 
       // Lock background scroll + hide bottom nav when modal open (especially on iOS)
       useEffect(() => {
@@ -4625,6 +4684,15 @@
           document.body.style.overflow = '';
         };
       }, [showModal]);
+
+      useEffect(() => {
+        return () => {
+          if (phoneLookupTimerRef.current) {
+            clearTimeout(phoneLookupTimerRef.current);
+            phoneLookupTimerRef.current = null;
+          }
+        };
+      }, []);
 
       useEffect(() => {
         loadProducts();
@@ -4736,12 +4804,18 @@
           quantity: Number(order.quantity || 1),
           status: order.status || "pending",
         });
+        setCustomerLookup(null);
         setShowModal(true);
+
+        if (order.phone) {
+          lookupCustomerByPhone(order.phone);
+        }
       };
 
       function openCreateModal() {
         setEditingId(null);
         setForm({ customer_name: "", phone: "", address: "", product_id: "", quantity: 1, status: "pending" });
+        setCustomerLookup(null);
         setShowModal(true);
       }
 
@@ -4750,6 +4824,7 @@
         setShowModal(false);
         setEditingId(null);
         setForm({ customer_name: "", phone: "", address: "", product_id: "", quantity: 1, status: "pending" });
+        setCustomerLookup(null);
       };
 
       const deleteOrder = async (id) => {
@@ -4946,11 +5021,23 @@
                           <input
                             className="form-control"
                             value={form.phone}
-                            onChange={e => setForm({ ...form, phone: e.target.value })}
+                            onChange={e => handlePhoneChange(e.target.value)}
                             placeholder="Nhập số điện thoại"
                             required
                             style={{ borderRadius: 10, padding: 12 }}
                           />
+                          {customerLookup?.status === 'loading' && (
+                            <div className="form-text">Đang tìm khách theo SĐT...</div>
+                          )}
+                          {customerLookup?.status === 'found' && (
+                            <div className="form-text text-success">Đã có khách, tự động điền thông tin.</div>
+                          )}
+                          {customerLookup?.status === 'not-found' && (
+                            <div className="form-text text-muted">Chưa có khách, sẽ tạo mới khi lưu đơn.</div>
+                          )}
+                          {customerLookup?.status === 'error' && (
+                            <div className="form-text text-danger">Không tra được khách (lỗi mạng/server).</div>
+                          )}
                         </div>
                         <div className="col-12 col-md-6">
                           <label className="form-label fw-semibold small text-muted mb-1">Trạng thái</label>
