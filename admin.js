@@ -1599,6 +1599,74 @@
         return { allowedTypes, includeAlbum, includeVideo, contentTokens, cleanedQuery };
       };
 
+      const scoreItemMatch = (item, contentTokens, cleanedQuery) => {
+        const tokens = Array.isArray(contentTokens) ? contentTokens : [];
+        const phrase = normalizeText(cleanedQuery).trim();
+        if (!tokens.length && !phrase) return 0;
+
+        const name = normalizeText(item?.name ?? '');
+        const code = normalizeText(item?.code ?? '');
+        const category = normalizeText(item?.category ?? '');
+        const note = normalizeText(item?.note ?? '');
+        const folder = normalizeText(item?.folder ?? '');
+
+        const haystackAll = `${name} ${code} ${category} ${note} ${folder}`.trim();
+        if (!haystackAll) return 0;
+
+        let score = 0;
+
+        // Phrase-level boosts (best match first)
+        if (phrase) {
+          if (name === phrase) score += 220;
+          if (name.includes(phrase)) score += 140;
+          if (name.startsWith(phrase)) score += 160;
+          if (code && code === phrase) score += 180;
+          if (code && code.includes(phrase)) score += 90;
+        }
+
+        // Token-level boosts
+        for (const t of tokens) {
+          if (!t) continue;
+          const reWordStart = new RegExp(`(?:^|\\s)${t.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}`);
+
+          if (name.includes(t)) score += 35;
+          if (reWordStart.test(name)) score += 25;
+
+          if (code && code.includes(t)) score += 20;
+          if (code && reWordStart.test(code)) score += 10;
+
+          if (category && category.includes(t)) score += 12;
+          if (folder && folder.includes(t)) score += 12;
+
+          if (note && note.includes(t)) score += 6;
+        }
+
+        // Slight preference for shorter names when tied
+        if (score > 0 && name) score += Math.max(0, 10 - Math.min(10, Math.floor(name.length / 10)));
+
+        return score;
+      };
+
+      const sortByRelevance = (items, contentTokens, cleanedQuery) => {
+        const arr = Array.isArray(items) ? items : [];
+        if (!arr.length) return [];
+
+        const scored = arr
+          .map((it, idx) => ({
+            it,
+            idx,
+            score: scoreItemMatch(it, contentTokens, cleanedQuery),
+          }))
+          .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            // stable fallback
+            return a.idx - b.idx;
+          })
+          .map(x => x.it);
+
+        return scored;
+      };
+
       // AI-powered search function
       const performAISearch = async (query, basicResults) => {
         if (!aiSearchEnabled || basicResults.length === 0) return;
@@ -1624,9 +1692,11 @@
 
           if (data && data.matchedIds && data.matchedIds.length > 0) {
             // Filter results to only include AI-matched items
-            const aiFiltered = basicResults.filter(item => 
-              data.matchedIds.includes(item.id)
-            );
+            const { contentTokens, cleanedQuery } = parseSearchIntent(query);
+            const matchedSet = new Set(data.matchedIds);
+            const aiFiltered = basicResults
+              .filter(item => matchedSet.has(item.id))
+              .sort((a, b) => scoreItemMatch(b, contentTokens, cleanedQuery) - scoreItemMatch(a, contentTokens, cleanedQuery));
             if (aiFiltered.length > 0) {
               setSearchResults(aiFiltered);
             }
@@ -1682,7 +1752,7 @@
           );
         }
         
-        setSearchResults(finalResults);
+        setSearchResults(sortByRelevance(finalResults, contentTokens, cleanedQuery));
 
         // Trigger AI search after debounce (500ms)
         if (aiSearchEnabled && cleanedQuery.length >= 3) {
@@ -1697,6 +1767,7 @@
         setSelectedCategory(cat);
         
         const { allowedTypes, contentTokens } = parseSearchIntent(searchQuery);
+        const { cleanedQuery } = parseSearchIntent(searchQuery);
 
         let filtered = allData.filter(item => allowedTypes.has(item?._type));
         if (cat !== 'all') {
@@ -1719,7 +1790,7 @@
           }
         }
 
-        setSearchResults(filtered);
+        setSearchResults(sortByRelevance(filtered, contentTokens, cleanedQuery));
       };
 
       // Copy helpers
