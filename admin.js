@@ -4577,7 +4577,8 @@
             }
 
             const shipInfo = getShipFeeForItems(items);
-            const orderRevenue = orderRevenueProducts + (shipInfo.found ? shipInfo.fee : 0);
+            const adj = Number(o?.adjustment_amount ?? 0) || 0;
+            const orderRevenue = orderRevenueProducts + (shipInfo.found ? shipInfo.fee : 0) + adj;
 
             totalQty += orderQty;
             totalRevenue += orderRevenue;
@@ -5119,6 +5120,8 @@
         phone: "",
         address: "",
         items: [{ product_id: "", quantity: 1 }],
+        adjustment_amount: 0,
+        adjustment_note: "",
         status: "pending"
       });
       const [itemSearches, setItemSearches] = useState(['']);
@@ -5149,6 +5152,17 @@
         if (value == null) return 0;
         const digits = String(value).replace(/[^0-9]/g, '');
         return digits ? Number(digits) : 0;
+      };
+
+      const parseSignedMoney = (value) => {
+        if (value == null || value === '') return 0;
+        if (typeof value === 'number') return Number.isFinite(value) ? Math.trunc(value) : 0;
+        const s = String(value).trim();
+        if (!s) return 0;
+        const isNeg = /^\s*-/.test(s);
+        const digits = s.replace(/[^0-9]/g, '');
+        const n = digits ? Number(digits) : 0;
+        return isNeg ? -n : n;
       };
 
       const formatVND = (n) => {
@@ -5424,6 +5438,8 @@
               customer_name: form.customer_name,
               phone: normalizedPhone,
               address: form.address,
+              adjustment_amount: parseSignedMoney(form.adjustment_amount),
+              adjustment_note: (form.adjustment_note || '').trim(),
               // Back-compat fields (API will normalize from items anyway)
               product_id: primary.product_id,
               quantity: primary.quantity,
@@ -5432,7 +5448,7 @@
               ...(editingId ? { id: editingId } : {}),
             })
           });
-          setForm({ customer_name: "", phone: "", address: "", items: [{ product_id: "", quantity: 1 }], status: "pending" });
+          setForm({ customer_name: "", phone: "", address: "", items: [{ product_id: "", quantity: 1 }], adjustment_amount: 0, adjustment_note: "", status: "pending" });
           setEditingId(null);
           setShowModal(false);
           loadOrders();
@@ -5456,6 +5472,8 @@
           phone: normalizePhone(order.phone || ""),
           address: order.address || "",
           items: items.length ? items : [{ product_id: "", quantity: 1 }],
+          adjustment_amount: Number(order?.adjustment_amount ?? 0) || 0,
+          adjustment_note: order?.adjustment_note || "",
           status: order.status || "pending",
         });
         setItemSearches(new Array(items.length ? items.length : 1).fill(''));
@@ -5474,6 +5492,8 @@
           phone: "",
           address: "",
           items: [{ product_id: presetProductId || "", quantity: 1 }],
+          adjustment_amount: 0,
+          adjustment_note: "",
           status: "pending"
         });
         setItemSearches(['']);
@@ -5485,7 +5505,7 @@
         if (saving) return;
         setShowModal(false);
         setEditingId(null);
-        setForm({ customer_name: "", phone: "", address: "", items: [{ product_id: "", quantity: 1 }], status: "pending" });
+        setForm({ customer_name: "", phone: "", address: "", items: [{ product_id: "", quantity: 1 }], adjustment_amount: 0, adjustment_note: "", status: "pending" });
         setItemSearches(['']);
         setOpenProductDropdownIdx(null);
         setCustomerLookup(null);
@@ -5559,13 +5579,21 @@
           .filter((x) => x.name);
       };
 
+      const getOrderAdjustmentMoney = (order) => {
+        const v = order?.adjustment_amount;
+        if (typeof v === 'number') return Number.isFinite(v) ? Math.trunc(v) : 0;
+        const n = Number(v);
+        return Number.isFinite(n) ? Math.trunc(n) : 0;
+      };
+
       const getOrderCopyText = (order) => {
         const items = getOrderItems(order);
         const rows = getOrderItemRows(order);
         const subtotal = getItemsSubtotal(items);
         const shipInfo = getOrderShipInfo(items);
         const ship = shipInfo.fee;
-        const total = subtotal + ship;
+        const adj = getOrderAdjustmentMoney(order);
+        const total = subtotal + ship + adj;
 
         const parts = [];
         parts.push(`ĐƠN HÀNG #${order?.id ?? ''}`.trim());
@@ -5589,6 +5617,8 @@
         parts.push('');
         parts.push(`Tạm tính: ${formatVND(subtotal)}`);
         parts.push(`Ship: ${formatVND(shipInfo.found ? ship : 0)}`);
+        if (adj !== 0) parts.push(`Điều chỉnh: ${formatVND(adj)}`);
+        if (order?.adjustment_note) parts.push(`Ghi chú điều chỉnh: ${order.adjustment_note}`);
         parts.push(`Tổng: ${formatVND(total)}`);
         return parts.filter(Boolean).join('\n');
       };
@@ -5655,7 +5685,8 @@
         const items = getOrderItems(order);
         const subtotal = getItemsSubtotal(items);
         const ship = getOrderShipInfo(items).fee;
-        return subtotal + ship;
+        const adj = getOrderAdjustmentMoney(order);
+        return subtotal + ship + adj;
       };
 
       const deleteOrder = async (id) => {
@@ -5777,6 +5808,15 @@
                             })()}
                           </div>
                           <div><span className="text-muted">Số lượng:</span> <span className="fw-semibold">{getOrderTotalQty(order)}</span></div>
+                          {(getOrderAdjustmentMoney(order) !== 0 || (order?.adjustment_note || '').trim()) && (
+                            <div style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                              <span className="text-muted">Điều chỉnh:</span>{' '}
+                              <span className="fw-semibold">{formatVND(getOrderAdjustmentMoney(order))}</span>
+                              {(order?.adjustment_note || '').trim() ? (
+                                <span className="text-muted">{' '}({(order.adjustment_note || '').trim()})</span>
+                              ) : null}
+                            </div>
+                          )}
                           <div><span className="text-muted">Tổng tiền:</span> <span className="fw-semibold">{formatVND(getOrderTotalMoney(order))}</span></div>
                           <div><span className="text-muted">Thời gian:</span> {formatDateTime(order.created_at)}</div>
                         </div>
@@ -5934,6 +5974,30 @@
                             value={form.address}
                             onChange={e => setForm({ ...form, address: e.target.value })}
                             placeholder="Nhập địa chỉ (không bắt buộc)"
+                            style={{ borderRadius: 10, padding: 12 }}
+                          />
+                        </div>
+
+                        <div className="col-12 col-md-6">
+                          <label className="form-label fw-semibold small text-muted mb-1">Điều chỉnh giá (thêm/bớt)</label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={form.adjustment_amount}
+                            onChange={e => setForm({ ...form, adjustment_amount: e.target.value })}
+                            placeholder="-20000 hoặc 20000"
+                            step="1000"
+                            style={{ borderRadius: 10, padding: 12 }}
+                          />
+                          <div className="form-text">Âm = giảm giá, dương = cộng thêm.</div>
+                        </div>
+                        <div className="col-12 col-md-6">
+                          <label className="form-label fw-semibold small text-muted mb-1">Ghi chú điều chỉnh</label>
+                          <input
+                            className="form-control"
+                            value={form.adjustment_note}
+                            onChange={e => setForm({ ...form, adjustment_note: e.target.value })}
+                            placeholder="Ví dụ: Giảm giá cho khách / Bù phí đóng gói..."
                             style={{ borderRadius: 10, padding: 12 }}
                           />
                         </div>
@@ -6103,7 +6167,8 @@
                           const normalizedItems = items.filter(it => it?.product_id);
                           const subtotal = getItemsSubtotal(normalizedItems);
                           const shipInfo = getOrderShipInfo(normalizedItems);
-                          const total = subtotal + (shipInfo.found ? shipInfo.fee : 0);
+                          const adj = parseSignedMoney(form.adjustment_amount);
+                          const total = subtotal + (shipInfo.found ? shipInfo.fee : 0) + adj;
 
                           return (
                             <div className="col-12">
@@ -6116,6 +6181,17 @@
                                   <div className="d-flex justify-content-between">
                                     <span className="text-muted">Ship</span>
                                     <span className="fw-semibold">{formatVND(shipInfo.fee)}</span>
+                                  </div>
+                                )}
+                                {adj !== 0 && (
+                                  <div className="d-flex justify-content-between">
+                                    <span className="text-muted">Điều chỉnh</span>
+                                    <span className="fw-semibold">{formatVND(adj)}</span>
+                                  </div>
+                                )}
+                                {(form.adjustment_note || '').trim() && (
+                                  <div className="text-muted" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                    Ghi chú: {(form.adjustment_note || '').trim()}
                                   </div>
                                 )}
                                 <div className="d-flex justify-content-between pt-1 border-top">

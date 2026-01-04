@@ -31,6 +31,10 @@ async function ensureSchema() {
   // Some older schemas may not have updated_at on orders
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`;
 
+  // Order-level adjustment (discount/surcharge)
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS adjustment_amount INTEGER DEFAULT 0`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS adjustment_note TEXT`;
+
   // Order items (multi-product per order)
   await sql`
     CREATE TABLE IF NOT EXISTS order_items (
@@ -227,6 +231,8 @@ export default async function handler(req, res) {
             o.status,
             o.created_at,
             o.customer_id,
+            o.adjustment_amount,
+            o.adjustment_note,
             p0.name AS product_name,
             p0.price AS product_price,
             p0.code AS product_code,
@@ -272,6 +278,8 @@ export default async function handler(req, res) {
           o.status,
           o.created_at,
           o.customer_id,
+          o.adjustment_amount,
+          o.adjustment_note,
           p0.name AS product_name,
           p0.price AS product_price,
           p0.code AS product_code,
@@ -317,7 +325,7 @@ export default async function handler(req, res) {
       if (id) {
         return res.status(400).json({ error: 'Use /api/orders for creating orders (no id in URL)' });
       }
-      const { customer_name, phone, address, product_id, quantity, status, items } = req.body;
+      const { customer_name, phone, address, product_id, quantity, status, items, adjustment_amount, adjustment_note } = req.body;
 
       const normalizedPhone = normalizePhone(phone);
       if (!normalizedPhone) {
@@ -336,9 +344,13 @@ export default async function handler(req, res) {
       }
       const primary = normalizedItems[0];
 
+      const adj = Number(adjustment_amount);
+      const adjAmount = Number.isFinite(adj) ? Math.trunc(adj) : 0;
+      const adjNote = adjustment_note != null && String(adjustment_note).trim() ? String(adjustment_note).trim() : null;
+
       const created = await sql`
-        INSERT INTO orders (customer_id, product_id, quantity, status)
-        VALUES (${customer.id}, ${primary.product_id}, ${primary.quantity}, ${status})
+        INSERT INTO orders (customer_id, product_id, quantity, status, adjustment_amount, adjustment_note)
+        VALUES (${customer.id}, ${primary.product_id}, ${primary.quantity}, ${status}, ${adjAmount}, ${adjNote})
         RETURNING id
       `;
 
@@ -360,7 +372,7 @@ export default async function handler(req, res) {
     if (req.method === 'PUT') {
       if (!id) return res.status(400).json({ error: 'Order ID is required' });
 
-      const { customer_name, phone, address, product_id, quantity, status, items } = req.body;
+      const { customer_name, phone, address, product_id, quantity, status, items, adjustment_amount, adjustment_note } = req.body;
       const normalizedPhone = normalizePhone(phone);
       if (!normalizedPhone) {
         return res.status(400).json({ error: 'phone is required' });
@@ -378,12 +390,19 @@ export default async function handler(req, res) {
       }
       const primary = normalizedItems[0];
 
+      const adj = Number(adjustment_amount);
+      const adjAmount = Number.isFinite(adj) ? Math.trunc(adj) : 0;
+      const adjNote = adjustment_note != null && String(adjustment_note).trim() ? String(adjustment_note).trim() : null;
+
       await sql`
         UPDATE orders SET
           customer_id = ${customer.id},
           product_id = ${primary.product_id},
           quantity = ${primary.quantity},
-          status = ${status}
+          status = ${status},
+          adjustment_amount = ${adjAmount},
+          adjustment_note = ${adjNote},
+          updated_at = NOW()
         WHERE id = ${id}
       `;
 
