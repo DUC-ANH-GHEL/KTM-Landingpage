@@ -128,8 +128,8 @@ function smartLocalFilter(query, products) {
   const fixedQuery = fixTypos(query);
   const lowerQuery = fixedQuery.toLowerCase().trim();
   const normalizedQuery = removeVietnameseTones(lowerQuery);
-  
-  console.log('Query processing:', { original: query, fixed: fixedQuery, normalized: normalizedQuery });
+  const debug = process.env.DEBUG_AI_SEARCH === '1';
+  if (debug) console.log('Query processing:', { original: query, fixed: fixedQuery, normalized: normalizedQuery });
   
   // 1. Phân tích TYPE filter (ảnh/album, video, sản phẩm)
   // Dùng regex đơn giản hơn để match cả có dấu và không dấu
@@ -215,7 +215,7 @@ function smartLocalFilter(query, products) {
     .filter(w => !['và', 'hoặc', 'với', 'cho', 'của', 'cái', 'loại', 'tìm', 'kiếm'].includes(w));
 
   // DEBUG log
-  console.log('Query analysis:', {
+  if (debug) console.log('Query analysis:', {
     original: query,
     typeFilter,
     tayNum,

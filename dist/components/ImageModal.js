@@ -1,0 +1,2 @@
+function ImageModal({src:i,onClose:a}){return React.createElement("div",{className:"modal-overlay",onClick:a},React.createElement("div",{className:"image-modal-container",onClick:l=>l.stopPropagation()},React.createElement("img",{src:i,alt:"Enlarged",className:"img-fluid rounded image-modal-img"}),React.createElement("button",{className:"image-modal-close",onClick:a},React.createElement("i",{className:"fas fa-times"}))))}
+

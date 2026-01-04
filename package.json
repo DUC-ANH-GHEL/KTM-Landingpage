@@ -2,10 +2,12 @@
   "scripts": {
       "_dev_disabled": "vercel dev",
     "_start_disabled": "vercel dev",
+    "build:jsx": "node scripts/build-jsx.mjs",
     "serve": "npx serve -p 8000"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.5",
-    "aos": "^2.3.4"
+    "aos": "^2.3.4",
+    "esbuild": "^0.24.2"
   }
 }

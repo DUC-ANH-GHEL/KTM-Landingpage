@@ -69,24 +69,23 @@
   <!-- Non-Critical JS Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js" defer></script>
 
-  <!-- React + Babel -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.10/babel.min.js"></script>
+  <!-- React -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" defer></script>
   
   <!-- Components (load order matters) -->
-  <script type="text/babel" src="components/ImageModal.js"></script>
-  <script type="text/babel" src="components/AiChatWidget.js"></script>
-  <script type="text/babel" src="components/GlobalSearchBar.js"></script>
-  <script type="text/babel" src="components/Layout.js"></script>
-  <script type="text/babel" src="components/ProductShowcase.js"></script>
-  <script type="text/babel" src="components/ProductComponents.js"></script>
-  <script type="text/babel" src="components/MediaComponents.js"></script>
-  <script type="text/babel" src="components/MiniGame.js"></script>
-  <script type="text/babel" src="components/AlbumGallery.js"></script>
+  <script src="dist/components/ImageModal.js" defer></script>
+  <script src="dist/components/AiChatWidget.js" defer></script>
+  <script src="dist/components/GlobalSearchBar.js" defer></script>
+  <script src="dist/components/Layout.js" defer></script>
+  <script src="dist/components/ProductShowcase.js" defer></script>
+  <script src="dist/components/ProductComponents.js" defer></script>
+  <script src="dist/components/MediaComponents.js" defer></script>
+  <script src="dist/components/MiniGame.js" defer></script>
+  <script src="dist/components/AlbumGallery.js" defer></script>
   
   <!-- Main App (uses all components above) -->
-  <script type="text/babel" src="app.js"></script>
+  <script src="dist/app.js" defer></script>
   
   <!-- Animation Libraries -->
   <script src="https://unpkg.com/aos@2.3.4/dist/aos.js" defer></script>
