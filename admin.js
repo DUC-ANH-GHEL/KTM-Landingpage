@@ -4613,6 +4613,13 @@
       const lastAutoOpenCreateTokenRef = useRef(null);
       const phoneLookupTimerRef = useRef(null);
       const phoneLookupRequestIdRef = useRef(0);
+      const PHONE_LOOKUP_MIN_LEN = 3;
+
+      const isValidPhone = (normalizedDigits) => {
+        const digits = normalizePhone(normalizedDigits);
+        // Allow 9-12 digits to cover common VN formats (0xxxxxxxxx, 84xxxxxxxxx, etc.)
+        return digits.length >= 9 && digits.length <= 12;
+      };
 
       const normalizePhone = (value) => {
         if (!value) return '';
@@ -4660,7 +4667,7 @@
         }
 
         const normalized = normalizePhone(nextPhone);
-        if (normalized.length < 8) {
+        if (normalized.length < PHONE_LOOKUP_MIN_LEN) {
           setCustomerLookup(null);
           return;
         }
@@ -4668,6 +4675,12 @@
         phoneLookupTimerRef.current = setTimeout(() => {
           lookupCustomerByPhone(nextPhone);
         }, 350);
+      };
+
+      const handlePhoneBlur = () => {
+        const normalized = normalizePhone(form.phone);
+        if (normalized.length < PHONE_LOOKUP_MIN_LEN) return;
+        lookupCustomerByPhone(form.phone);
       };
 
       // Lock background scroll + hide bottom nav when modal open (especially on iOS)
@@ -4762,8 +4775,13 @@
       };
 
       const saveOrder = async () => {
-        if (!form.customer_name || !form.phone || !form.product_id) {
+        const normalizedPhone = normalizePhone(form.phone);
+        if (!form.customer_name || !normalizedPhone || !form.product_id) {
           alert("Thiếu dữ liệu bắt buộc");
+          return;
+        }
+        if (!isValidPhone(normalizedPhone)) {
+          alert('Số điện thoại không hợp lệ (cần 9-12 chữ số)');
           return;
         }
         setSaving(true);
@@ -4777,7 +4795,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               customer_name: form.customer_name,
-              phone: form.phone,
+              phone: normalizedPhone,
               address: form.address,
               product_id: form.product_id,
               quantity: Number(form.quantity || 1),
@@ -5020,8 +5038,12 @@
                           <label className="form-label fw-semibold small text-muted mb-1">Số điện thoại *</label>
                           <input
                             className="form-control"
+                            type="tel"
+                            inputMode="numeric"
+                            pattern="[0-9+\s-]*"
                             value={form.phone}
                             onChange={e => handlePhoneChange(e.target.value)}
+                            onBlur={handlePhoneBlur}
                             placeholder="Nhập số điện thoại"
                             required
                             style={{ borderRadius: 10, padding: 12 }}
