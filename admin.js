@@ -4525,6 +4525,8 @@
           let totalQty = 0;
           let totalRevenue = 0;
           let doneRevenue = 0;
+          let totalRevenueNoShip = 0;
+          let doneRevenueNoShip = 0;
 
           const customerKey = (o) => o.customer_id || o.phone || 'unknown';
 
@@ -4579,9 +4581,11 @@
             const shipInfo = getShipFeeForItems(items);
             const adj = Number(o?.adjustment_amount ?? 0) || 0;
             const orderRevenue = orderRevenueProducts + (shipInfo.found ? shipInfo.fee : 0) + adj;
+            const orderRevenueNoShip = orderRevenueProducts + adj;
 
             totalQty += orderQty;
             totalRevenue += orderRevenue;
+            totalRevenueNoShip += orderRevenueNoShip;
 
             const isCompleted = o.status === 'done' || o.status === 'paid';
 
@@ -4591,9 +4595,11 @@
               statusCounts.paid += 1;
               statusCounts.done += 1;
               doneRevenue += orderRevenue;
+              doneRevenueNoShip += orderRevenueNoShip;
             } else if (o.status === 'done') {
               statusCounts.done += 1;
               doneRevenue += orderRevenue;
+              doneRevenueNoShip += orderRevenueNoShip;
             } else statusCounts.other += 1;
 
             const ck = customerKey(o);
@@ -4627,7 +4633,8 @@
 
           const avgOrderValue = orders.length ? Math.round(totalRevenue / orders.length) : 0;
           const avgQtyPerOrder = orders.length ? (totalQty / orders.length) : 0;
-          const tempCommission = Math.round(doneRevenue * 0.05);
+          const tempCommission = Math.round(doneRevenueNoShip * 0.05);
+          const tempCommissionAll = Math.round(totalRevenueNoShip * 0.05);
 
           return {
             statusCounts,
@@ -4635,6 +4642,7 @@
             totalRevenue,
             doneRevenue,
             tempCommission,
+            tempCommissionAll,
             products,
             customers,
             days,
@@ -4720,10 +4728,11 @@
               <div className="col-6 col-md-3">
                 <div className="card p-3 border-0 shadow-sm bg-info bg-opacity-10">
                   <div className="d-flex align-items-center justify-content-between">
-                    <div className="text-muted small">Hoa hồng sẽ nhận (tạm tính 5%)</div>
+                    <div className="text-muted small">Hoa hồng sẽ nhận (tạm tính 5% - không gồm ship)</div>
                     <i className="fas fa-chart-line text-info"></i>
                   </div>
                   <div className="fs-4 fw-semibold text-dark">{formatVND(stats.tempCommission)}</div>
+                  <div className="text-muted small">HH tổng (tạm tính 5% - không gồm ship): {formatVND(stats.tempCommissionAll)}</div>
                 </div>
               </div>
             </div>
@@ -5380,11 +5389,12 @@
 
           const ta = getCreatedTime(a?.created_at);
           const tb = getCreatedTime(b?.created_at);
-          if (ta !== tb) return ta - tb;
+          // Newest first within the same status
+          if (ta !== tb) return tb - ta;
 
           const ia = Number(a?.id);
           const ib = Number(b?.id);
-          if (Number.isFinite(ia) && Number.isFinite(ib)) return ia - ib;
+          if (Number.isFinite(ia) && Number.isFinite(ib)) return ib - ia;
           return String(a?.id || '').localeCompare(String(b?.id || ''));
         });
       }, [orders]);
