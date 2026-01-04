@@ -1570,6 +1570,35 @@
         setTimeout(() => searchInputRef.current?.focus(), 100);
       }, []);
 
+      const normalizeText = (value) => {
+        try {
+          return String(value ?? '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[đĐ]/g, 'd');
+        } catch {
+          return String(value ?? '').toLowerCase();
+        }
+      };
+
+      const parseSearchIntent = (query) => {
+        const qn = normalizeText(query).trim();
+        const tokens = qn.split(/\s+/).filter(Boolean);
+
+        const includeAlbum = tokens.includes('anh');
+        const includeVideo = tokens.includes('video');
+
+        const contentTokens = tokens.filter(t => t !== 'anh' && t !== 'video');
+        const cleanedQuery = contentTokens.join(' ');
+
+        const allowedTypes = new Set(['product']);
+        if (includeAlbum) allowedTypes.add('album');
+        if (includeVideo) allowedTypes.add('video');
+
+        return { allowedTypes, includeAlbum, includeVideo, contentTokens, cleanedQuery };
+      };
+
       // AI-powered search function
       const performAISearch = async (query, basicResults) => {
         if (!aiSearchEnabled || basicResults.length === 0) return;
@@ -1626,18 +1655,23 @@
           return;
         }
 
-        const lowerQuery = query.toLowerCase();
-        const words = lowerQuery.split(/\s+/).filter(w => w.length > 0);
+        const { allowedTypes, contentTokens, cleanedQuery } = parseSearchIntent(query);
 
         const results = allData.filter(item => {
-          // Search through ALL fields
-          const searchableText = Object.entries(item)
-            .filter(([key]) => !key.startsWith('_'))
-            .map(([, value]) => String(value || '').toLowerCase())
-            .join(' ');
+          if (!allowedTypes.has(item?._type)) return false;
 
-          // All words must match somewhere (OR logic for basic, AI will refine)
-          return words.some(word => searchableText.includes(word));
+          if (contentTokens.length === 0) return true;
+
+          // Search through ALL fields
+          const searchableText = normalizeText(
+            Object.entries(item)
+              .filter(([key]) => !key.startsWith('_'))
+              .map(([, value]) => String(value || ''))
+              .join(' ')
+          );
+
+          // OR logic for basic, AI will refine
+          return contentTokens.some(word => searchableText.includes(word));
         });
 
         // Apply category filter
@@ -1651,9 +1685,9 @@
         setSearchResults(finalResults);
 
         // Trigger AI search after debounce (500ms)
-        if (aiSearchEnabled && query.length >= 3) {
+        if (aiSearchEnabled && cleanedQuery.length >= 3) {
           aiSearchTimeoutRef.current = setTimeout(() => {
-            performAISearch(query, finalResults);
+            performAISearch(cleanedQuery, finalResults);
           }, 500);
         }
       };
@@ -1662,23 +1696,27 @@
       const filterByCategory = (cat) => {
         setSelectedCategory(cat);
         
-        let filtered = allData;
+        const { allowedTypes, contentTokens } = parseSearchIntent(searchQuery);
+
+        let filtered = allData.filter(item => allowedTypes.has(item?._type));
         if (cat !== 'all') {
-          filtered = allData.filter(item => 
+          filtered = filtered.filter(item => 
             (item.category || item._type) === cat
           );
         }
 
         if (searchQuery.trim()) {
-          const lowerQuery = searchQuery.toLowerCase();
-          const words = lowerQuery.split(/\s+/).filter(w => w.length > 0);
-          filtered = filtered.filter(item => {
-            const searchableText = Object.entries(item)
-              .filter(([key]) => !key.startsWith('_'))
-              .map(([, value]) => String(value || '').toLowerCase())
-              .join(' ');
-            return words.every(word => searchableText.includes(word));
-          });
+          if (contentTokens.length > 0) {
+            filtered = filtered.filter(item => {
+              const searchableText = normalizeText(
+                Object.entries(item)
+                  .filter(([key]) => !key.startsWith('_'))
+                  .map(([, value]) => String(value || ''))
+                  .join(' ')
+              );
+              return contentTokens.every(word => searchableText.includes(word));
+            });
+          }
         }
 
         setSearchResults(filtered);
