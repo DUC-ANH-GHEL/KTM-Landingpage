@@ -28,7 +28,17 @@ async function buildOne({ input, output }) {
   const inAbs = path.join(root, input);
   const outAbs = path.join(root, output);
 
-  const source = await fs.readFile(inAbs, 'utf8');
+  let source = await fs.readFile(inAbs, 'utf8');
+
+  // These files are loaded as classic scripts (not ES modules). If multiple scripts
+  // declare `const { useState } = React;` at top-level, the browser throws:
+  // "Identifier 'useState' has already been declared".
+  // Babel-standalone used to wrap each script in a function, avoiding this.
+  // We keep the current multi-script architecture and make the declarations re-declarable.
+  source = source.replace(
+    /^([ \t]*)const(\s+\{[^}]*\}\s*=\s*React\s*;\s*)$/gm,
+    '$1var$2'
+  );
 
   const result = await transform(source, {
     loader: 'jsx',
