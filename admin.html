@@ -737,6 +737,50 @@
       justify-content: center;
       gap: 6px;
     }
+
+    /* ========== ORDER MODAL (MOBILE FRIENDLY) ========== */
+
+    /* Make sure order modal always sits above bottom nav */
+    .order-modal {
+      z-index: 3000;
+    }
+
+    /* When order modal is open, hide bottom nav on mobile */
+    @media (max-width: 768px) {
+      body.order-modal-open .mobile-bottom-nav {
+        display: none !important;
+      }
+
+      /* Bottom-sheet style for better iPhone usability */
+      .order-modal .modal-dialog {
+        margin: 0;
+        width: 100%;
+        max-width: 100%;
+        height: 100dvh;
+        display: flex;
+        align-items: flex-end;
+      }
+
+      .order-modal .modal-content {
+        width: 100%;
+        border-radius: 16px 16px 0 0 !important;
+        max-height: calc(100dvh - 12px);
+        overflow: hidden;
+      }
+
+      .order-modal .modal-body {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      }
+
+      .order-modal .modal-footer {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      }
+    }
     
     /* ========== FLOATING ACTION BUTTON (FAB) ========== */
     
@@ -1343,6 +1387,32 @@
     }
     .product-search input::placeholder {
       color: #aaa !important;
+    }
+
+    /* Orders filter + rounded buttons (Orders screen) */
+    .product-manager .btn {
+      border-radius: 12px !important;
+    }
+    .product-search .input-group-text {
+      background: #fff;
+      border: 1.5px solid #e9ecef;
+      border-right: none;
+      border-radius: 10px 0 0 10px;
+      color: #6c757d;
+    }
+    .product-search .input-group .form-control {
+      border-left: none !important;
+      border-radius: 0 !important;
+    }
+    .product-search .input-group .btn {
+      border-radius: 0 10px 10px 0 !important;
+      border: 1.5px solid #e9ecef;
+      border-left: none;
+    }
+    .product-search .input-group:focus-within .input-group-text,
+    .product-search .input-group:focus-within .form-control,
+    .product-search .input-group:focus-within .btn {
+      border-color: #ffc107 !important;
     }
     .product-item {
       background: #fff;
@@ -6098,6 +6168,7 @@
       const [saving, setSaving] = useState(false);
       const [deletingId, setDeletingId] = useState(null);
       const [filterMonth, setFilterMonth] = useState('');
+      const [showModal, setShowModal] = useState(false);
       const [form, setForm] = useState({
         customer_name: "",
         phone: "",
@@ -6108,6 +6179,21 @@
       });
       const [products, setProducts] = useState([]);
       const [editingId, setEditingId] = useState(null);
+
+      // Lock background scroll + hide bottom nav when modal open (especially on iOS)
+      useEffect(() => {
+        if (showModal) {
+          document.body.classList.add('order-modal-open');
+          document.body.style.overflow = 'hidden';
+        } else {
+          document.body.classList.remove('order-modal-open');
+          document.body.style.overflow = '';
+        }
+        return () => {
+          document.body.classList.remove('order-modal-open');
+          document.body.style.overflow = '';
+        };
+      }, [showModal]);
 
       useEffect(() => {
         loadProducts();
@@ -6195,6 +6281,7 @@
           });
           setForm({ customer_name: "", phone: "", address: "", product_id: "", quantity: 1, status: "pending" });
           setEditingId(null);
+          setShowModal(false);
           loadOrders();
         } finally {
           setSaving(false);
@@ -6211,6 +6298,20 @@
           quantity: Number(order.quantity || 1),
           status: order.status || "pending",
         });
+        setShowModal(true);
+      };
+
+      const openCreateModal = () => {
+        setEditingId(null);
+        setForm({ customer_name: "", phone: "", address: "", product_id: "", quantity: 1, status: "pending" });
+        setShowModal(true);
+      };
+
+      const closeModal = () => {
+        if (saving) return;
+        setShowModal(false);
+        setEditingId(null);
+        setForm({ customer_name: "", phone: "", address: "", product_id: "", quantity: 1, status: "pending" });
       };
 
       const deleteOrder = async (id) => {
@@ -6229,107 +6330,54 @@
           <Loading show={loading || saving || !!deletingId} />
           <div className="product-header">
             <h5>Quản lý đơn hàng</h5>
+            <button className="btn btn-dark btn-sm" onClick={openCreateModal} disabled={saving || !!deletingId}>
+              <i className="fas fa-plus me-2"></i>Tạo đơn
+            </button>
           </div>
-          <div className="product-search row g-2">
-            <div className="col-md-3">
-              <label className="form-label">Lọc theo tháng</label>
-              <input 
-                type="month" 
-                className="form-control"
-                value={filterMonth}
-                onChange={e => setFilterMonth(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="card p-3 mb-4">
-            <h6>{editingId ? "Cập nhật đơn hàng" : "Tạo đơn hàng mới"}</h6>
-            <div className="row g-3 mt-1">
-              <div className="col-md-4">
-                <label>Tên khách hàng</label>
-                <input className="form-control" 
-                  value={form.customer_name}
-                  onChange={e => setForm({...form, customer_name: e.target.value})}/>
-              </div>
-              <div className="col-md-3">
-                <label>Số điện thoại</label>
-                <input className="form-control" 
-                  value={form.phone}
-                  onChange={e => setForm({...form, phone: e.target.value})}/>
-              </div>
-              <div className="col-md-5">
-                <label>Địa chỉ</label>
-                <input className="form-control" 
-                  value={form.address}
-                  onChange={e => setForm({...form, address: e.target.value})}/>
-              </div>
-              <div className="col-md-5">
-                <label>Sản phẩm</label>
-                <select
-                  className="form-control"
-                  value={form.product_id}
-                  onChange={e => setForm({ ...form, product_id: e.target.value })}
-                >
-                  <option value="">-- chọn sản phẩm --</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-md-2">
-                <label>Số lượng</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={form.quantity}
-                  onChange={e => setForm({ ...form, quantity: e.target.value })}
-                  min="1"
-                />
-              </div>
-              <div className="col-md-3">
-                <label>Trạng thái</label>
-                <select
-                  className="form-control"
-                  value={form.status}
-                  onChange={e => setForm({ ...form, status: e.target.value })}
-                >
-                  <option value="pending">Chờ xử lý</option>
-                  <option value="processing">Đang xử lý</option>
-                  <option value="done">Hoàn thành</option>
-                </select>
-              </div>
-              <div className="col-md-2 d-flex align-items-end">
-                <button className="btn btn-warning w-100" onClick={saveOrder} disabled={saving}>
-                  {saving ? (
-                    <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu</>
-                  ) : (
-                    <>{editingId ? "Cập nhật" : "Tạo mới"}</>
+
+          <div className="product-search">
+            <div className="row g-2 align-items-end">
+              <div className="col-12 col-md-5">
+                <label className="form-label mb-1">Lọc theo tháng</label>
+                <div className="input-group">
+                  <span className="input-group-text" aria-hidden="true">
+                    <i className="fas fa-calendar-alt"></i>
+                  </span>
+                  <input
+                    type="month"
+                    className="form-control"
+                    value={filterMonth}
+                    onChange={e => setFilterMonth(e.target.value)}
+                    aria-label="Chọn tháng"
+                  />
+                  {filterMonth && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={() => {
+                        setFilterMonth('');
+                      }}
+                      title="Bỏ lọc"
+                      aria-label="Bỏ lọc"
+                      disabled={loading}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
                   )}
+                </div>
+              </div>
+              <div className="col-12 col-md-7 d-flex gap-2 justify-content-md-end">
+                <button className="btn btn-outline-secondary" onClick={loadOrders} disabled={loading}>
+                  <i className="fas fa-rotate me-2"></i>Làm mới
                 </button>
               </div>
-
-              {editingId && (
-                <div className="col-12">
-                  <button
-                    className="btn btn-outline-secondary w-100"
-                    disabled={saving}
-                    onClick={() => {
-                      setEditingId(null);
-                      setForm({ customer_name: "", phone: "", address: "", product_id: "", quantity: 1, status: "pending" });
-                    }}
-                  >
-                    Hủy chỉnh sửa
-                  </button>
-                </div>
-              )}
             </div>
           </div>
 
           <div className="card p-3">
             <div className="d-flex align-items-center justify-content-between">
               <h6 className="mb-0">Danh sách đơn hàng</h6>
-              <button className="btn btn-sm btn-outline-secondary" onClick={loadOrders} disabled={loading}>
-                <i className="fas fa-rotate"></i>
-              </button>
+              <span className="text-muted small">{orders.length} đơn</span>
             </div>
 
             {loading ? (
@@ -6423,6 +6471,117 @@
               </>
             )}
           </div>
+
+          {/* Order create/edit modal */}
+          {showModal && (
+            <div className="modal show d-block order-modal" style={{ background: 'rgba(0,0,0,0.6)' }} role="dialog" aria-modal="true">
+              <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content" style={{ borderRadius: 16 }}>
+                  <div className="modal-header" style={{ background: 'linear-gradient(135deg, #ffc107, #ffca2c)', border: 'none', borderRadius: '16px 16px 0 0' }}>
+                    <h5 className="modal-title fw-bold text-dark mb-0">
+                      <i className="fas fa-receipt me-2"></i>
+                      {editingId ? 'Sửa đơn hàng' : 'Tạo đơn hàng'}
+                    </h5>
+                    <button type="button" className="btn-close" onClick={closeModal}></button>
+                  </div>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      saveOrder();
+                    }}
+                  >
+                    <div className="modal-body">
+                      <div className="row g-3">
+                        <div className="col-12">
+                          <label className="form-label fw-semibold small text-muted mb-1">Tên khách hàng *</label>
+                          <input
+                            className="form-control"
+                            value={form.customer_name}
+                            onChange={e => setForm({ ...form, customer_name: e.target.value })}
+                            placeholder="Nhập tên khách hàng"
+                            required
+                            style={{ borderRadius: 10, padding: 12 }}
+                          />
+                        </div>
+                        <div className="col-12 col-md-6">
+                          <label className="form-label fw-semibold small text-muted mb-1">Số điện thoại *</label>
+                          <input
+                            className="form-control"
+                            value={form.phone}
+                            onChange={e => setForm({ ...form, phone: e.target.value })}
+                            placeholder="Nhập số điện thoại"
+                            required
+                            style={{ borderRadius: 10, padding: 12 }}
+                          />
+                        </div>
+                        <div className="col-12 col-md-6">
+                          <label className="form-label fw-semibold small text-muted mb-1">Trạng thái</label>
+                          <select
+                            className="form-select"
+                            value={form.status}
+                            onChange={e => setForm({ ...form, status: e.target.value })}
+                            style={{ borderRadius: 10, padding: 12 }}
+                          >
+                            <option value="pending">Chờ xử lý</option>
+                            <option value="processing">Đang xử lý</option>
+                            <option value="done">Hoàn thành</option>
+                          </select>
+                        </div>
+                        <div className="col-12">
+                          <label className="form-label fw-semibold small text-muted mb-1">Địa chỉ</label>
+                          <input
+                            className="form-control"
+                            value={form.address}
+                            onChange={e => setForm({ ...form, address: e.target.value })}
+                            placeholder="Nhập địa chỉ (không bắt buộc)"
+                            style={{ borderRadius: 10, padding: 12 }}
+                          />
+                        </div>
+                        <div className="col-12 col-md-8">
+                          <label className="form-label fw-semibold small text-muted mb-1">Sản phẩm *</label>
+                          <select
+                            className="form-select"
+                            value={form.product_id}
+                            onChange={e => setForm({ ...form, product_id: e.target.value })}
+                            required
+                            style={{ borderRadius: 10, padding: 12 }}
+                          >
+                            <option value="">-- chọn sản phẩm --</option>
+                            {products.map(p => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-12 col-md-4">
+                          <label className="form-label fw-semibold small text-muted mb-1">Số lượng</label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={form.quantity}
+                            onChange={e => setForm({ ...form, quantity: e.target.value })}
+                            min="1"
+                            style={{ borderRadius: 10, padding: 12 }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="modal-footer" style={{ border: 'none' }}>
+                      <button type="button" className="btn btn-light" onClick={closeModal} disabled={saving} style={{ borderRadius: 10 }}>
+                        Hủy
+                      </button>
+                      <button type="submit" className="btn btn-warning fw-semibold" disabled={saving} style={{ borderRadius: 10, boxShadow: '0 4px 12px rgba(255,193,7,0.3)' }}>
+                        {saving ? (
+                          <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu...</>
+                        ) : (
+                          <><i className="fas fa-check me-2"></i>Lưu</>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
