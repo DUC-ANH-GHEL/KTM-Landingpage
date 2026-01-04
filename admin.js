@@ -4720,7 +4720,7 @@
               <div className="col-6 col-md-3">
                 <div className="card p-3 border-0 shadow-sm bg-info bg-opacity-10">
                   <div className="d-flex align-items-center justify-content-between">
-                    <div className="text-muted small">Hoa hồng nhận (tạm tính 5%)</div>
+                    <div className="text-muted small">Hoa hồng sẽ nhận (tạm tính 5%)</div>
                     <i className="fas fa-chart-line text-info"></i>
                   </div>
                   <div className="fs-4 fw-semibold text-dark">{formatVND(stats.tempCommission)}</div>
