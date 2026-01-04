@@ -5110,10 +5110,14 @@
       const lastAutoOpenCreateTokenRef = useRef(null);
       const phoneLookupTimerRef = useRef(null);
       const phoneLookupRequestIdRef = useRef(0);
+      const customerLookupCacheRef = useRef(new Map());
       const orderModalBodyRef = useRef(null);
       const lastItemsLenRef = useRef(0);
       const lastCreatedOrderRef = useRef(null); // { id, fingerprint, ts }
-      const PHONE_LOOKUP_MIN_LEN = 3;
+      const PHONE_LOOKUP_MIN_LEN = 9;
+      const PHONE_LOOKUP_DEBOUNCE_MS = 150;
+      const CUSTOMER_LOOKUP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+      const CUSTOMER_LOOKUP_CACHE_TTL_NOT_FOUND_MS = 5 * 60 * 1000;
 
       const resetOrderForm = (presetProductId) => {
         setForm({
@@ -5156,9 +5160,34 @@
 
       const normalizePhone = (value) => window.KTM.phone.normalize(value);
 
+      const applyCustomerPrefill = (customer, phone) => {
+        if (!customer) return;
+        setForm((prev) => {
+          if (phone && normalizePhone(prev.phone) !== phone) return prev;
+          return {
+            ...prev,
+            customer_name: customer.name || prev.customer_name,
+            address: customer.address || prev.address,
+          };
+        });
+      };
+
       const lookupCustomerByPhone = async (rawPhone) => {
         const phone = normalizePhone(rawPhone);
         if (!phone) return;
+
+        const cached = customerLookupCacheRef.current?.get(phone);
+        if (cached && Number.isFinite(cached.ts)) {
+          const age = Date.now() - cached.ts;
+          const ttl = cached.status === 'found' ? CUSTOMER_LOOKUP_CACHE_TTL_MS : CUSTOMER_LOOKUP_CACHE_TTL_NOT_FOUND_MS;
+          if (age >= 0 && age <= ttl) {
+            setCustomerLookup({ status: cached.status, phone, customer: cached.customer });
+            if (cached.status === 'found' && cached.customer) {
+              applyCustomerPrefill(cached.customer, phone);
+            }
+            return;
+          }
+        }
 
         const requestId = ++phoneLookupRequestIdRef.current;
         setCustomerLookup({ status: 'loading', phone });
@@ -5170,18 +5199,13 @@
           if (phoneLookupRequestIdRef.current !== requestId) return;
 
           if (data && data.exists && data.customer) {
+            customerLookupCacheRef.current?.set(phone, { ts: Date.now(), status: 'found', customer: data.customer });
             setCustomerLookup({ status: 'found', phone, customer: data.customer });
-            setForm((prev) => {
-              if (normalizePhone(prev.phone) !== phone) return prev;
-              return {
-                ...prev,
-                customer_name: data.customer.name || prev.customer_name,
-                address: data.customer.address || prev.address,
-              };
-            });
+            applyCustomerPrefill(data.customer, phone);
             return;
           }
 
+          customerLookupCacheRef.current?.set(phone, { ts: Date.now(), status: 'not-found', customer: null });
           setCustomerLookup({ status: 'not-found', phone });
         } catch (e) {
           if (phoneLookupRequestIdRef.current !== requestId) return;
@@ -5206,9 +5230,15 @@
           return;
         }
 
+        // If phone is already valid (paste / complete), lookup immediately for best perceived speed.
+        if (isValidPhone(normalized)) {
+          lookupCustomerByPhone(normalized);
+          return;
+        }
+
         phoneLookupTimerRef.current = setTimeout(() => {
           lookupCustomerByPhone(digitsOnly);
-        }, 350);
+        }, PHONE_LOOKUP_DEBOUNCE_MS);
       };
 
       const handlePhoneBlur = () => {
