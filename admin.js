@@ -4979,14 +4979,6 @@
                 <i className="fas fa-chart-column"></i>
                 <span>Thống kê</span>
               </a>
-              <a 
-                href="#" 
-                className="nav-item"
-                onClick={(e) => { e.preventDefault(); handleLogout(); }}
-              >
-                <i className="fas fa-sign-out-alt"></i>
-                <span>Thoát</span>
-              </a>
             </div>
           </nav>
 
