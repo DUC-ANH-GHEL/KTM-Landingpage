@@ -2351,6 +2351,13 @@
             
             {/* Quick Actions */}
             <div className="quick-actions">
+              {isProduct && (
+                <button
+                  onClick={() => onNavigate && onNavigate('orders', 'create', { productId: item.id })}
+                >
+                  <i className="fas fa-receipt"></i> Tạo đơn
+                </button>
+              )}
               <button 
                 className={copiedId === item.id + '-img' ? 'copied' : ''}
                 onClick={() => copyImage(item.image, item.id)}
@@ -4236,6 +4243,7 @@
       const [currentUser, setCurrentUser] = useState(null);
       const [activeMenu, setActiveMenu] = useState('search');
       const [orderAutoOpenCreateToken, setOrderAutoOpenCreateToken] = useState(null);
+      const [orderAutoOpenCreateProductId, setOrderAutoOpenCreateProductId] = useState('');
       const [albums, setAlbums] = useState([]);
       const [selectedAlbum, setSelectedAlbum] = useState(null);
       const [showAlbumModal, setShowAlbumModal] = useState(false);
@@ -4458,10 +4466,11 @@
             {activeMenu === 'search' && (
               <SearchCenter 
                 showToast={showToast} 
-                onNavigate={(menu, action) => {
+                onNavigate={(menu, action, payload) => {
                   setActiveMenu(menu);
                   if (menu === 'orders' && action === 'create') {
                     setOrderAutoOpenCreateToken(Date.now());
+                    setOrderAutoOpenCreateProductId(payload?.productId || '');
                   }
                 }}
               />
@@ -4509,7 +4518,10 @@
               <ProductManager showToast={showToast} />
             )}
             {activeMenu === 'orders' && (
-              <OrderManager autoOpenCreateToken={orderAutoOpenCreateToken} />
+              <OrderManager
+                autoOpenCreateToken={orderAutoOpenCreateToken}
+                autoOpenCreateProductId={orderAutoOpenCreateProductId}
+              />
             )}
           </div>
 
@@ -4592,7 +4604,7 @@
 
     ReactDOM.render(<AdminApp />, document.getElementById('root'));
     // OrderManager component
-    function OrderManager({ autoOpenCreateToken }) {
+    function OrderManager({ autoOpenCreateToken, autoOpenCreateProductId }) {
       const [orders, setOrders] = useState([]);
       const [loading, setLoading] = useState(true);
       const [saving, setSaving] = useState(false);
@@ -4720,7 +4732,7 @@
         if (!autoOpenCreateToken) return;
         if (lastAutoOpenCreateTokenRef.current === autoOpenCreateToken) return;
         lastAutoOpenCreateTokenRef.current = autoOpenCreateToken;
-        openCreateModal();
+        openCreateModal(autoOpenCreateProductId);
       }, [autoOpenCreateToken]);
 
       const getStatusLabel = (status) => {
@@ -4831,9 +4843,16 @@
         }
       };
 
-      function openCreateModal() {
+      function openCreateModal(presetProductId) {
         setEditingId(null);
-        setForm({ customer_name: "", phone: "", address: "", product_id: "", quantity: 1, status: "pending" });
+        setForm({
+          customer_name: "",
+          phone: "",
+          address: "",
+          product_id: presetProductId || "",
+          quantity: 1,
+          status: "pending"
+        });
         setCustomerLookup(null);
         setShowModal(true);
       }
