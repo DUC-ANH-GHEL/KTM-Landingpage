@@ -5092,6 +5092,7 @@
       const [filterMonth, setFilterMonth] = useState('');
       const [showModal, setShowModal] = useState(false);
       const [customerLookup, setCustomerLookup] = useState(null);
+      const [showPhoneHistory, setShowPhoneHistory] = useState(false);
       const [form, setForm] = useState({
         customer_name: "",
         phone: "",
@@ -5111,6 +5112,7 @@
       const phoneLookupRequestIdRef = useRef(0);
       const orderModalBodyRef = useRef(null);
       const lastItemsLenRef = useRef(0);
+      const lastCreatedOrderRef = useRef(null); // { id, fingerprint, ts }
       const PHONE_LOOKUP_MIN_LEN = 3;
 
       const resetOrderForm = (presetProductId) => {
@@ -5191,6 +5193,7 @@
       const handlePhoneChange = (nextPhone) => {
         const digitsOnly = normalizePhone(nextPhone);
         setForm((prev) => ({ ...prev, phone: digitsOnly }));
+        setShowPhoneHistory(false);
 
         if (phoneLookupTimerRef.current) {
           clearTimeout(phoneLookupTimerRef.current);
@@ -5349,6 +5352,7 @@
       function openCreateModal(presetProductId) {
         setEditingId(null);
         resetOrderForm(presetProductId || '');
+        setShowPhoneHistory(false);
         setShowModal(true);
       }
 
@@ -5357,6 +5361,7 @@
         setShowModal(false);
         setEditingId(null);
         resetOrderForm('');
+        setShowPhoneHistory(false);
       };
 
       const getProductLabel = (productId) => {
@@ -5446,6 +5451,114 @@
       const getOrderShipInfo = (items) => window.KTM.orders.getOrderShipInfo(items, getProductById);
 
       const getItemsSubtotal = (items) => window.KTM.orders.getItemsSubtotal(items, getProductById);
+
+      const getMonthKey = (dateValue) => {
+        try {
+          const d = dateValue instanceof Date ? dateValue : new Date(dateValue);
+          if (!d || Number.isNaN(d.getTime())) return '';
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          return `${y}-${m}`;
+        } catch {
+          return '';
+        }
+      };
+
+      const getActiveMonthKey = () => {
+        if (filterMonth) return String(filterMonth);
+        return getMonthKey(new Date());
+      };
+
+      const makeOrderFingerprint = (nextForm) => {
+        const name = String(nextForm?.customer_name || '').trim().toLowerCase();
+        const phone = normalizePhone(nextForm?.phone || '');
+        const address = String(nextForm?.address || '').trim().toLowerCase();
+        const adj = parseSignedMoney(nextForm?.adjustment_amount);
+
+        const items = Array.isArray(nextForm?.items) ? nextForm.items : [];
+        const normalizedItems = items
+          .map((it) => ({
+            product_id: String(it?.product_id || '').trim(),
+            quantity: Number(it?.quantity ?? 0),
+          }))
+          .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0)
+          .sort((a, b) => {
+            if (a.product_id < b.product_id) return -1;
+            if (a.product_id > b.product_id) return 1;
+            return a.quantity - b.quantity;
+          });
+
+        return JSON.stringify({ name, phone, address, items: normalizedItems, adj });
+      };
+
+      const phoneMonthHistory = React.useMemo(() => {
+        const phone = normalizePhone(form?.phone || '');
+        if (!phone) return { count: 0, orders: [], monthKey: getActiveMonthKey() };
+
+        const monthKey = getActiveMonthKey();
+        const matched = (Array.isArray(orders) ? orders : [])
+          .filter((o) => {
+            if (!o) return false;
+            if (editingId && String(o.id) === String(editingId)) return false;
+            if (normalizePhone(o.phone || '') !== phone) return false;
+            const mk = getMonthKey(o.created_at);
+            return mk && mk === monthKey;
+          })
+          .sort((a, b) => {
+            const ta = new Date(a.created_at).getTime();
+            const tb = new Date(b.created_at).getTime();
+            return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+          });
+
+        return { count: matched.length, orders: matched, monthKey };
+      }, [orders, form?.phone, filterMonth, editingId]);
+
+      const makeOrderFingerprintFromOrder = (order) => {
+        const name = String(order?.customer_name || '').trim().toLowerCase();
+        const phone = normalizePhone(order?.phone || '');
+        const address = String(order?.address || '').trim().toLowerCase();
+        const adj = parseSignedMoney(order?.adjustment_amount ?? 0);
+
+        const items = getOrderItems(order);
+        const normalizedItems = (Array.isArray(items) ? items : [])
+          .map((it) => ({
+            product_id: String(it?.product_id || '').trim(),
+            quantity: Number(it?.quantity ?? 0),
+          }))
+          .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0)
+          .sort((a, b) => {
+            if (a.product_id < b.product_id) return -1;
+            if (a.product_id > b.product_id) return 1;
+            return a.quantity - b.quantity;
+          });
+
+        return JSON.stringify({ name, phone, address, items: normalizedItems, adj });
+      };
+
+      const duplicateMonthOrderWarning = React.useMemo(() => {
+        if (editingId) return '';
+
+        const phone = normalizePhone(form?.phone || '');
+        if (!phone) return '';
+
+        const monthKey = getActiveMonthKey();
+        const currentFp = makeOrderFingerprint(form);
+
+        const list = Array.isArray(orders) ? orders : [];
+        for (const o of list) {
+          if (!o) continue;
+          if (editingId && String(o.id) === String(editingId)) continue;
+          if (normalizePhone(o.phone || '') !== phone) continue;
+          const mk = getMonthKey(o.created_at);
+          if (!mk || mk !== monthKey) continue;
+          const fp = makeOrderFingerprintFromOrder(o);
+          if (fp && fp === currentFp) {
+            return `Đơn này giống 100% một đơn trong tháng ${monthKey}${o?.id ? ` (#${o.id})` : ''}`;
+          }
+        }
+
+        return '';
+      }, [orders, form, filterMonth, editingId]);
 
       const computeOrderValidation = (nextForm) => {
         const errors = [];
@@ -5579,6 +5692,24 @@
           return;
         }
 
+        // Confirm only when duplicate order is detected
+        if (!editingId && duplicateMonthOrderWarning) {
+          const msg = `${duplicateMonthOrderWarning}\n\nBạn có muốn tiếp tục lưu không?`;
+          const ok = window.confirm(msg);
+          if (!ok) {
+            // Help user review: open phone history if any
+            if (phoneMonthHistory?.count > 0) setShowPhoneHistory(true);
+            setTimeout(() => {
+              const el = document.getElementById('order-phone-input');
+              if (el && typeof el.scrollIntoView === 'function') {
+                el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                el.focus?.();
+              }
+            }, 0);
+            return;
+          }
+        }
+
         const normalizedPhone = normalizePhone(form.phone);
         const items = Array.isArray(form.items) ? form.items : [];
         const normalizedItems = items
@@ -5612,7 +5743,12 @@
           if (editingId) {
             await window.KTM.api.putJSON(url, payload, 'Lỗi lưu đơn hàng');
           } else {
-            await window.KTM.api.postJSON(url, payload, 'Lỗi lưu đơn hàng');
+            const created = await window.KTM.api.postJSON(url, payload, 'Lỗi lưu đơn hàng');
+            lastCreatedOrderRef.current = {
+              id: created?.id ?? created?.order?.id ?? null,
+              fingerprint: makeOrderFingerprint(form),
+              ts: Date.now(),
+            };
           }
 
           if (mode === 'new' && !editingId) {
@@ -5889,6 +6025,7 @@
                             type="tel"
                             inputMode="numeric"
                             pattern="[0-9+\s-]*"
+                            id="order-phone-input"
                             value={form.phone}
                             onChange={e => handlePhoneChange(e.target.value)}
                             onBlur={handlePhoneBlur}
@@ -5899,6 +6036,65 @@
                           {!!orderFieldIssues.phoneError && (
                             <div className="form-text text-danger">{orderFieldIssues.phoneError}</div>
                           )}
+
+                          {!orderFieldIssues.phoneError && phoneMonthHistory.count > 0 && (
+                            <div className="form-text text-warning d-flex align-items-center justify-content-between gap-2">
+                              <span>
+                                Khách này đã có {phoneMonthHistory.count} đơn trong tháng {phoneMonthHistory.monthKey}.
+                              </span>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-warning"
+                                onClick={() => setShowPhoneHistory((v) => !v)}
+                              >
+                                {showPhoneHistory ? 'Ẩn lịch sử' : 'Xem lịch sử'}
+                              </button>
+                            </div>
+                          )}
+
+                          {showPhoneHistory && phoneMonthHistory.orders.length > 0 && (
+                            <div className="mt-2 border rounded-3 p-2" style={{ background: '#fff' }}>
+                              <div className="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                <div className="small fw-semibold">Lịch sử đơn (cùng tháng)</div>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-secondary"
+                                  onClick={() => setShowPhoneHistory(false)}
+                                >
+                                  Ẩn
+                                </button>
+                              </div>
+                              <div className="d-grid gap-2">
+                                {phoneMonthHistory.orders.slice(0, 5).map((o) => (
+                                  <div key={o.id} className="d-flex align-items-start justify-content-between gap-2">
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                      <div className="small fw-semibold" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        #{o.id} • <span className={`badge ${getStatusBadgeClass(o.status)}`}>{getStatusLabel(o.status)}</span>
+                                      </div>
+                                      <div className="text-muted small">{formatDateTime(o.created_at)} • {formatVND(getOrderTotalMoney(o))}</div>
+                                      <div className="text-muted small" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {getOrderProductSummary(o)}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-outline-secondary"
+                                      onClick={() => {
+                                        if (!confirm(`Mở đơn #${o.id}? Dữ liệu đang nhập sẽ mất.`)) return;
+                                        editOrder(o);
+                                      }}
+                                    >
+                                      Mở
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                              {phoneMonthHistory.orders.length > 5 && (
+                                <div className="text-muted small mt-2">Chỉ hiển thị 5 đơn gần nhất.</div>
+                              )}
+                            </div>
+                          )}
+
                           {customerLookup?.status === 'loading' && (
                             <div className="form-text">Đang tìm khách theo SĐT...</div>
                           )}
