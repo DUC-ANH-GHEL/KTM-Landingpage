@@ -4659,28 +4659,29 @@
       };
 
       const handlePhoneChange = (nextPhone) => {
-        setForm((prev) => ({ ...prev, phone: nextPhone }));
+        const digitsOnly = normalizePhone(nextPhone);
+        setForm((prev) => ({ ...prev, phone: digitsOnly }));
 
         if (phoneLookupTimerRef.current) {
           clearTimeout(phoneLookupTimerRef.current);
           phoneLookupTimerRef.current = null;
         }
 
-        const normalized = normalizePhone(nextPhone);
+        const normalized = digitsOnly;
         if (normalized.length < PHONE_LOOKUP_MIN_LEN) {
           setCustomerLookup(null);
           return;
         }
 
         phoneLookupTimerRef.current = setTimeout(() => {
-          lookupCustomerByPhone(nextPhone);
+          lookupCustomerByPhone(digitsOnly);
         }, 350);
       };
 
       const handlePhoneBlur = () => {
         const normalized = normalizePhone(form.phone);
         if (normalized.length < PHONE_LOOKUP_MIN_LEN) return;
-        lookupCustomerByPhone(form.phone);
+        lookupCustomerByPhone(normalized);
       };
 
       // Lock background scroll + hide bottom nav when modal open (especially on iOS)
@@ -4816,7 +4817,7 @@
         setEditingId(order.id);
         setForm({
           customer_name: order.customer_name || "",
-          phone: order.phone || "",
+          phone: normalizePhone(order.phone || ""),
           address: order.address || "",
           product_id: order.product_id || "",
           quantity: Number(order.quantity || 1),
@@ -4826,7 +4827,7 @@
         setShowModal(true);
 
         if (order.phone) {
-          lookupCustomerByPhone(order.phone);
+          lookupCustomerByPhone(normalizePhone(order.phone));
         }
       };
 
@@ -4858,7 +4859,7 @@
 
       return (
         <div className="product-manager">
-          <Loading show={loading || saving || !!deletingId} />
+          <Loading show={(loading && !showModal) || saving || !!deletingId} />
           <div className="product-header">
             <h5>Quản lý đơn hàng</h5>
             <button className="btn btn-dark btn-sm" onClick={openCreateModal} disabled={saving || !!deletingId}>
