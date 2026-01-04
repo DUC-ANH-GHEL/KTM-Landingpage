@@ -5018,6 +5018,7 @@
               <OrderManager
                 autoOpenCreateToken={orderAutoOpenCreateToken}
                 autoOpenCreateProductId={orderAutoOpenCreateProductId}
+                showToast={showToast}
               />
             )}
 
@@ -5105,7 +5106,7 @@
 
     ReactDOM.render(<AdminApp />, document.getElementById('root'));
     // OrderManager component
-    function OrderManager({ autoOpenCreateToken, autoOpenCreateProductId }) {
+    function OrderManager({ autoOpenCreateToken, autoOpenCreateProductId, showToast }) {
       const [orders, setOrders] = useState([]);
       const [loading, setLoading] = useState(true);
       const [saving, setSaving] = useState(false);
@@ -5505,6 +5506,87 @@
         return order?.product_name || '—';
       };
 
+      const getOrderItemRows = (order) => {
+        const items = getOrderItems(order);
+        if (!items.length) return [];
+
+        return items
+          .map((it) => {
+            const fromItem = it?.product_name;
+            const pid = String(it?.product_id || '');
+            const p = products.find(x => String(x?.id) === pid);
+            const name = (fromItem || p?.name || '').toString().trim();
+            const qty = Number(it?.quantity ?? 1) || 1;
+            return { name, qty };
+          })
+          .filter((x) => x.name);
+      };
+
+      const getOrderCopyText = (order) => {
+        const items = getOrderItems(order);
+        const rows = getOrderItemRows(order);
+        const subtotal = getItemsSubtotal(items);
+        const shipInfo = getOrderShipInfo(items);
+        const ship = shipInfo.fee;
+        const total = subtotal + ship;
+
+        const parts = [];
+        parts.push(`ĐƠN HÀNG #${order?.id ?? ''}`.trim());
+        if (order?.customer_name) parts.push(`Khách: ${order.customer_name}`);
+        if (order?.phone) parts.push(`SĐT: ${order.phone}`);
+        if (order?.address) parts.push(`Địa chỉ: ${order.address}`);
+        if (order?.status) parts.push(`Trạng thái: ${getStatusLabel(order.status)}`);
+        if (order?.created_at) parts.push(`Thời gian: ${formatDateTime(order.created_at)}`);
+        parts.push('');
+
+        parts.push('Sản phẩm:');
+        if (rows.length) {
+          for (const r of rows) {
+            parts.push(`- ${r.name} x${r.qty}`);
+          }
+        } else {
+          const summary = getOrderProductSummary(order);
+          if (summary && summary !== '—') parts.push(`- ${summary}`);
+        }
+
+        parts.push('');
+        parts.push(`Tạm tính: ${formatVND(subtotal)}`);
+        parts.push(`Ship: ${formatVND(shipInfo.found ? ship : 0)}`);
+        parts.push(`Tổng: ${formatVND(total)}`);
+        return parts.filter(Boolean).join('\n');
+      };
+
+      const copyTextToClipboard = async (text) => {
+        if (navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          return;
+        }
+
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (!ok) throw new Error('copy_failed');
+      };
+
+      const handleCopyOrder = async (order) => {
+        try {
+          const text = getOrderCopyText(order);
+          await copyTextToClipboard(text);
+          if (typeof showToast === 'function') showToast('Đã copy thông tin đơn hàng', 'success');
+          else alert('Đã copy thông tin đơn hàng');
+        } catch (err) {
+          console.error(err);
+          if (typeof showToast === 'function') showToast('Copy thất bại (trình duyệt chặn clipboard)', 'danger');
+          else alert('Copy thất bại (trình duyệt chặn clipboard)');
+        }
+      };
+
       const getOrderShipInfo = (items) => {
         const arr = Array.isArray(items) ? items : [];
         let found = false;
@@ -5632,7 +5714,31 @@
                         </div>
 
                         <div className="mt-2 small">
-                          <div><span className="text-muted">Sản phẩm:</span> <span className="fw-semibold">{getOrderProductSummary(order)}</span></div>
+                          <div>
+                            <div className="text-muted">Sản phẩm:</div>
+                            {(() => {
+                              const rows = getOrderItemRows(order);
+                              if (!rows.length) {
+                                return (
+                                  <div className="fw-semibold" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                    {getOrderProductSummary(order)}
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="mt-1">
+                                  {rows.map((r, idx) => (
+                                    <div key={idx} className="d-flex justify-content-between gap-2" style={{ lineHeight: 1.25 }}>
+                                      <div className="fw-semibold" style={{ minWidth: 0, whiteSpace: 'normal', wordBreak: 'break-word', flex: 1 }}>
+                                        {r.name}
+                                      </div>
+                                      <div className="text-muted" style={{ flexShrink: 0 }}>x{r.qty}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                          </div>
                           <div><span className="text-muted">Số lượng:</span> <span className="fw-semibold">{getOrderTotalQty(order)}</span></div>
                           <div><span className="text-muted">Tổng tiền:</span> <span className="fw-semibold">{formatVND(getOrderTotalMoney(order))}</span></div>
                           <div><span className="text-muted">Thời gian:</span> {formatDateTime(order.created_at)}</div>
@@ -5641,6 +5747,13 @@
                         <div className="mt-3 d-flex gap-2">
                           <button className="btn btn-sm btn-primary flex-fill" onClick={() => editOrder(order)} disabled={saving || !!deletingId}>
                             Sửa
+                          </button>
+                          <button
+                            className="btn btn-sm btn-outline-secondary flex-fill"
+                            onClick={() => handleCopyOrder(order)}
+                            disabled={saving || !!deletingId}
+                          >
+                            <i className="fas fa-copy me-1"></i>Copy
                           </button>
                           <button
                             className="btn btn-sm btn-danger flex-fill"
@@ -5686,6 +5799,9 @@
                           <td>{formatDateTime(order.created_at)}</td>
                           <td>
                             <button className="btn btn-sm btn-primary me-1" onClick={() => editOrder(order)} disabled={saving || !!deletingId}>Sửa</button>
+                            <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => handleCopyOrder(order)} disabled={saving || !!deletingId}>
+                              <i className="fas fa-copy"></i>
+                            </button>
                             <button className="btn btn-sm btn-danger" onClick={() => deleteOrder(order.id)} disabled={saving || deletingId === order.id}>
                               {deletingId === order.id ? (
                                 <><span className="spinner-border spinner-border-sm me-2"></span>Đang xóa</>
