@@ -2553,11 +2553,12 @@
           <button
             className="btn btn-lg rounded-circle position-fixed shadow-lg"
             style={{ 
-              bottom: 130, 
+              bottom: fabOpen ? 320 : 130, 
               right: 16, 
               width: 56, 
               height: 56, 
               zIndex: 1050,
+              transition: 'bottom 0.2s ease',
               background: 'linear-gradient(135deg, #667eea, #764ba2)',
               color: '#fff',
               border: 'none',
@@ -2750,20 +2751,13 @@
                 <i className="fas fa-box"></i>
                 <span className="tooltip">Thêm sản phẩm</span>
               </button>
-              <button 
-                className="fab-action album"
-                onClick={() => { setFabOpen(false); onNavigate && onNavigate('albums', 'create'); }}
-              >
-                <i className="fas fa-images"></i>
-                <span className="tooltip">Thêm ảnh/album</span>
-              </button>
-              <button 
-                className="fab-action video"
-                onClick={() => { setFabOpen(false); onNavigate && onNavigate('videos', 'create'); }}
-              >
-                <i className="fas fa-video"></i>
-                <span className="tooltip">Thêm video</span>
-              </button>
+                  <button 
+                    className="fab-action product"
+                    onClick={() => { setFabOpen(false); onNavigate && onNavigate('orders', 'create'); }}
+                  >
+                    <i className="fas fa-receipt"></i>
+                    <span className="tooltip">Tạo order nhanh</span>
+                  </button>
             </div>
             <button 
               className={`fab-main ${fabOpen ? 'open' : ''}`}
@@ -4240,6 +4234,7 @@
       const [loginError, setLoginError] = useState('');
       const [currentUser, setCurrentUser] = useState(null);
       const [activeMenu, setActiveMenu] = useState('search');
+      const [orderAutoOpenCreateToken, setOrderAutoOpenCreateToken] = useState(null);
       const [albums, setAlbums] = useState([]);
       const [selectedAlbum, setSelectedAlbum] = useState(null);
       const [showAlbumModal, setShowAlbumModal] = useState(false);
@@ -4464,7 +4459,9 @@
                 showToast={showToast} 
                 onNavigate={(menu, action) => {
                   setActiveMenu(menu);
-                  // Có thể mở rộng để tự động mở modal tạo mới
+                  if (menu === 'orders' && action === 'create') {
+                    setOrderAutoOpenCreateToken(Date.now());
+                  }
                 }}
               />
             )}
@@ -4511,7 +4508,7 @@
               <ProductManager showToast={showToast} />
             )}
             {activeMenu === 'orders' && (
-              <OrderManager />
+              <OrderManager autoOpenCreateToken={orderAutoOpenCreateToken} />
             )}
           </div>
 
@@ -4594,7 +4591,7 @@
 
     ReactDOM.render(<AdminApp />, document.getElementById('root'));
     // OrderManager component
-    function OrderManager() {
+    function OrderManager({ autoOpenCreateToken }) {
       const [orders, setOrders] = useState([]);
       const [loading, setLoading] = useState(true);
       const [saving, setSaving] = useState(false);
@@ -4611,6 +4608,7 @@
       });
       const [products, setProducts] = useState([]);
       const [editingId, setEditingId] = useState(null);
+      const lastAutoOpenCreateTokenRef = useRef(null);
 
       // Lock background scroll + hide bottom nav when modal open (especially on iOS)
       useEffect(() => {
@@ -4634,6 +4632,13 @@
       useEffect(() => {
         loadOrders();
       }, [filterMonth]);
+
+      useEffect(() => {
+        if (!autoOpenCreateToken) return;
+        if (lastAutoOpenCreateTokenRef.current === autoOpenCreateToken) return;
+        lastAutoOpenCreateTokenRef.current = autoOpenCreateToken;
+        openCreateModal();
+      }, [autoOpenCreateToken]);
 
       const getStatusLabel = (status) => {
         if (status === 'pending') return 'Chờ xử lý';
@@ -4733,11 +4738,11 @@
         setShowModal(true);
       };
 
-      const openCreateModal = () => {
+      function openCreateModal() {
         setEditingId(null);
         setForm({ customer_name: "", phone: "", address: "", product_id: "", quantity: 1, status: "pending" });
         setShowModal(true);
-      };
+      }
 
       const closeModal = () => {
         if (saving) return;

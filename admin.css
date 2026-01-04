@@ -781,6 +781,12 @@
       flex-direction: column-reverse;
       align-items: center;
       gap: 12px;
+      transition: bottom 0.2s ease;
+    }
+
+    /* When expanded, lift FAB so labels don't cover the search bar */
+    .fab-container.open {
+      bottom: 140px;
     }
     
     .fab-main {
@@ -852,6 +858,10 @@
       white-space: nowrap;
       opacity: 0;
       transition: opacity 0.2s;
+      pointer-events: none;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     
     .fab-container.open .fab-action .tooltip {
@@ -983,6 +993,10 @@
       .fab-container {
         bottom: 30px;
         right: 30px;
+      }
+
+      .fab-container.open {
+        bottom: 30px;
       }
       
       .bulk-selection-bar {
