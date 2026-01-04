@@ -5113,6 +5113,21 @@
       const lastItemsLenRef = useRef(0);
       const PHONE_LOOKUP_MIN_LEN = 3;
 
+      const resetOrderForm = (presetProductId) => {
+        setForm({
+          customer_name: "",
+          phone: "",
+          address: "",
+          items: [{ product_id: presetProductId || "", quantity: 1 }],
+          adjustment_amount: 0,
+          adjustment_note: "",
+          status: "pending"
+        });
+        setItemSearches(['']);
+        setCustomerLookup(null);
+        setOpenProductDropdownIdx(null);
+      };
+
       useEffect(() => {
         const onDocMouseDown = (e) => {
           if (openProductDropdownIdx == null) return;
@@ -5303,64 +5318,6 @@
         }
       };
 
-      const saveOrder = async () => {
-        const normalizedPhone = normalizePhone(form.phone);
-        const items = Array.isArray(form.items) ? form.items : [];
-        const normalizedItems = items
-          .map((it) => ({
-            product_id: it?.product_id || '',
-            quantity: Number(it?.quantity ?? 1),
-          }))
-          .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0);
-
-        if (!form.customer_name || !normalizedPhone || normalizedItems.length === 0) {
-          alert("Thiếu dữ liệu bắt buộc");
-          return;
-        }
-        if (!isValidPhone(normalizedPhone)) {
-          alert('Số điện thoại không hợp lệ (cần 9-12 chữ số)');
-          return;
-        }
-        setSaving(true);
-        try {
-          const url = editingId 
-            ? `${API_BASE}/api/orders/${editingId}` 
-            : `${API_BASE}/api/orders`;
-
-          const primary = normalizedItems[0];
-          const payload = {
-            customer_name: form.customer_name,
-            phone: normalizedPhone,
-            address: form.address,
-            adjustment_amount: parseSignedMoney(form.adjustment_amount),
-            adjustment_note: (form.adjustment_note || '').trim(),
-            // Back-compat fields (API will normalize from items anyway)
-            product_id: primary.product_id,
-            quantity: primary.quantity,
-            status: form.status,
-            items: normalizedItems,
-            ...(editingId ? { id: editingId } : {}),
-          };
-
-          if (editingId) {
-            await window.KTM.api.putJSON(url, payload, 'Lỗi lưu đơn hàng');
-          } else {
-            await window.KTM.api.postJSON(url, payload, 'Lỗi lưu đơn hàng');
-          }
-          setForm({ customer_name: "", phone: "", address: "", items: [{ product_id: "", quantity: 1 }], adjustment_amount: 0, adjustment_note: "", status: "pending" });
-          setEditingId(null);
-          setShowModal(false);
-          loadOrders();
-        } catch (err) {
-          console.error(err);
-          if (typeof showToast === 'function') showToast(err.message, 'danger');
-          else alert(err.message);
-          return;
-        } finally {
-          setSaving(false);
-        }
-      };
-
       const editOrder = (order) => {
         setEditingId(order.id);
 
@@ -5391,17 +5348,7 @@
 
       function openCreateModal(presetProductId) {
         setEditingId(null);
-        setForm({
-          customer_name: "",
-          phone: "",
-          address: "",
-          items: [{ product_id: presetProductId || "", quantity: 1 }],
-          adjustment_amount: 0,
-          adjustment_note: "",
-          status: "pending"
-        });
-        setItemSearches(['']);
-        setCustomerLookup(null);
+        resetOrderForm(presetProductId || '');
         setShowModal(true);
       }
 
@@ -5409,10 +5356,7 @@
         if (saving) return;
         setShowModal(false);
         setEditingId(null);
-        setForm({ customer_name: "", phone: "", address: "", items: [{ product_id: "", quantity: 1 }], adjustment_amount: 0, adjustment_note: "", status: "pending" });
-        setItemSearches(['']);
-        setOpenProductDropdownIdx(null);
-        setCustomerLookup(null);
+        resetOrderForm('');
       };
 
       const getProductLabel = (productId) => {
@@ -5502,6 +5446,194 @@
       const getOrderShipInfo = (items) => window.KTM.orders.getOrderShipInfo(items, getProductById);
 
       const getItemsSubtotal = (items) => window.KTM.orders.getItemsSubtotal(items, getProductById);
+
+      const computeOrderValidation = (nextForm) => {
+        const errors = [];
+        const warnings = [];
+
+        const name = String(nextForm?.customer_name || '').trim();
+        const phone = normalizePhone(nextForm?.phone || '');
+        const address = String(nextForm?.address || '').trim();
+
+        if (!name) errors.push('Thiếu tên khách hàng');
+        if (!phone) errors.push('Thiếu số điện thoại');
+        if (phone && !isValidPhone(phone)) errors.push('Số điện thoại không hợp lệ (cần 9-12 chữ số)');
+        if (!address) warnings.push('Thiếu địa chỉ');
+
+        const items = Array.isArray(nextForm?.items) ? nextForm.items : [];
+        const selectedItems = items.filter((it) => it && it.product_id);
+        if (selectedItems.length === 0) errors.push('Chưa chọn sản phẩm');
+
+        const invalidQty = selectedItems.some((it) => {
+          const q = Number(it?.quantity ?? 0);
+          return !Number.isFinite(q) || q <= 0;
+        });
+        if (invalidQty) errors.push('Số lượng phải > 0');
+
+        const seen = new Set();
+        let hasDup = false;
+        for (const it of selectedItems) {
+          const pid = String(it.product_id || '').trim();
+          if (!pid) continue;
+          if (seen.has(pid)) {
+            hasDup = true;
+            break;
+          }
+          seen.add(pid);
+        }
+        if (hasDup) warnings.push('Sản phẩm bị trùng dòng (nên gộp số lượng)');
+
+        const subtotal = getItemsSubtotal(selectedItems);
+        const shipInfo = getOrderShipInfo(selectedItems);
+        const ship = shipInfo?.found ? Number(shipInfo?.fee ?? 0) : 0;
+        const adj = parseSignedMoney(nextForm?.adjustment_amount);
+        const adjNote = String(nextForm?.adjustment_note || '').trim();
+
+        if (shipInfo?.found) {
+          if (ship >= 200000 || (subtotal > 0 && ship > subtotal * 0.6)) {
+            warnings.push(`Ship có vẻ bất thường: ${formatVND(ship)}`);
+          }
+        }
+
+        if (adj !== 0 && !adjNote) {
+          warnings.push('Có điều chỉnh nhưng thiếu ghi chú điều chỉnh');
+        }
+        const absAdj = Math.abs(adj);
+        if (absAdj >= 500000 || (subtotal > 0 && absAdj > subtotal * 0.5)) {
+          if (adj !== 0) warnings.push(`Điều chỉnh có vẻ bất thường: ${formatVND(adj)}`);
+        }
+
+        return { errors, warnings, canSubmit: errors.length === 0 };
+      };
+
+      const orderValidation = React.useMemo(() => {
+        return computeOrderValidation(form);
+      }, [form, products]);
+
+      const orderFieldIssues = React.useMemo(() => {
+        const name = String(form?.customer_name || '').trim();
+        const phone = normalizePhone(form?.phone || '');
+        const address = String(form?.address || '').trim();
+
+        const items = Array.isArray(form?.items) ? form.items : [];
+        const counts = new Map();
+        for (const it of items) {
+          const pid = String(it?.product_id || '').trim();
+          if (!pid) continue;
+          counts.set(pid, (counts.get(pid) || 0) + 1);
+        }
+
+        const perItem = items.map((it) => {
+          const pid = String(it?.product_id || '').trim();
+          const q = Number(it?.quantity ?? 0);
+          const productError = pid ? '' : 'Chưa chọn sản phẩm';
+          const qtyError = Number.isFinite(q) && q > 0 ? '' : 'Số lượng phải > 0';
+          const dupWarn = pid && (counts.get(pid) || 0) > 1 ? 'Sản phẩm bị trùng dòng (nên gộp số lượng)' : '';
+          return { productError, qtyError, dupWarn };
+        });
+
+        const selectedItems = items.filter((it) => it && it.product_id);
+        const subtotal = getItemsSubtotal(selectedItems);
+        const shipInfo = getOrderShipInfo(selectedItems);
+        const ship = shipInfo?.found ? Number(shipInfo?.fee ?? 0) : 0;
+
+        const adj = parseSignedMoney(form?.adjustment_amount);
+        const adjNote = String(form?.adjustment_note || '').trim();
+        const absAdj = Math.abs(adj);
+        const adjustmentNoteWarn = adj !== 0 && !adjNote ? 'Có điều chỉnh nhưng thiếu ghi chú điều chỉnh' : '';
+        const adjustmentAbnormalWarn = (adj !== 0 && (absAdj >= 500000 || (subtotal > 0 && absAdj > subtotal * 0.5)))
+          ? `Điều chỉnh có vẻ bất thường: ${formatVND(adj)}`
+          : '';
+        const shipAbnormalWarn = shipInfo?.found && (ship >= 200000 || (subtotal > 0 && ship > subtotal * 0.6))
+          ? `Ship có vẻ bất thường: ${formatVND(ship)}`
+          : '';
+
+        const nameError = name ? '' : 'Thiếu tên khách hàng';
+        const phoneError = !phone
+          ? 'Thiếu số điện thoại'
+          : (!isValidPhone(phone) ? 'Số điện thoại không hợp lệ (cần 9-12 chữ số)' : '');
+        const addressWarn = address ? '' : 'Thiếu địa chỉ';
+
+        const canSubmit = !nameError && !phoneError && perItem.every((x) => !x.productError && !x.qtyError);
+
+        return {
+          nameError,
+          phoneError,
+          addressWarn,
+          items: perItem,
+          shipAbnormalWarn,
+          adjustmentNoteWarn,
+          adjustmentAbnormalWarn,
+          canSubmit,
+        };
+      }, [form, products]);
+
+      const saveOrder = async (options) => {
+        const mode = options?.mode || 'close'; // 'close' | 'new'
+
+        const validation = computeOrderValidation(form);
+        if (!validation.canSubmit) {
+          const msg = validation.errors[0] || 'Thiếu dữ liệu bắt buộc';
+          if (typeof showToast === 'function') showToast(msg, 'danger');
+          else alert(msg);
+          return;
+        }
+
+        const normalizedPhone = normalizePhone(form.phone);
+        const items = Array.isArray(form.items) ? form.items : [];
+        const normalizedItems = items
+          .map((it) => ({
+            product_id: it?.product_id || '',
+            quantity: Number(it?.quantity ?? 1),
+          }))
+          .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0);
+
+        setSaving(true);
+        try {
+          const url = editingId 
+            ? `${API_BASE}/api/orders/${editingId}` 
+            : `${API_BASE}/api/orders`;
+
+          const primary = normalizedItems[0];
+          const payload = {
+            customer_name: form.customer_name,
+            phone: normalizedPhone,
+            address: form.address,
+            adjustment_amount: parseSignedMoney(form.adjustment_amount),
+            adjustment_note: (form.adjustment_note || '').trim(),
+            // Back-compat fields (API will normalize from items anyway)
+            product_id: primary.product_id,
+            quantity: primary.quantity,
+            status: form.status,
+            items: normalizedItems,
+            ...(editingId ? { id: editingId } : {}),
+          };
+
+          if (editingId) {
+            await window.KTM.api.putJSON(url, payload, 'Lỗi lưu đơn hàng');
+          } else {
+            await window.KTM.api.postJSON(url, payload, 'Lỗi lưu đơn hàng');
+          }
+
+          if (mode === 'new' && !editingId) {
+            resetOrderForm('');
+            setEditingId(null);
+            setShowModal(true);
+          } else {
+            resetOrderForm('');
+            setEditingId(null);
+            setShowModal(false);
+          }
+          loadOrders();
+        } catch (err) {
+          console.error(err);
+          if (typeof showToast === 'function') showToast(err.message, 'danger');
+          else alert(err.message);
+          return;
+        } finally {
+          setSaving(false);
+        }
+      };
 
       const getOrderTotalMoney = (order) => window.KTM.orders.getOrderTotalMoney(order, getProductById);
 
@@ -5731,7 +5863,7 @@
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      saveOrder();
+                      saveOrder({ mode: 'close' });
                     }}
                   >
                     <div className="modal-body" ref={orderModalBodyRef}>
@@ -5746,6 +5878,9 @@
                             required
                             style={{ borderRadius: 10, padding: 12 }}
                           />
+                          {!!orderFieldIssues.nameError && (
+                            <div className="form-text text-danger">{orderFieldIssues.nameError}</div>
+                          )}
                         </div>
                         <div className="col-12 col-md-6">
                           <label className="form-label fw-semibold small text-muted mb-1">Số điện thoại *</label>
@@ -5761,6 +5896,9 @@
                             required
                             style={{ borderRadius: 10, padding: 12 }}
                           />
+                          {!!orderFieldIssues.phoneError && (
+                            <div className="form-text text-danger">{orderFieldIssues.phoneError}</div>
+                          )}
                           {customerLookup?.status === 'loading' && (
                             <div className="form-text">Đang tìm khách theo SĐT...</div>
                           )}
@@ -5797,6 +5935,9 @@
                             placeholder="Nhập địa chỉ (không bắt buộc)"
                             style={{ borderRadius: 10, padding: 12 }}
                           />
+                          {!!orderFieldIssues.addressWarn && (
+                            <div className="form-text text-warning">{orderFieldIssues.addressWarn}</div>
+                          )}
                         </div>
 
                         <div className="col-12 col-md-6">
@@ -5811,6 +5952,9 @@
                             style={{ borderRadius: 10, padding: 12 }}
                           />
                           <div className="form-text">Âm = giảm giá, dương = cộng thêm.</div>
+                          {!!orderFieldIssues.adjustmentAbnormalWarn && (
+                            <div className="form-text text-warning">{orderFieldIssues.adjustmentAbnormalWarn}</div>
+                          )}
                         </div>
                         <div className="col-12 col-md-6">
                           <label className="form-label fw-semibold small text-muted mb-1">Ghi chú điều chỉnh</label>
@@ -5821,6 +5965,9 @@
                             placeholder="Ví dụ: Giảm giá cho khách / Bù phí đóng gói..."
                             style={{ borderRadius: 10, padding: 12 }}
                           />
+                          {!!orderFieldIssues.adjustmentNoteWarn && (
+                            <div className="form-text text-warning">{orderFieldIssues.adjustmentNoteWarn}</div>
+                          )}
                         </div>
                         <div className="col-12 col-md-8">
                           <div className="d-flex align-items-center justify-content-between">
@@ -5931,6 +6078,17 @@
                                       ))}
                                     </select>
                                   </div>
+
+                                  {(() => {
+                                    const issue = orderFieldIssues.items?.[idx];
+                                    if (!issue) return null;
+                                    return (
+                                      <>
+                                        {!!issue.productError && <div className="form-text text-danger">{issue.productError}</div>}
+                                        {!!issue.dupWarn && <div className="form-text text-warning">{issue.dupWarn}</div>}
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                                 <div className="col-8 col-md-3">
                                   <input
@@ -5948,6 +6106,13 @@
                                     min="1"
                                     style={{ borderRadius: 10, padding: 12 }}
                                   />
+                                  {(() => {
+                                    const issue = orderFieldIssues.items?.[idx];
+                                    if (!issue) return null;
+                                    return !!issue.qtyError ? (
+                                      <div className="form-text text-danger">{issue.qtyError}</div>
+                                    ) : null;
+                                  })()}
                                 </div>
                                 <div className="col-4 col-md-1 d-flex justify-content-end">
                                   <button
@@ -6004,6 +6169,9 @@
                                     <span className="fw-semibold">{formatVND(shipInfo.fee)}</span>
                                   </div>
                                 )}
+                                {!!orderFieldIssues.shipAbnormalWarn && (
+                                  <div className="text-warning">{orderFieldIssues.shipAbnormalWarn}</div>
+                                )}
                                 {adj !== 0 && (
                                   <div className="d-flex justify-content-between">
                                     <span className="text-muted">Điều chỉnh</span>
@@ -6029,7 +6197,21 @@
                       <button type="button" className="btn btn-light" onClick={closeModal} disabled={saving} style={{ borderRadius: 10 }}>
                         Hủy
                       </button>
-                      <button type="submit" className="btn btn-warning fw-semibold" disabled={saving} style={{ borderRadius: 10, boxShadow: '0 4px 12px rgba(255,193,7,0.3)' }}>
+
+                      {!editingId && (
+                        <button
+                          type="button"
+                          className="btn btn-outline-warning fw-semibold"
+                          onClick={() => saveOrder({ mode: 'new' })}
+                          disabled={saving || !orderFieldIssues.canSubmit}
+                          style={{ borderRadius: 10 }}
+                          title="Lưu xong giữ form để tạo đơn mới"
+                        >
+                          <i className="fas fa-plus me-2"></i>Lưu &amp; tạo đơn mới
+                        </button>
+                      )}
+
+                      <button type="submit" className="btn btn-warning fw-semibold" disabled={saving || !orderFieldIssues.canSubmit} style={{ borderRadius: 10, boxShadow: '0 4px 12px rgba(255,193,7,0.3)' }}>
                         {saving ? (
                           <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu...</>
                         ) : (
