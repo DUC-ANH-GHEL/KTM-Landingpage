@@ -1845,13 +1845,14 @@
             ? `LỊCH SỬ HỘI THOẠI:\n${historyText}\n\nDANH SÁCH SẢN PHẨM:\n${dataContext}`
             : dataContext;
 
-          // Call backend API cho Admin
-          const response = await fetch(`${API_BASE}/api/ai-chat-admin`, {
+          // Call backend API (unified)
+          const response = await fetch(`${API_BASE}/api/ai-chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               message: message,
-              context: fullContext
+              context: fullContext,
+              audience: 'admin'
             })
           });
 

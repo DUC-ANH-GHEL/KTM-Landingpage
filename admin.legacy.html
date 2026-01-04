@@ -3414,12 +3414,13 @@
             : dataContext;
 
           // Call backend API cho Admin
-          const response = await fetch(`${API_BASE}/api/ai-chat-admin`, {
+          const response = await fetch(`${API_BASE}/api/ai-chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               message: message,
-              context: fullContext
+              context: fullContext,
+              audience: 'admin'
             })
           });
 
