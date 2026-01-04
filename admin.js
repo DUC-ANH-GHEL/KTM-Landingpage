@@ -4657,7 +4657,7 @@
                   </div>
                   <div className="col-6">
                     <div className="card p-2 border-0 shadow-sm bg-warning bg-opacity-10">
-                      <div className="text-muted small">Đang xử lý</div>
+                      <div className="text-muted small">Đang vận chuyển</div>
                       <div className="fw-semibold">{formatNumber(stats.statusCounts.processing)}</div>
                     </div>
                   </div>
@@ -4676,12 +4676,12 @@
                 </div>
               </div>
 
-              <div className="table-responsive mt-2">
+              <div className="d-none d-md-block table-responsive mt-2">
                 <table className="table table-bordered mb-0">
                   <thead>
                     <tr>
                       <th>Chờ xử lý</th>
-                      <th>Đang xử lý</th>
+                      <th>Đang vận chuyển</th>
                       <th>Hoàn thành</th>
                       <th>Khác</th>
                       <th>Tổng SL</th>
@@ -5162,7 +5162,7 @@
 
       const getStatusLabel = (status) => {
         if (status === 'pending') return 'Chờ xử lý';
-        if (status === 'processing') return 'Đang xử lý';
+        if (status === 'processing') return 'Đang vận chuyển';
         if (status === 'done') return 'Hoàn thành';
         return status || '';
       };
@@ -5515,7 +5515,7 @@
                             style={{ borderRadius: 10, padding: 12 }}
                           >
                             <option value="pending">Chờ xử lý</option>
-                            <option value="processing">Đang xử lý</option>
+                            <option value="processing">Đang vận chuyển</option>
                             <option value="done">Hoàn thành</option>
                           </select>
                         </div>

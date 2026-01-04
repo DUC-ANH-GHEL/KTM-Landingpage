@@ -6206,7 +6206,7 @@
 
       const getStatusLabel = (status) => {
         if (status === 'pending') return 'Chờ xử lý';
-        if (status === 'processing') return 'Đang xử lý';
+        if (status === 'processing') return 'Đang vận chuyển';
         if (status === 'done') return 'Hoàn thành';
         return status || '';
       };
@@ -6524,7 +6524,7 @@
                             style={{ borderRadius: 10, padding: 12 }}
                           >
                             <option value="pending">Chờ xử lý</option>
-                            <option value="processing">Đang xử lý</option>
+                            <option value="processing">Đang vận chuyển</option>
                             <option value="done">Hoàn thành</option>
                           </select>
                         </div>
