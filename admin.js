@@ -5111,6 +5111,7 @@
       const phoneLookupTimerRef = useRef(null);
       const phoneLookupRequestIdRef = useRef(0);
       const customerLookupCacheRef = useRef(new Map());
+      const lastLookupPhoneRef = useRef('');
       const orderModalBodyRef = useRef(null);
       const lastItemsLenRef = useRef(0);
       const lastCreatedOrderRef = useRef(null); // { id, fingerprint, ts }
@@ -5118,6 +5119,8 @@
       const PHONE_LOOKUP_DEBOUNCE_MS = 150;
       const CUSTOMER_LOOKUP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
       const CUSTOMER_LOOKUP_CACHE_TTL_NOT_FOUND_MS = 5 * 60 * 1000;
+      const CUSTOMER_LOOKUP_CACHE_STORAGE_KEY = 'ktm_customer_lookup_cache_v1';
+      const CUSTOMER_LOOKUP_CACHE_MAX_ENTRIES = 200;
 
       const resetOrderForm = (presetProductId) => {
         setForm({
@@ -5160,6 +5163,67 @@
 
       const normalizePhone = (value) => window.KTM.phone.normalize(value);
 
+      const loadCustomerLookupCache = () => {
+        try {
+          const raw = localStorage.getItem(CUSTOMER_LOOKUP_CACHE_STORAGE_KEY);
+          if (!raw) return;
+          const obj = JSON.parse(raw);
+          if (!obj || typeof obj !== 'object') return;
+          const entries = Object.entries(obj);
+          for (const [phone, value] of entries) {
+            if (!phone || !value || typeof value !== 'object') continue;
+            customerLookupCacheRef.current?.set(String(phone), value);
+          }
+        } catch {
+          // ignore
+        }
+      };
+
+      const persistCustomerLookupCache = () => {
+        try {
+          const map = customerLookupCacheRef.current;
+          if (!map || typeof map.entries !== 'function') return;
+
+          const arr = Array.from(map.entries())
+            .filter(([k, v]) => k && v && typeof v === 'object' && Number.isFinite(v.ts))
+            .sort((a, b) => (Number(b[1].ts) || 0) - (Number(a[1].ts) || 0))
+            .slice(0, CUSTOMER_LOOKUP_CACHE_MAX_ENTRIES);
+
+          const obj = {};
+          for (const [k, v] of arr) obj[k] = v;
+          localStorage.setItem(CUSTOMER_LOOKUP_CACHE_STORAGE_KEY, JSON.stringify(obj));
+        } catch {
+          // ignore
+        }
+      };
+
+      useEffect(() => {
+        loadCustomerLookupCache();
+      }, []);
+
+      const getPrefillFromOrders = (phone) => {
+        const p = normalizePhone(phone);
+        if (!p) return null;
+        const list = Array.isArray(orders) ? orders : [];
+        let best = null;
+        let bestT = -1;
+        for (const o of list) {
+          if (!o) continue;
+          if (normalizePhone(o.phone || '') !== p) continue;
+          const t = new Date(o.created_at).getTime();
+          const tt = Number.isFinite(t) ? t : 0;
+          if (tt >= bestT) {
+            bestT = tt;
+            best = o;
+          }
+        }
+        if (!best) return null;
+        return {
+          name: String(best.customer_name || '').trim(),
+          address: String(best.address || '').trim(),
+        };
+      };
+
       const applyCustomerPrefill = (customer, phone) => {
         if (!customer) return;
         setForm((prev) => {
@@ -5172,9 +5236,25 @@
         });
       };
 
+      const applyQuickPrefillFromOrders = (phone) => {
+        const pre = getPrefillFromOrders(phone);
+        if (!pre) return;
+        const p = normalizePhone(phone);
+        setForm((prev) => {
+          if (p && normalizePhone(prev.phone) !== p) return prev;
+          const next = { ...prev };
+          if (!String(prev.customer_name || '').trim() && pre.name) next.customer_name = pre.name;
+          if (!String(prev.address || '').trim() && pre.address) next.address = pre.address;
+          return next;
+        });
+      };
+
       const lookupCustomerByPhone = async (rawPhone) => {
         const phone = normalizePhone(rawPhone);
         if (!phone) return;
+
+        // Instant perceived speed: prefill from recent orders even before API responds.
+        applyQuickPrefillFromOrders(phone);
 
         const cached = customerLookupCacheRef.current?.get(phone);
         if (cached && Number.isFinite(cached.ts)) {
@@ -5200,12 +5280,14 @@
 
           if (data && data.exists && data.customer) {
             customerLookupCacheRef.current?.set(phone, { ts: Date.now(), status: 'found', customer: data.customer });
+            persistCustomerLookupCache();
             setCustomerLookup({ status: 'found', phone, customer: data.customer });
             applyCustomerPrefill(data.customer, phone);
             return;
           }
 
           customerLookupCacheRef.current?.set(phone, { ts: Date.now(), status: 'not-found', customer: null });
+          persistCustomerLookupCache();
           setCustomerLookup({ status: 'not-found', phone });
         } catch (e) {
           if (phoneLookupRequestIdRef.current !== requestId) return;
@@ -5216,7 +5298,16 @@
 
       const handlePhoneChange = (nextPhone) => {
         const digitsOnly = normalizePhone(nextPhone);
-        setForm((prev) => ({ ...prev, phone: digitsOnly }));
+        // Quick prefill from recent orders (instant) while typing.
+        const pre = getPrefillFromOrders(digitsOnly);
+        setForm((prev) => {
+          const next = { ...prev, phone: digitsOnly };
+          if (pre) {
+            if (!String(prev.customer_name || '').trim() && pre.name) next.customer_name = pre.name;
+            if (!String(prev.address || '').trim() && pre.address) next.address = pre.address;
+          }
+          return next;
+        });
         setShowPhoneHistory(false);
 
         if (phoneLookupTimerRef.current) {
@@ -5231,19 +5322,27 @@
         }
 
         // If phone is already valid (paste / complete), lookup immediately for best perceived speed.
-        if (isValidPhone(normalized)) {
+        if (isValidPhone(normalized) && normalized !== lastLookupPhoneRef.current) {
+          lastLookupPhoneRef.current = normalized;
           lookupCustomerByPhone(normalized);
           return;
         }
 
         phoneLookupTimerRef.current = setTimeout(() => {
-          lookupCustomerByPhone(digitsOnly);
+          const p = normalizePhone(digitsOnly);
+          if (!isValidPhone(p)) return;
+          if (p === lastLookupPhoneRef.current) return;
+          lastLookupPhoneRef.current = p;
+          lookupCustomerByPhone(p);
         }, PHONE_LOOKUP_DEBOUNCE_MS);
       };
 
       const handlePhoneBlur = () => {
         const normalized = normalizePhone(form.phone);
         if (normalized.length < PHONE_LOOKUP_MIN_LEN) return;
+        if (!isValidPhone(normalized)) return;
+        if (normalized === lastLookupPhoneRef.current) return;
+        lastLookupPhoneRef.current = normalized;
         lookupCustomerByPhone(normalized);
       };
 
