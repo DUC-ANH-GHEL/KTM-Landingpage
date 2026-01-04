@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/api/orders", "destination": "/api/orders-handler" },
+    { "source": "/api/orders/:id", "destination": "/api/orders-handler?id=:id" },
+
+    { "source": "/api/video-folders", "destination": "/api/video-folders-handler" },
+    { "source": "/api/video-folders/:id", "destination": "/api/video-folders-handler?id=:id" }
+  ]
+}
