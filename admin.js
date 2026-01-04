@@ -5488,9 +5488,21 @@
       const getOrderProductSummary = (order) => {
         const items = getOrderItems(order);
         if (!items.length) return '—';
-        const firstName = items[0]?.product_name || order?.product_name || '—';
-        if (items.length === 1) return firstName;
-        return `${firstName} + ${items.length - 1} sp`;
+
+        const names = items
+          .map((it) => {
+            const fromItem = it?.product_name;
+            if (fromItem) return String(fromItem);
+            const pid = String(it?.product_id || '');
+            const p = products.find(x => String(x?.id) === pid);
+            return p?.name ? String(p.name) : '';
+          })
+          .filter(Boolean);
+
+        if (names.length) return names.join(' + ');
+
+        // Final fallback (legacy)
+        return order?.product_name || '—';
       };
 
       const getOrderShipInfo = (items) => {
@@ -5609,9 +5621,12 @@
                         <div className="d-flex justify-content-between align-items-start gap-2">
                           <div className="flex-grow-1" style={{ minWidth: 0 }}>
                             <div className="fw-semibold text-truncate">{order.customer_name}</div>
-                            <div className="text-muted small text-truncate">
-                              {order.phone}{order.address ? ` • ${order.address}` : ''}
-                            </div>
+                            <div className="text-muted small">{order.phone}</div>
+                            {order.address && (
+                              <div className="text-muted small" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                {order.address}
+                              </div>
+                            )}
                           </div>
                           <span className={`badge ${getStatusBadgeClass(order.status)}`}>{getStatusLabel(order.status)}</span>
                         </div>
