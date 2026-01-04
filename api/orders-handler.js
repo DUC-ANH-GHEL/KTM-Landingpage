@@ -28,6 +28,9 @@ async function ensureSchema() {
 
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id VARCHAR(36)`;
 
+  // Some older schemas may not have updated_at on orders
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`;
+
   // Allow orders to exist without denormalized customer fields (legacy columns)
   for (const col of ['customer_name', 'phone', 'address']) {
     try {

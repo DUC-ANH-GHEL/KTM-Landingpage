@@ -5174,6 +5174,31 @@
         return 'bg-light text-dark';
       };
 
+      const sortedOrders = React.useMemo(() => {
+        const statusRank = { pending: 0, processing: 1, done: 2 };
+        const getRank = (status) => (status in statusRank ? statusRank[status] : 99);
+        const getCreatedTime = (value) => {
+          if (!value) return Number.POSITIVE_INFINITY;
+          const t = new Date(value).getTime();
+          return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+        };
+
+        return [...(orders || [])].sort((a, b) => {
+          const ra = getRank(a?.status);
+          const rb = getRank(b?.status);
+          if (ra !== rb) return ra - rb;
+
+          const ta = getCreatedTime(a?.created_at);
+          const tb = getCreatedTime(b?.created_at);
+          if (ta !== tb) return ta - tb;
+
+          const ia = Number(a?.id);
+          const ib = Number(b?.id);
+          if (Number.isFinite(ia) && Number.isFinite(ib)) return ia - ib;
+          return String(a?.id || '').localeCompare(String(b?.id || ''));
+        });
+      }, [orders]);
+
       const formatDateTime = (value) => {
         if (!value) return '';
         const d = new Date(value);
@@ -5366,7 +5391,7 @@
               <>
                 {/* Mobile cards */}
                 <div className="d-md-none mt-3">
-                  {orders.map(order => (
+                  {sortedOrders.map(order => (
                     <div key={order.id} className="card mb-2">
                       <div className="card-body p-3">
                         <div className="d-flex justify-content-between align-items-start gap-2">
@@ -5421,7 +5446,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {orders.map(order => (
+                      {sortedOrders.map(order => (
                         <tr key={order.id}>
                           <td>{order.customer_name}</td>
                           <td>{order.phone}</td>
