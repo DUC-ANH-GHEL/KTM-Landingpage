@@ -164,6 +164,8 @@ export default async function handler(req, res) {
             o.updated_at,
             o.customer_id,
             p.name AS product_name,
+            p.price AS product_price,
+            p.code AS product_code,
             COALESCE(c.name, o.customer_name) AS customer_name,
             COALESCE(c.phone, o.phone) AS phone,
             COALESCE(c.address, o.address) AS address
@@ -187,6 +189,8 @@ export default async function handler(req, res) {
           o.updated_at,
           o.customer_id,
           p.name AS product_name,
+          p.price AS product_price,
+          p.code AS product_code,
           COALESCE(c.name, o.customer_name) AS customer_name,
           COALESCE(c.phone, o.phone) AS phone,
           COALESCE(c.address, o.address) AS address

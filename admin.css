@@ -72,6 +72,20 @@
     .mobile-bottom-nav .nav-item i {
       font-size: 18px;
     }
+
+    @media (max-width: 380px) {
+      .mobile-bottom-nav .nav-items {
+        padding: 0 4px;
+      }
+      .mobile-bottom-nav .nav-item {
+        padding: 6px 6px;
+        font-size: 10px;
+        min-width: 48px;
+      }
+      .mobile-bottom-nav .nav-item i {
+        font-size: 16px;
+      }
+    }
     
     .mobile-bottom-nav .nav-item.active {
       color: var(--primary);

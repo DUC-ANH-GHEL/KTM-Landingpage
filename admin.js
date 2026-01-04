@@ -138,6 +138,7 @@
         { id: 'videos', icon: 'fa-video', label: 'Quản lý Video' },
         { id: 'products', icon: 'fa-box', label: 'Sản phẩm' },
         { id: 'orders', icon: 'fa-receipt', label: 'Quản lý đơn hàng' },
+        { id: 'stats', icon: 'fa-chart-column', label: 'Thống kê' },
         { id: 'settings', icon: 'fa-cog', label: 'Cài đặt', disabled: true },
       ];
 
@@ -4432,6 +4433,404 @@
         return <LoginPage onLogin={handleLogin} error={loginError} />;
       }
 
+      const getCurrentMonth = () => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+      };
+
+      function StatsManager() {
+        const [month, setMonth] = useState(getCurrentMonth());
+        const [loadingStats, setLoadingStats] = useState(true);
+        const [orders, setOrders] = useState([]);
+
+        const parseMoney = (value) => {
+          if (!value) return 0;
+          const digits = String(value).replace(/[^0-9]/g, '');
+          return digits ? Number(digits) : 0;
+        };
+
+        const formatNumber = (n) => {
+          try {
+            return Number(n || 0).toLocaleString('vi-VN');
+          } catch {
+            return String(n || 0);
+          }
+        };
+
+        const formatVND = (n) => `${formatNumber(n)}đ`;
+
+        const loadStats = async () => {
+          setLoadingStats(true);
+          try {
+            const res = await fetch(`${API_BASE}/api/orders?month=${encodeURIComponent(month)}`);
+            const data = await res.json();
+            setOrders(Array.isArray(data) ? data : []);
+          } catch (e) {
+            console.error('Load stats error:', e);
+            setOrders([]);
+          } finally {
+            setLoadingStats(false);
+          }
+        };
+
+        useEffect(() => {
+          loadStats();
+        }, [month]);
+
+        const stats = React.useMemo(() => {
+          const statusCounts = { pending: 0, processing: 0, done: 0, other: 0 };
+          let totalQty = 0;
+          let totalRevenue = 0;
+          let doneRevenue = 0;
+
+          const customerKey = (o) => o.customer_id || o.phone || 'unknown';
+
+          const revenueByProduct = new Map();
+          const revenueByCustomer = new Map();
+          const byDay = new Map();
+
+          for (const o of orders) {
+            const qty = Number(o.quantity || 0) || 0;
+            const price = parseMoney(o.product_price);
+            const revenue = qty * price;
+
+            totalQty += qty;
+            totalRevenue += revenue;
+
+            if (o.status === 'pending') statusCounts.pending += 1;
+            else if (o.status === 'processing') statusCounts.processing += 1;
+            else if (o.status === 'done') {
+              statusCounts.done += 1;
+              doneRevenue += revenue;
+            } else statusCounts.other += 1;
+
+            const pid = o.product_id || 'unknown';
+            const p = revenueByProduct.get(pid) || { product_id: pid, product_name: o.product_name || '—', product_code: o.product_code || '', orders: 0, quantity: 0, revenue: 0 };
+            p.orders += 1;
+            p.quantity += qty;
+            p.revenue += revenue;
+            revenueByProduct.set(pid, p);
+
+            const ck = customerKey(o);
+            const c = revenueByCustomer.get(ck) || { key: ck, customer_name: o.customer_name || '', phone: o.phone || '', orders: 0, quantity: 0, revenue: 0 };
+            c.orders += 1;
+            c.quantity += qty;
+            c.revenue += revenue;
+            if (!c.customer_name && o.customer_name) c.customer_name = o.customer_name;
+            if (!c.phone && o.phone) c.phone = o.phone;
+            revenueByCustomer.set(ck, c);
+
+            const day = o.created_at ? new Date(o.created_at) : null;
+            if (day && !Number.isNaN(day.getTime())) {
+              const k = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+              const d = byDay.get(k) || { day: k, orders: 0, quantity: 0, revenue: 0, doneOrders: 0, doneRevenue: 0 };
+              d.orders += 1;
+              d.quantity += qty;
+              d.revenue += revenue;
+              if (o.status === 'done') {
+                d.doneOrders += 1;
+                d.doneRevenue += revenue;
+              }
+              byDay.set(k, d);
+            }
+          }
+
+          const products = Array.from(revenueByProduct.values()).sort((a, b) => b.revenue - a.revenue);
+          const customers = Array.from(revenueByCustomer.values()).sort((a, b) => b.revenue - a.revenue);
+          const days = Array.from(byDay.values()).sort((a, b) => a.day.localeCompare(b.day));
+          const uniqueCustomers = revenueByCustomer.size;
+
+          const avgOrderValue = orders.length ? Math.round(totalRevenue / orders.length) : 0;
+          const avgQtyPerOrder = orders.length ? (totalQty / orders.length) : 0;
+
+          return {
+            statusCounts,
+            totalQty,
+            totalRevenue,
+            doneRevenue,
+            products,
+            customers,
+            days,
+            uniqueCustomers,
+            avgOrderValue,
+            avgQtyPerOrder,
+          };
+        }, [orders, month]);
+
+        return (
+          <div className="product-manager pb-5 mb-4">
+            <Loading show={loadingStats} />
+            <div className="product-header">
+              <h5><i className="fas fa-chart-column me-2"></i>Thống kê</h5>
+              <button className="btn btn-outline-secondary btn-sm" onClick={loadStats} disabled={loadingStats}>
+                <i className="fas fa-rotate me-2"></i>Làm mới
+              </button>
+            </div>
+
+            <div className="product-search">
+              <div className="row g-2 align-items-end">
+                <div className="col-12 col-md-5">
+                  <label className="form-label mb-1">Chọn tháng</label>
+                  <div className="input-group">
+                    <span className="input-group-text" aria-hidden="true"><i className="fas fa-calendar-alt"></i></span>
+                    <input
+                      type="month"
+                      className="form-control"
+                      value={month}
+                      onChange={(e) => setMonth(e.target.value)}
+                      aria-label="Chọn tháng"
+                    />
+                  </div>
+                </div>
+                <div className="col-12 col-md-7 d-flex gap-2 justify-content-md-end">
+                  <div className="text-muted small align-self-center">
+                    {orders.length} đơn • {formatNumber(stats.uniqueCustomers)} khách
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="row g-2">
+              <div className="col-6 col-md-3">
+                <div className="card p-3">
+                  <div className="text-muted small">Tổng đơn</div>
+                  <div className="fs-4 fw-semibold">{formatNumber(orders.length)}</div>
+                </div>
+              </div>
+              <div className="col-6 col-md-3">
+                <div className="card p-3">
+                  <div className="text-muted small">Doanh thu (tạm tính)</div>
+                  <div className="fs-4 fw-semibold">{formatVND(stats.totalRevenue)}</div>
+                </div>
+              </div>
+              <div className="col-6 col-md-3">
+                <div className="card p-3">
+                  <div className="text-muted small">Doanh thu (Hoàn thành)</div>
+                  <div className="fs-4 fw-semibold">{formatVND(stats.doneRevenue)}</div>
+                </div>
+              </div>
+              <div className="col-6 col-md-3">
+                <div className="card p-3">
+                  <div className="text-muted small">Giá trị TB/đơn</div>
+                  <div className="fs-4 fw-semibold">{formatVND(stats.avgOrderValue)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card p-3 mt-3">
+              <div className="d-flex align-items-center justify-content-between">
+                <h6 className="mb-0">Tổng quan trạng thái</h6>
+                <span className="text-muted small">SL TB/đơn: {stats.avgQtyPerOrder ? stats.avgQtyPerOrder.toFixed(2) : '0.00'}</span>
+              </div>
+              {/* Mobile: compact cards */}
+              <div className="d-md-none mt-2">
+                <div className="row g-2">
+                  <div className="col-6">
+                    <div className="card p-2">
+                      <div className="text-muted small">Chờ xử lý</div>
+                      <div className="fw-semibold">{formatNumber(stats.statusCounts.pending)}</div>
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <div className="card p-2">
+                      <div className="text-muted small">Đang xử lý</div>
+                      <div className="fw-semibold">{formatNumber(stats.statusCounts.processing)}</div>
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <div className="card p-2">
+                      <div className="text-muted small">Hoàn thành</div>
+                      <div className="fw-semibold">{formatNumber(stats.statusCounts.done)}</div>
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <div className="card p-2">
+                      <div className="text-muted small">Tổng SL</div>
+                      <div className="fw-semibold">{formatNumber(stats.totalQty)}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="table-responsive mt-2">
+                <table className="table table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th>Chờ xử lý</th>
+                      <th>Đang xử lý</th>
+                      <th>Hoàn thành</th>
+                      <th>Khác</th>
+                      <th>Tổng SL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>{formatNumber(stats.statusCounts.pending)}</td>
+                      <td>{formatNumber(stats.statusCounts.processing)}</td>
+                      <td>{formatNumber(stats.statusCounts.done)}</td>
+                      <td>{formatNumber(stats.statusCounts.other)}</td>
+                      <td>{formatNumber(stats.totalQty)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="card p-3 mt-3">
+              <div className="d-flex align-items-center justify-content-between">
+                <h6 className="mb-0">Top sản phẩm (theo doanh thu)</h6>
+                <span className="text-muted small">Top 10</span>
+              </div>
+              {/* Mobile: card list */}
+              <div className="d-md-none mt-2">
+                {stats.products.slice(0, 10).map((p) => (
+                  <div key={p.product_id} className="card mb-2 p-2">
+                    <div className="d-flex justify-content-between align-items-start gap-2">
+                      <div className="fw-semibold" style={{ minWidth: 0, flex: 1 }}>
+                        <div className="text-truncate">{p.product_name}</div>
+                        <div className="text-muted small text-truncate">
+                          {p.product_code ? `#${p.product_code} • ` : ''}
+                          {formatNumber(p.orders)} đơn • {formatNumber(p.quantity)} SL
+                        </div>
+                      </div>
+                      <div className="fw-semibold text-nowrap">{formatVND(p.revenue)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="d-none d-md-block table-responsive mt-2">
+                <table className="table table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th>Sản phẩm</th>
+                      <th>Mã</th>
+                      <th>Đơn</th>
+                      <th>SL</th>
+                      <th>Doanh thu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.products.slice(0, 10).map((p) => (
+                      <tr key={p.product_id}>
+                        <td>{p.product_name}</td>
+                        <td>{p.product_code || '—'}</td>
+                        <td>{formatNumber(p.orders)}</td>
+                        <td>{formatNumber(p.quantity)}</td>
+                        <td className="fw-semibold">{formatVND(p.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="card p-3 mt-3">
+              <div className="d-flex align-items-center justify-content-between">
+                <h6 className="mb-0">Top khách hàng (theo doanh thu)</h6>
+                <span className="text-muted small">Top 10</span>
+              </div>
+              {/* Mobile: card list */}
+              <div className="d-md-none mt-2">
+                {stats.customers.slice(0, 10).map((c) => (
+                  <div key={c.key} className="card mb-2 p-2">
+                    <div className="d-flex justify-content-between align-items-start gap-2">
+                      <div className="fw-semibold" style={{ minWidth: 0, flex: 1 }}>
+                        <div className="text-truncate">{c.customer_name || '—'}</div>
+                        <div className="text-muted small text-truncate">
+                          {c.phone || '—'} • {formatNumber(c.orders)} đơn • {formatNumber(c.quantity)} SL
+                        </div>
+                      </div>
+                      <div className="fw-semibold text-nowrap">{formatVND(c.revenue)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="d-none d-md-block table-responsive mt-2">
+                <table className="table table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th>Khách hàng</th>
+                      <th>SĐT</th>
+                      <th>Đơn</th>
+                      <th>SL</th>
+                      <th>Doanh thu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.customers.slice(0, 10).map((c) => (
+                      <tr key={c.key}>
+                        <td>{c.customer_name || '—'}</td>
+                        <td>{c.phone || '—'}</td>
+                        <td>{formatNumber(c.orders)}</td>
+                        <td>{formatNumber(c.quantity)}</td>
+                        <td className="fw-semibold">{formatVND(c.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="card p-3 mt-3 mb-4">
+              <div className="d-flex align-items-center justify-content-between">
+                <h6 className="mb-0">Theo ngày</h6>
+                <span className="text-muted small">Doanh thu (tạm tính) & hoàn thành</span>
+              </div>
+              {/* Mobile: card list */}
+              <div className="d-md-none mt-2">
+                {stats.days.map((d) => (
+                  <div key={d.day} className="card mb-2 p-2">
+                    <div className="d-flex justify-content-between align-items-start gap-2">
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className="fw-semibold">{d.day}</div>
+                        <div className="text-muted small">
+                          {formatNumber(d.orders)} đơn • {formatNumber(d.quantity)} SL
+                        </div>
+                        <div className="text-muted small">
+                          Hoàn thành: {formatNumber(d.doneOrders)} • {formatVND(d.doneRevenue)}
+                        </div>
+                      </div>
+                      <div className="fw-semibold text-nowrap">{formatVND(d.revenue)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="d-none d-md-block table-responsive mt-2">
+                <table className="table table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th>Ngày</th>
+                      <th>Đơn</th>
+                      <th>SL</th>
+                      <th>DT (tạm tính)</th>
+                      <th>Đơn hoàn thành</th>
+                      <th>DT hoàn thành</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.days.map((d) => (
+                      <tr key={d.day}>
+                        <td>{d.day}</td>
+                        <td>{formatNumber(d.orders)}</td>
+                        <td>{formatNumber(d.quantity)}</td>
+                        <td className="fw-semibold">{formatVND(d.revenue)}</td>
+                        <td>{formatNumber(d.doneOrders)}</td>
+                        <td className="fw-semibold">{formatVND(d.doneRevenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div>
           <Sidebar 
@@ -4523,6 +4922,10 @@
                 autoOpenCreateProductId={orderAutoOpenCreateProductId}
               />
             )}
+
+            {activeMenu === 'stats' && (
+              <StatsManager />
+            )}
           </div>
 
           {/* ========== MOBILE BOTTOM NAVIGATION ========== */}
@@ -4567,6 +4970,14 @@
               >
                 <i className="fas fa-receipt"></i>
                 <span>Đơn hàng</span>
+              </a>
+              <a 
+                href="#" 
+                className={`nav-item ${activeMenu === 'stats' ? 'active' : ''}`}
+                onClick={(e) => { e.preventDefault(); setActiveMenu('stats'); }}
+              >
+                <i className="fas fa-chart-column"></i>
+                <span>Thống kê</span>
               </a>
               <a 
                 href="#" 
