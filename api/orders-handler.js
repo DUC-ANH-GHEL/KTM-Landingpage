@@ -35,6 +35,11 @@ async function ensureSchema() {
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS adjustment_amount INTEGER DEFAULT 0`;
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS adjustment_note TEXT`;
 
+  // Split orders (partial fulfillment)
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS parent_order_id VARCHAR(64)`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS split_seq INTEGER DEFAULT 0`;
+  await sql`CREATE INDEX IF NOT EXISTS orders_parent_order_id_idx ON orders(parent_order_id)`;
+
   // Order items (multi-product per order)
   await sql`
     CREATE TABLE IF NOT EXISTS order_items (
@@ -226,6 +231,8 @@ export default async function handler(req, res) {
         const query = `
           SELECT
             o.id,
+            o.parent_order_id,
+            o.split_seq,
             o.product_id,
             o.quantity,
             o.status,
@@ -273,6 +280,8 @@ export default async function handler(req, res) {
       let query = `
         SELECT
           o.id,
+          o.parent_order_id,
+          o.split_seq,
           o.product_id,
           o.quantity,
           o.status,
@@ -325,7 +334,7 @@ export default async function handler(req, res) {
       if (id) {
         return res.status(400).json({ error: 'Use /api/orders for creating orders (no id in URL)' });
       }
-      const { customer_name, phone, address, product_id, quantity, status, items, adjustment_amount, adjustment_note } = req.body;
+      const { customer_name, phone, address, product_id, quantity, status, items, adjustment_amount, adjustment_note, parent_order_id, split_seq } = req.body;
 
       const normalizedPhone = normalizePhone(phone);
       if (!normalizedPhone) {
@@ -348,9 +357,43 @@ export default async function handler(req, res) {
       const adjAmount = Number.isFinite(adj) ? Math.trunc(adj) : 0;
       const adjNote = adjustment_note != null && String(adjustment_note).trim() ? String(adjustment_note).trim() : null;
 
+      let parentOrderId = parent_order_id != null && String(parent_order_id).trim() ? String(parent_order_id).trim() : null;
+      let splitSeq = 0;
+
+      // Allow creating a "root" split order (no parent) with split_seq=1
+      if (!parentOrderId) {
+        const seqNum = Number(split_seq);
+        if (Number.isFinite(seqNum) && Math.trunc(seqNum) === 1) {
+          splitSeq = 1;
+        }
+      }
+
+      if (parentOrderId) {
+        const parent = await sql`SELECT id, split_seq FROM orders WHERE id = ${parentOrderId} LIMIT 1`;
+        if (!parent.length) {
+          return res.status(400).json({ error: 'parent_order_id not found' });
+        }
+
+        // Ensure parent is marked as first split when creating children.
+        await sql`
+          UPDATE orders
+          SET split_seq = 1
+          WHERE id = ${parentOrderId} AND (split_seq IS NULL OR split_seq = 0)
+        `;
+
+        const nextSeqRows = await sql`
+          SELECT (GREATEST(COALESCE(MAX(split_seq), 0), 1) + 1) AS next_seq
+          FROM orders
+          WHERE id = ${parentOrderId} OR parent_order_id = ${parentOrderId}
+        `;
+        const nextSeq = Number(nextSeqRows?.[0]?.next_seq ?? 2);
+        splitSeq = Number.isFinite(nextSeq) ? Math.trunc(nextSeq) : 2;
+        if (splitSeq < 2) splitSeq = 2;
+      }
+
       const created = await sql`
-        INSERT INTO orders (customer_id, product_id, quantity, status, adjustment_amount, adjustment_note)
-        VALUES (${customer.id}, ${primary.product_id}, ${primary.quantity}, ${status}, ${adjAmount}, ${adjNote})
+        INSERT INTO orders (customer_id, parent_order_id, split_seq, product_id, quantity, status, adjustment_amount, adjustment_note)
+        VALUES (${customer.id}, ${parentOrderId}, ${splitSeq}, ${primary.product_id}, ${primary.quantity}, ${status}, ${adjAmount}, ${adjNote})
         RETURNING id
       `;
 
@@ -378,6 +421,27 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'phone is required' });
       }
 
+      const currentRows = await sql`SELECT parent_order_id, split_seq FROM orders WHERE id = ${id} LIMIT 1`;
+      if (!currentRows.length) return res.status(404).json({ error: 'Order not found' });
+      const cur = currentRows[0];
+
+      const hasParentField = Object.prototype.hasOwnProperty.call(req.body || {}, 'parent_order_id');
+      const hasSplitField = Object.prototype.hasOwnProperty.call(req.body || {}, 'split_seq');
+
+      let nextParentOrderId = cur.parent_order_id ?? null;
+      if (hasParentField) {
+        const raw = req.body.parent_order_id;
+        nextParentOrderId = raw != null && String(raw).trim() ? String(raw).trim() : null;
+      }
+
+      let nextSplitSeq = Number(cur.split_seq ?? 0);
+      if (!Number.isFinite(nextSplitSeq)) nextSplitSeq = 0;
+      nextSplitSeq = Math.trunc(nextSplitSeq);
+      if (hasSplitField) {
+        const seqNum = Number(req.body.split_seq);
+        nextSplitSeq = Number.isFinite(seqNum) ? Math.max(0, Math.trunc(seqNum)) : 0;
+      }
+
       const customer = await upsertCustomerByPhone({
         name: customer_name,
         phone: normalizedPhone,
@@ -397,6 +461,8 @@ export default async function handler(req, res) {
       await sql`
         UPDATE orders SET
           customer_id = ${customer.id},
+          parent_order_id = ${nextParentOrderId},
+          split_seq = ${nextSplitSeq},
           product_id = ${primary.product_id},
           quantity = ${primary.quantity},
           status = ${status},

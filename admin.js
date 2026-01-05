@@ -5090,10 +5090,12 @@
       const [saving, setSaving] = useState(false);
       const [deletingId, setDeletingId] = useState(null);
       const [updatingId, setUpdatingId] = useState(null);
+      const [splitting, setSplitting] = useState(false);
       const [filterMonth, setFilterMonth] = useState('');
       const [showModal, setShowModal] = useState(false);
       const [customerLookup, setCustomerLookup] = useState(null);
       const [showPhoneHistory, setShowPhoneHistory] = useState(false);
+      const [splitDeliverNow, setSplitDeliverNow] = useState([]);
       const [form, setForm] = useState({
         customer_name: "",
         phone: "",
@@ -5471,6 +5473,7 @@
           status: order.status || "pending",
         });
         setItemSearches(new Array(items.length ? items.length : 1).fill(''));
+        setSplitDeliverNow(new Array(items.length ? items.length : 1).fill(true));
         setCustomerLookup(null);
         setShowModal(true);
 
@@ -5483,15 +5486,127 @@
         setEditingId(null);
         resetOrderForm(presetProductId || '');
         setShowPhoneHistory(false);
+        setSplitDeliverNow([]);
         setShowModal(true);
       }
 
       const closeModal = () => {
-        if (saving) return;
+        if (saving || splitting) return;
         setShowModal(false);
         setEditingId(null);
         resetOrderForm('');
         setShowPhoneHistory(false);
+        setSplitDeliverNow([]);
+      };
+
+      const splitOrderDeliverNow = async () => {
+        if (!editingId) return;
+        if (splitting || saving) return;
+
+        const currentOrder = (Array.isArray(orders) ? orders : []).find((o) => String(o?.id) === String(editingId)) || null;
+        const currentStatus = String(currentOrder?.status || form?.status || '').trim();
+        if (currentStatus === 'done' || currentStatus === 'paid') {
+          const msg = 'Không thể tách: đơn đã hoàn thành/đã nhận tiền.';
+          if (typeof showToast === 'function') showToast(msg, 'warning');
+          else alert(msg);
+          return;
+        }
+
+        const normalizedPhone = normalizePhone(form.phone);
+        const items = Array.isArray(form.items) ? form.items : [];
+        const normalizedItemsWithIndex = items
+          .map((it, idx) => ({
+            idx,
+            product_id: String(it?.product_id || '').trim(),
+            quantity: Number(it?.quantity ?? 0),
+          }))
+          .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0);
+
+        if (normalizedItemsWithIndex.length < 2) {
+          const msg = 'Cần ít nhất 2 sản phẩm để tách đơn.';
+          if (typeof showToast === 'function') showToast(msg, 'warning');
+          else alert(msg);
+          return;
+        }
+
+        const selected = [];
+        const remaining = [];
+        for (const it of normalizedItemsWithIndex) {
+          const deliverNow = !!splitDeliverNow[it.idx];
+          const row = { product_id: it.product_id, quantity: it.quantity };
+          if (deliverNow) selected.push(row);
+          else remaining.push(row);
+        }
+
+        if (!selected.length || !remaining.length) {
+          const msg = 'Chọn một số sản phẩm “Giao đợt 1”, và để lại ít nhất 1 sản phẩm “Chờ hàng”.';
+          if (typeof showToast === 'function') showToast(msg, 'warning');
+          else alert(msg);
+          return;
+        }
+
+        setSplitting(true);
+        try {
+          const adjNow = parseSignedMoney(form.adjustment_amount);
+          const adjNoteNow = (form.adjustment_note || '').trim();
+
+          // 1) Create new order for immediate delivery
+          const createPayload = {
+            customer_name: form.customer_name,
+            phone: normalizedPhone,
+            address: form.address,
+            adjustment_amount: adjNow,
+            adjustment_note: adjNoteNow,
+            status: 'processing',
+            items: selected,
+            // Back-compat fields
+            product_id: selected[0].product_id,
+            quantity: selected[0].quantity,
+            // Make the immediate-delivery order the root split (Đợt 1)
+            split_seq: 1,
+          };
+
+          const created = await window.KTM.api.postJSON(`${API_BASE}/api/orders`, createPayload, 'Lỗi tách đơn (tạo đơn giao ngay)');
+          const newId = created?.id ?? created?.order?.id ?? null;
+
+          if (!newId) {
+            throw new Error('Tách đơn thất bại: không nhận được ID đơn giao ngay');
+          }
+
+          // 2) Update current order with remaining items
+          const updatePayload = {
+            id: editingId,
+            customer_name: form.customer_name,
+            phone: normalizedPhone,
+            address: form.address,
+            adjustment_amount: 0,
+            adjustment_note: '',
+            status: 'pending',
+            items: remaining,
+            // Back-compat fields
+            product_id: remaining[0].product_id,
+            quantity: remaining[0].quantity,
+            // Link waiting items as Đợt 2 under the new root
+            parent_order_id: String(newId),
+            split_seq: 2,
+          };
+
+          await window.KTM.api.putJSON(`${API_BASE}/api/orders/${editingId}`, updatePayload, 'Lỗi tách đơn (cập nhật phần chờ hàng)');
+
+          closeModal();
+          loadOrders();
+
+          const msg = newId ? `Đã tách đơn. Đơn giao ngay: #${newId}` : 'Đã tách đơn.';
+          if (typeof showToast === 'function') showToast(msg, 'success');
+          else alert(msg);
+        } catch (err) {
+          console.error(err);
+          const msg = err?.message || 'Tách đơn thất bại';
+          if (typeof showToast === 'function') showToast(msg, 'danger');
+          else alert(msg);
+        } finally {
+          setSplitting(false);
+        }
       };
 
       const getProductLabel = (productId) => {
@@ -6040,6 +6155,9 @@
                           <div className="flex-grow-1" style={{ minWidth: 0 }}>
                             <div className="fw-semibold text-truncate">{order.customer_name}</div>
                             <div className="fw-bold font-monospace">{order.phone}</div>
+                            {Number(order?.split_seq ?? 0) > 0 && (
+                              <div className="text-muted small">Đợt {order.split_seq}</div>
+                            )}
                             {order.address && (
                               <div className="text-muted small" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
                                 {order.address}
@@ -6438,6 +6556,9 @@
                                   items: [...(Array.isArray(prev.items) ? prev.items : []), { product_id: "", quantity: 1 }],
                                 }));
                                 setItemSearches((prev) => [...(Array.isArray(prev) ? prev : []), '']);
+                                if (editingId) {
+                                  setSplitDeliverNow((prev) => [...(Array.isArray(prev) ? prev : []), true]);
+                                }
                               }}
                               disabled={saving}
                             >
@@ -6546,6 +6667,31 @@
                                       </>
                                     );
                                   })()}
+
+                                  {editingId && (
+                                    <div className="form-check mt-1">
+                                      <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        id={`order-split-deliver-${idx}`}
+                                        checked={!!splitDeliverNow[idx]}
+                                        onChange={(e) => {
+                                          const checked = !!e.target.checked;
+                                          setSplitDeliverNow((prev) => {
+                                            const arr = Array.isArray(prev) ? [...prev] : [];
+                                            const targetLen = Array.isArray(form.items) ? form.items.length : 0;
+                                            while (arr.length < targetLen) arr.push(true);
+                                            arr[idx] = checked;
+                                            return arr;
+                                          });
+                                        }}
+                                        disabled={saving || splitting}
+                                      />
+                                      <label className="form-check-label small text-muted" htmlFor={`order-split-deliver-${idx}`}>
+                                        Giao đợt 1
+                                      </label>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="col-8 col-md-3">
                                   <input
@@ -6586,6 +6732,11 @@
                                         arr.splice(idx, 1);
                                         return arr.length ? arr : [''];
                                       });
+                                      setSplitDeliverNow((prev) => {
+                                        const arr = Array.isArray(prev) ? [...prev] : [];
+                                        arr.splice(idx, 1);
+                                        return arr;
+                                      });
                                       setOpenProductDropdownIdx((prev) => {
                                         if (prev == null) return prev;
                                         if (prev === idx) return null;
@@ -6593,7 +6744,7 @@
                                         return prev;
                                       });
                                     }}
-                                    disabled={saving || (Array.isArray(form.items) ? form.items.length : 1) <= 1}
+                                    disabled={saving || splitting || (Array.isArray(form.items) ? form.items.length : 1) <= 1}
                                     title="Xóa sản phẩm"
                                     style={{ borderRadius: 10, padding: 10 }}
                                   >
@@ -6651,9 +6802,26 @@
                       </div>
                     </div>
                     <div className="modal-footer" style={{ border: 'none' }}>
-                      <button type="button" className="btn btn-light" onClick={closeModal} disabled={saving} style={{ borderRadius: 10 }}>
+                      <button type="button" className="btn btn-light" onClick={closeModal} disabled={saving || splitting} style={{ borderRadius: 10 }}>
                         Hủy
                       </button>
+
+                      {!!editingId && (
+                        <button
+                          type="button"
+                          className="btn btn-outline-primary fw-semibold"
+                          onClick={splitOrderDeliverNow}
+                          disabled={saving || splitting}
+                          style={{ borderRadius: 10 }}
+                          title="Chọn sản phẩm giao đợt 1 và tách phần còn lại sang đơn chờ hàng"
+                        >
+                          {splitting ? (
+                            <><span className="spinner-border spinner-border-sm me-2"></span>Đang tách...</>
+                          ) : (
+                            <><i className="fas fa-random me-2"></i>Tách đơn giao ngay</>
+                          )}
+                        </button>
+                      )}
 
                       {!editingId && (
                         <button
@@ -6668,7 +6836,7 @@
                         </button>
                       )}
 
-                      <button type="submit" className="btn btn-warning fw-semibold" disabled={saving || !orderFieldIssues.canSubmit} style={{ borderRadius: 10, boxShadow: '0 4px 12px rgba(255,193,7,0.3)' }}>
+                      <button type="submit" className="btn btn-warning fw-semibold" disabled={saving || splitting || !orderFieldIssues.canSubmit} style={{ borderRadius: 10, boxShadow: '0 4px 12px rgba(255,193,7,0.3)' }}>
                         {saving ? (
                           <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu...</>
                         ) : (
