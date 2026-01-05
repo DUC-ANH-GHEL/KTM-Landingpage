@@ -3742,6 +3742,14 @@
         return matchSearch && matchCategory;
       });
 
+      const formatCommissionPercent = (product) => {
+        const raw = product?.commission_percent ?? product?.commissionPercent;
+        const parsed = raw === '' || raw == null ? NaN : Number(raw);
+        const pct = Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 5;
+        const pretty = Number.isInteger(pct) ? String(pct) : String(Math.round(pct * 100) / 100);
+        return `${pretty}%`;
+      };
+
       return (
         <div className="product-manager pb-5 mb-4">
           {/* Header */}
@@ -3809,6 +3817,12 @@
                       {product.code && (
                         <span className="product-badge bg-secondary">{product.code}</span>
                       )}
+                      <span
+                        className="product-badge bg-warning text-dark"
+                        title="Hoa hồng (%)"
+                      >
+                        <i className="fas fa-percent me-1"></i>{formatCommissionPercent(product)}
+                      </span>
                     </div>
                     <div className="product-price">{product.price ? product.price.replace(/[đ\s]/g, '') + 'đ' : 'Liên hệ'}</div>
                     {product.note && (
