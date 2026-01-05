@@ -6068,7 +6068,12 @@
                                       <div className="fw-semibold" style={{ minWidth: 0, whiteSpace: 'normal', wordBreak: 'break-word', flex: 1 }}>
                                         {r.name}
                                       </div>
-                                      <div className="text-muted" style={{ flexShrink: 0 }}>x{r.qty}</div>
+                                      <div className="text-muted text-end" style={{ flexShrink: 0 }}>
+                                        <div style={{ lineHeight: 1.1 }}>x{r.qty}</div>
+                                        {Number(r.unitPrice) > 0 && (
+                                          <div className="small">{formatVND(r.unitPrice)}</div>
+                                        )}
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
@@ -6167,7 +6172,25 @@
                         <tr key={order.id}>
                           <td>{order.customer_name}</td>
                           <td>{order.phone}</td>
-                          <td>{getOrderProductSummary(order)}</td>
+                          <td>
+                            {(() => {
+                              const rows = getOrderItemRows(order);
+                              if (!rows.length) return getOrderProductSummary(order);
+                              return (
+                                <div className="d-grid gap-1">
+                                  {rows.map((r, idx) => (
+                                    <div key={idx} className="small" style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.2 }}>
+                                      <span className="fw-semibold">{r.name}</span>{' '}
+                                      <span className="text-muted">x{r.qty}</span>
+                                      {Number(r.unitPrice) > 0 && (
+                                        <span className="text-muted">{' '}• {formatVND(r.unitPrice)}</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                          </td>
                           <td>{getOrderTotalQty(order)}</td>
                           <td className="fw-semibold">{formatVND(getOrderTotalMoney(order))}</td>
                           <td><span className={`badge ${getStatusBadgeClass(order.status)}`}>{getStatusLabel(order.status)}</span></td>

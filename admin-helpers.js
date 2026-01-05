@@ -375,7 +375,9 @@
         const p = getP(pid);
         const name = (fromItem || p?.name || '').toString().trim();
         const qty = Number(it?.quantity ?? 1) || 1;
-        return { name, qty };
+        const unitPrice = money.parseMoney(it?.product_price ?? p?.price);
+        const lineTotal = qty * unitPrice;
+        return { name, qty, unitPrice, lineTotal };
       })
       .filter((x) => x.name);
   };
