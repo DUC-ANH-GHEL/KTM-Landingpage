@@ -6039,7 +6039,7 @@
                         <div className="d-flex justify-content-between align-items-start gap-2">
                           <div className="flex-grow-1" style={{ minWidth: 0 }}>
                             <div className="fw-semibold text-truncate">{order.customer_name}</div>
-                            <div className="text-muted small">{order.phone}</div>
+                            <div className="fw-bold font-monospace">{order.phone}</div>
                             {order.address && (
                               <div className="text-muted small" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
                                 {order.address}
@@ -6066,13 +6066,11 @@
                                   {rows.map((r, idx) => (
                                     <div key={idx} className="d-flex justify-content-between gap-2" style={{ lineHeight: 1.25 }}>
                                       <div className="fw-semibold" style={{ minWidth: 0, whiteSpace: 'normal', wordBreak: 'break-word', flex: 1 }}>
+                                        <span className="text-muted me-1">{idx + 1}.</span>
                                         {r.name}
                                       </div>
-                                      <div className="text-muted text-end" style={{ flexShrink: 0 }}>
-                                        <div style={{ lineHeight: 1.1 }}>x{r.qty}</div>
-                                        {Number(r.unitPrice) > 0 && (
-                                          <div className="small">{formatVND(r.unitPrice)}</div>
-                                        )}
+                                      <div className="text-muted small text-end text-nowrap" style={{ flexShrink: 0 }}>
+                                        x{r.qty}{Number(r.unitPrice) > 0 ? ` • ${formatVND(r.unitPrice)}` : ''}
                                       </div>
                                     </div>
                                   ))}
@@ -6080,7 +6078,6 @@
                               );
                             })()}
                           </div>
-                          <div><span className="text-muted">Số lượng:</span> <span className="fw-semibold">{getOrderTotalQty(order)}</span></div>
                           {(getOrderAdjustmentMoney(order) !== 0 || (order?.adjustment_note || '').trim()) && (
                             <div style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
                               <span className="text-muted">Điều chỉnh:</span>{' '}
@@ -6090,8 +6087,11 @@
                               ) : null}
                             </div>
                           )}
-                          <div><span className="text-muted">Tổng tiền:</span> <span className="fw-semibold">{formatVND(getOrderTotalMoney(order))}</span></div>
-                          <div><span className="text-muted">Thời gian:</span> {formatDateTime(order.created_at)}</div>
+                          <div className="d-flex justify-content-between">
+                            <span className="text-muted">Tổng tiền</span>
+                            <span className="fw-bold">{formatVND(getOrderTotalMoney(order))}</span>
+                          </div>
+                          <div className="text-muted"><span>Thời gian:</span> {formatDateTime(order.created_at)}</div>
                         </div>
 
                         <div className="mt-3 d-flex gap-2">
@@ -6180,6 +6180,7 @@
                                 <div className="d-grid gap-1">
                                   {rows.map((r, idx) => (
                                     <div key={idx} className="small" style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.2 }}>
+                                      <span className="text-muted me-1">{idx + 1}.</span>
                                       <span className="fw-semibold">{r.name}</span>{' '}
                                       <span className="text-muted">x{r.qty}</span>
                                       {Number(r.unitPrice) > 0 && (
