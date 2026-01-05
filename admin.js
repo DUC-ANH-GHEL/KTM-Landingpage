@@ -216,6 +216,30 @@
       }
     }
 
+    async function fetchAdminSettingsFromServer() {
+      const data = await window.KTM.api.getJSON(
+        `${API_BASE}/api/settings`,
+        'Không tải được cài đặt từ DB'
+      );
+      return {
+        ship_percent: normalizeShipPercent(data?.ship_percent ?? data?.shipPercent),
+      };
+    }
+
+    async function saveAdminSettingsToServer(next) {
+      const payload = {
+        ship_percent: normalizeShipPercent(next?.ship_percent ?? next?.shipPercent),
+      };
+      const data = await window.KTM.api.putJSON(
+        `${API_BASE}/api/settings`,
+        payload,
+        'Không lưu được cài đặt vào DB'
+      );
+      return {
+        ship_percent: normalizeShipPercent(data?.ship_percent ?? data?.shipPercent ?? payload.ship_percent),
+      };
+    }
+
     // Album List View - Support nested folders (folder = album, có thể chứa cả ảnh lẫn subfolder)
     function AlbumList({ albums, onSelect, onCreate, onEdit, onDelete, loading, currentFolder, onBack, breadcrumb }) {
       return (
@@ -4375,6 +4399,26 @@
         }
       }, [isLoggedIn]);
 
+      useEffect(() => {
+        if (!isLoggedIn) return;
+        let cancelled = false;
+
+        (async () => {
+          try {
+            const serverSettings = await fetchAdminSettingsFromServer();
+            if (cancelled) return;
+            setSettings(serverSettings);
+            saveAdminSettings(serverSettings); // cache/fallback
+          } catch (err) {
+            // Keep local cached settings
+          }
+        })();
+
+        return () => {
+          cancelled = true;
+        };
+      }, [isLoggedIn]);
+
       const handleLogin = async (username, password) => {
         setLoginError('');
         
@@ -4533,15 +4577,20 @@
           setShipPercent(String(settings?.ship_percent ?? DEFAULT_SHIP_PERCENT));
         }, [settings?.ship_percent]);
 
-        const handleSave = (e) => {
+        const handleSave = async (e) => {
           e.preventDefault();
           setSaving(true);
+
+          const nextLocal = saveAdminSettings({ ship_percent: shipPercent });
+
           try {
-            const next = saveAdminSettings({ ship_percent: shipPercent });
-            setSettings(next);
-            showToast('Đã lưu cài đặt', 'success');
+            const nextServer = await saveAdminSettingsToServer(nextLocal);
+            setSettings(nextServer);
+            saveAdminSettings(nextServer); // cache
+            showToast('Đã lưu cài đặt vào DB', 'success');
           } catch {
-            showToast('Lỗi lưu cài đặt', 'danger');
+            setSettings(nextLocal);
+            showToast('Không lưu được DB, đã lưu tạm trên máy', 'warning');
           } finally {
             setSaving(false);
           }
