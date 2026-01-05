@@ -3,6 +3,36 @@ import crypto from 'crypto';
 
 const sql = neon(process.env.DATABASE_URL);
 
+function normalizeCommissionPercent(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  // Clamp to [0, 100]
+  return Math.max(0, Math.min(100, n));
+}
+
+async function ensureProductsSchema() {
+  // Create table if missing (includes new column)
+  await sql`
+    CREATE TABLE IF NOT EXISTS products (
+      id VARCHAR(100) PRIMARY KEY,
+      name VARCHAR(500) NOT NULL,
+      code VARCHAR(50),
+      price VARCHAR(50),
+      image TEXT,
+      category VARCHAR(100),
+      note TEXT,
+      sort_order INTEGER DEFAULT 0,
+      commission_percent NUMERIC(6,2) DEFAULT 5,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  // Add column for existing deployments
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS commission_percent NUMERIC(6,2) DEFAULT 5`;
+}
+
 // Initial products data for migration
 const INITIAL_PRODUCTS = [
   { id: 'xylanh-giua', name: 'Xy lanh giữa', price: '1.950.000đ', image: 'https://res.cloudinary.com/diwxfpt92/image/upload/f_auto,q_auto/v1747538306/2_sxq2wa.jpg', category: 'Ty xy lanh', note: 'Thêm dây là 2.150.000đ' },
@@ -49,6 +79,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    await ensureProductsSchema();
+
     // POST với action delete-image - Xóa ảnh Cloudinary
     if (req.method === 'POST' && req.query.action === 'delete-image') {
       const { url } = req.body;
@@ -63,32 +95,22 @@ export default async function handler(req, res) {
       
       // Action: init - tạo table và migrate data
       if (action === 'init') {
-        await sql`
-          CREATE TABLE IF NOT EXISTS products (
-            id VARCHAR(100) PRIMARY KEY,
-            name VARCHAR(500) NOT NULL,
-            code VARCHAR(50),
-            price VARCHAR(50),
-            image TEXT,
-            category VARCHAR(100),
-            note TEXT,
-            sort_order INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
-          )
-        `;
+        // Ensure schema (idempotent)
+        await ensureProductsSchema();
         
         let inserted = 0;
         for (let i = 0; i < INITIAL_PRODUCTS.length; i++) {
           const p = INITIAL_PRODUCTS[i];
           try {
             await sql`
-              INSERT INTO products (id, name, code, price, image, category, note, sort_order)
-              VALUES (${p.id}, ${p.name}, ${p.code || null}, ${p.price || null}, ${p.image || null}, ${p.category || null}, ${p.note || null}, ${i})
+              INSERT INTO products (id, name, code, price, image, category, note, sort_order, commission_percent)
+              VALUES (${p.id}, ${p.name}, ${p.code || null}, ${p.price || null}, ${p.image || null}, ${p.category || null}, ${p.note || null}, ${i}, ${5})
               ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name, code = EXCLUDED.code, price = EXCLUDED.price,
                 image = EXCLUDED.image, category = EXCLUDED.category, note = EXCLUDED.note,
-                sort_order = EXCLUDED.sort_order, updated_at = NOW()
+                sort_order = EXCLUDED.sort_order,
+                commission_percent = COALESCE(products.commission_percent, EXCLUDED.commission_percent),
+                updated_at = NOW()
             `;
             inserted++;
           } catch (e) { console.error(e); }
@@ -138,7 +160,7 @@ export default async function handler(req, res) {
 
     // POST - Tạo sản phẩm mới
     if (req.method === 'POST') {
-      const { id, name, code, price, image, category, note, sort_order } = req.body;
+      const { id, name, code, price, image, category, note, sort_order, commission_percent } = req.body;
 
       if (!name) {
         return res.status(400).json({ error: 'Name is required' });
@@ -146,10 +168,22 @@ export default async function handler(req, res) {
 
       // Generate ID if not provided
       const productId = id || `prod-${Date.now()}`;
+
+      const commission = normalizeCommissionPercent(commission_percent);
       
       const result = await sql`
-        INSERT INTO products (id, name, code, price, image, category, note, sort_order)
-        VALUES (${productId}, ${name}, ${code || null}, ${price || null}, ${image || null}, ${category || null}, ${note || null}, ${sort_order || 0})
+        INSERT INTO products (id, name, code, price, image, category, note, sort_order, commission_percent)
+        VALUES (
+          ${productId},
+          ${name},
+          ${code || null},
+          ${price || null},
+          ${image || null},
+          ${category || null},
+          ${note || null},
+          ${sort_order || 0},
+          COALESCE(${commission}, 5)
+        )
         RETURNING *
       `;
 
@@ -159,11 +193,13 @@ export default async function handler(req, res) {
     // PUT - Cập nhật sản phẩm
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const { name, code, price, image, category, note, sort_order } = req.body;
+      const { name, code, price, image, category, note, sort_order, commission_percent } = req.body;
 
       if (!id) {
         return res.status(400).json({ error: 'Product ID is required' });
       }
+
+      const commission = normalizeCommissionPercent(commission_percent);
 
       const result = await sql`
         UPDATE products 
@@ -175,6 +211,7 @@ export default async function handler(req, res) {
           category = COALESCE(${category}, category),
           note = COALESCE(${note}, note),
           sort_order = COALESCE(${sort_order}, sort_order),
+          commission_percent = COALESCE(${commission}, commission_percent),
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *

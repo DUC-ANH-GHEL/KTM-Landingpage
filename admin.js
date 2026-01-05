@@ -139,7 +139,7 @@
         { id: 'products', icon: 'fa-box', label: 'Sản phẩm' },
         { id: 'orders', icon: 'fa-receipt', label: 'Quản lý đơn hàng' },
         { id: 'stats', icon: 'fa-chart-column', label: 'Thống kê' },
-        { id: 'settings', icon: 'fa-cog', label: 'Cài đặt', disabled: true },
+        { id: 'settings', icon: 'fa-cog', label: 'Cài đặt' },
       ];
 
       return (
@@ -179,6 +179,41 @@
           </div>
         </div>
       );
+    }
+
+    // ==================== ADMIN SETTINGS (LOCAL) ====================
+    const ADMIN_SETTINGS_STORAGE_KEY = 'ktm_admin_settings_v1';
+    const DEFAULT_SHIP_PERCENT = 1.64;
+
+    function normalizeShipPercent(value) {
+      const parsed = typeof value === 'number' ? value : parseFloat(String(value ?? '').trim());
+      if (!Number.isFinite(parsed)) return DEFAULT_SHIP_PERCENT;
+      return Math.max(0, Math.min(100, parsed));
+    }
+
+    function loadAdminSettings() {
+      try {
+        const raw = localStorage.getItem(ADMIN_SETTINGS_STORAGE_KEY);
+        if (!raw) return { ship_percent: DEFAULT_SHIP_PERCENT };
+        const obj = JSON.parse(raw);
+        return {
+          ship_percent: normalizeShipPercent(obj?.ship_percent ?? obj?.shipPercent),
+        };
+      } catch {
+        return { ship_percent: DEFAULT_SHIP_PERCENT };
+      }
+    }
+
+    function saveAdminSettings(next) {
+      try {
+        const obj = {
+          ship_percent: normalizeShipPercent(next?.ship_percent ?? next?.shipPercent),
+        };
+        localStorage.setItem(ADMIN_SETTINGS_STORAGE_KEY, JSON.stringify(obj));
+        return obj;
+      } catch {
+        return { ship_percent: DEFAULT_SHIP_PERCENT };
+      }
     }
 
     // Album List View - Support nested folders (folder = album, có thể chứa cả ảnh lẫn subfolder)
@@ -1363,7 +1398,7 @@
       
       // Product edit form
       const [productForm, setProductForm] = useState({
-        name: '', code: '', price: '', image: '', category: '', note: ''
+        name: '', code: '', price: '', image: '', category: '', note: '', commission_percent: ''
       });
       const productCategories = ['Ty xy lanh', 'Combo Van 1 tay', 'Combo Van 2 tay', 'Combo Van 3 tay', 'Combo Van 4 tay', 'Combo Van 5 tay', 'Trang gạt', 'Phụ kiện', 'Van điều khiển'];
       
@@ -1377,7 +1412,8 @@
             price: item.price || '',
             image: item.image || '',
             category: item.category || '',
-            note: item.note || ''
+            note: item.note || '',
+            commission_percent: (item.commission_percent ?? item.commissionPercent ?? '')
           });
           setShowQuickEdit(true);
         }
@@ -1991,7 +2027,7 @@
 
       // Product Modal for FAB
       function ProductModal({ show, product, categories, onClose, onSave }) {
-        const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0 });
+        const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5 });
         const [saving, setSaving] = useState(false);
         const [uploading, setUploading] = useState(false);
         const imageInputRef = useRef(null);
@@ -2008,7 +2044,8 @@
               image: product.image || '',
               category: product.category || '',
               note: product.note || '',
-              sort_order: product.sort_order || 0
+              sort_order: product.sort_order || 0,
+              commission_percent: (product.commission_percent ?? product.commissionPercent ?? 5)
             });
             // Set price numbers từ product.price
             if (product.price) {
@@ -2019,7 +2056,7 @@
               setPriceNumbers('');
             }
           } else {
-            setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0 });
+            setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5 });
             setPriceNumbers('');
           }
         }, [product, show]);
@@ -2180,6 +2217,22 @@
                               style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
                             />
                           </div>
+                        </div>
+                        <div className="mb-3 mt-3">
+                          <label className="form-label fw-semibold small text-muted mb-1">
+                            <i className="fas fa-percent me-1"></i>Hoa hồng (%)
+                          </label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={formData.commission_percent}
+                            min={0}
+                            max={100}
+                            step={0.01}
+                            placeholder="5"
+                            onChange={(e) => setFormData({...formData, commission_percent: e.target.value})}
+                            style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
+                          />
                         </div>
                         <div className="mb-3">
                           <label className="form-label fw-semibold small text-muted mb-1">
@@ -2863,6 +2916,19 @@
                           onChange={(e) => setProductForm({...productForm, price: e.target.value})}
                         />
                       </div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label small fw-semibold">Hoa hồng (%)</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={productForm.commission_percent}
+                        min={0}
+                        max={100}
+                        step={0.01}
+                        placeholder="5"
+                        onChange={(e) => setProductForm({...productForm, commission_percent: e.target.value})}
+                      />
                     </div>
                     <div className="mb-3">
                       <label className="form-label small fw-semibold">Danh mục</label>
@@ -3753,7 +3819,7 @@
 
     // Product Modal (Create/Edit) - Light Theme
     function ProductModal({ show, product, categories, onClose, onSave }) {
-      const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0 });
+      const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5 });
       const [saving, setSaving] = useState(false);
       const [uploading, setUploading] = useState(false);
 
@@ -3766,10 +3832,11 @@
             image: product.image || '',
             category: product.category || '',
             note: product.note || '',
-            sort_order: product.sort_order || 0
+            sort_order: product.sort_order || 0,
+            commission_percent: (product.commission_percent ?? product.commissionPercent ?? 5)
           });
         } else {
-          setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0 });
+          setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5 });
         }
       }, [product, show]);
 
@@ -4057,6 +4124,23 @@
 
                   <div className="mb-3">
                     <label className="form-label fw-semibold small text-dark mb-1">
+                      <i className="fas fa-percent me-1 text-secondary"></i>Hoa hồng (%)
+                    </label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={formData.commission_percent}
+                      min={0}
+                      max={100}
+                      step={0.01}
+                      placeholder="5"
+                      onChange={(e) => setFormData({...formData, commission_percent: e.target.value})}
+                      style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold small text-dark mb-1">
                       <i className="fas fa-folder me-1 text-primary"></i>Danh mục
                     </label>
                     <select 
@@ -4259,6 +4343,8 @@
       const [editingAlbum, setEditingAlbum] = useState(null);
       const [loading, setLoading] = useState(true);
       const [toasts, setToasts] = useState([]);
+
+      const [settings, setSettings] = useState(() => loadAdminSettings());
       
       // Nested folder navigation
       const [currentAlbumFolder, setCurrentAlbumFolder] = useState(null);
@@ -4439,10 +4525,73 @@
         return `${y}-${m}`;
       };
 
+      function SettingsManager() {
+        const [shipPercent, setShipPercent] = useState(() => String(settings?.ship_percent ?? DEFAULT_SHIP_PERCENT));
+        const [saving, setSaving] = useState(false);
+
+        useEffect(() => {
+          setShipPercent(String(settings?.ship_percent ?? DEFAULT_SHIP_PERCENT));
+        }, [settings?.ship_percent]);
+
+        const handleSave = (e) => {
+          e.preventDefault();
+          setSaving(true);
+          try {
+            const next = saveAdminSettings({ ship_percent: shipPercent });
+            setSettings(next);
+            showToast('Đã lưu cài đặt', 'success');
+          } catch {
+            showToast('Lỗi lưu cài đặt', 'danger');
+          } finally {
+            setSaving(false);
+          }
+        };
+
+        return (
+          <div className="product-manager pb-5 mb-4">
+            <div className="product-header">
+              <h5 className="mb-0"><i className="fas fa-cog me-2 text-warning"></i>Cài đặt</h5>
+            </div>
+
+            <div className="card p-3">
+              <form onSubmit={handleSave}>
+                <div className="mb-2 text-muted small">
+                  Áp dụng cho thống kê hoa hồng khi đơn hàng không ghi phí ship trong ghi chú sản phẩm.
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Phí ship (%) khi không có ship</label>
+                  <div className="input-group">
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={shipPercent}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      onChange={(e) => setShipPercent(e.target.value)}
+                    />
+                    <span className="input-group-text">%</span>
+                  </div>
+                  <div className="form-text">Mặc định: {DEFAULT_SHIP_PERCENT}%</div>
+                </div>
+
+                <button type="submit" className="btn btn-warning" disabled={saving}>
+                  {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu...</> : 'Lưu cài đặt'}
+                </button>
+              </form>
+            </div>
+          </div>
+        );
+      }
+
       function StatsManager() {
         const [month, setMonth] = useState(getCurrentMonth());
         const [loadingStats, setLoadingStats] = useState(true);
         const [orders, setOrders] = useState([]);
+        const [products, setProducts] = useState([]);
+
+        const shipPercent = normalizeShipPercent(settings?.ship_percent);
 
         const {
           parseMoney,
@@ -4455,14 +4604,22 @@
         const loadStats = async () => {
           setLoadingStats(true);
           try {
-            const data = await window.KTM.api.getJSON(
-              `${API_BASE}/api/orders?month=${encodeURIComponent(month)}`,
-              'Lỗi tải thống kê'
-            );
-            setOrders(Array.isArray(data) ? data : []);
+            const [ordersData, productsData] = await Promise.all([
+              window.KTM.api.getJSON(
+                `${API_BASE}/api/orders?month=${encodeURIComponent(month)}`,
+                'Lỗi tải thống kê'
+              ),
+              window.KTM.api.getJSON(
+                `${API_BASE}/api/products`,
+                'Lỗi tải danh sách sản phẩm'
+              ),
+            ]);
+            setOrders(Array.isArray(ordersData) ? ordersData : []);
+            setProducts(Array.isArray(productsData) ? productsData : []);
           } catch (e) {
             console.error('Load stats error:', e);
             setOrders([]);
+            setProducts([]);
           } finally {
             setLoadingStats(false);
           }
@@ -4479,6 +4636,8 @@
           let doneRevenue = 0;
           let totalRevenueNoShip = 0;
           let doneRevenueNoShip = 0;
+          let totalCommissionNoShip = 0;
+          let doneCommissionNoShip = 0;
 
           const customerKey = (o) => o.customer_id || o.phone || 'unknown';
 
@@ -4488,23 +4647,41 @@
           const revenueByCustomer = new Map();
           const byDay = new Map();
 
+          const DEFAULT_COMMISSION_PERCENT = 5;
+          const productCommissionById = new Map(
+            (Array.isArray(products) ? products : []).map(p => {
+              const raw = p?.commission_percent ?? p?.commissionPercent;
+              const parsed = Number(raw);
+              const pct = Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : DEFAULT_COMMISSION_PERCENT;
+              return [String(p?.id), pct];
+            })
+          );
+
           for (const o of orders) {
             const items = getOrderItems(o);
 
             let orderQty = 0;
             let orderRevenueProducts = 0;
+            let orderCommissionProducts = 0;
 
             for (const it of items) {
               const qty = Number(it?.quantity || 0) || 0;
               const price = parseMoney(it?.product_price);
               const revenue = qty * price;
 
+              const pid = String(it?.product_id || '');
+              const pct = productCommissionById.has(pid)
+                ? productCommissionById.get(pid)
+                : DEFAULT_COMMISSION_PERCENT;
+              const rate = (Number(pct) || 0) / 100;
+
               orderQty += qty;
               orderRevenueProducts += revenue;
+              orderCommissionProducts += revenue * rate;
 
-              const pid = it?.product_id || 'unknown';
+              const pidForAgg = it?.product_id || 'unknown';
               const p = revenueByProduct.get(pid) || {
-                product_id: pid,
+                product_id: pidForAgg,
                 product_name: it?.product_name || '—',
                 product_code: it?.product_code || '',
                 orders: 0,
@@ -4514,7 +4691,7 @@
               p.orders += 1;
               p.quantity += qty;
               p.revenue += revenue;
-              revenueByProduct.set(pid, p);
+              revenueByProduct.set(pidForAgg, p);
             }
 
             const shipInfo = getShipFeeForItems(items);
@@ -4522,9 +4699,21 @@
             const orderRevenue = orderRevenueProducts + (shipInfo.found ? shipInfo.fee : 0) + adj;
             const orderRevenueNoShip = orderRevenueProducts + adj;
 
+            const estimatedShipCost = (!shipInfo.found && shipPercent > 0 && orderRevenueProducts > 0)
+              ? (orderRevenueProducts * shipPercent / 100)
+              : 0;
+
+            const effectiveCommissionRate = orderRevenueProducts > 0
+              ? (orderCommissionProducts / orderRevenueProducts)
+              : (DEFAULT_COMMISSION_PERCENT / 100);
+            const orderCommissionNoShip = orderCommissionProducts
+              + (adj * effectiveCommissionRate)
+              - (estimatedShipCost * effectiveCommissionRate);
+
             totalQty += orderQty;
             totalRevenue += orderRevenue;
             totalRevenueNoShip += orderRevenueNoShip;
+            totalCommissionNoShip += orderCommissionNoShip;
 
             const isCompleted = o.status === 'done' || o.status === 'paid';
 
@@ -4535,10 +4724,12 @@
               statusCounts.done += 1;
               doneRevenue += orderRevenue;
               doneRevenueNoShip += orderRevenueNoShip;
+              doneCommissionNoShip += orderCommissionNoShip;
             } else if (o.status === 'done') {
               statusCounts.done += 1;
               doneRevenue += orderRevenue;
               doneRevenueNoShip += orderRevenueNoShip;
+              doneCommissionNoShip += orderCommissionNoShip;
             } else statusCounts.other += 1;
 
             const ck = customerKey(o);
@@ -4565,15 +4756,15 @@
             }
           }
 
-          const products = Array.from(revenueByProduct.values()).sort((a, b) => b.revenue - a.revenue);
+          const topProducts = Array.from(revenueByProduct.values()).sort((a, b) => b.revenue - a.revenue);
           const customers = Array.from(revenueByCustomer.values()).sort((a, b) => b.revenue - a.revenue);
           const days = Array.from(byDay.values()).sort((a, b) => a.day.localeCompare(b.day));
           const uniqueCustomers = revenueByCustomer.size;
 
           const avgOrderValue = orders.length ? Math.round(totalRevenue / orders.length) : 0;
           const avgQtyPerOrder = orders.length ? (totalQty / orders.length) : 0;
-          const tempCommission = Math.round(doneRevenueNoShip * 0.05);
-          const tempCommissionAll = Math.round(totalRevenueNoShip * 0.05);
+          const tempCommission = Math.round(doneCommissionNoShip);
+          const tempCommissionAll = Math.round(totalCommissionNoShip);
 
           return {
             statusCounts,
@@ -4582,14 +4773,14 @@
             doneRevenue,
             tempCommission,
             tempCommissionAll,
-            products,
+            products: topProducts,
             customers,
             days,
             uniqueCustomers,
             avgOrderValue,
             avgQtyPerOrder,
           };
-        }, [orders, month]);
+        }, [orders, products, month]);
 
         return (
           <div className="product-manager pb-5 mb-4 stats-manager">
@@ -4618,6 +4809,9 @@
                 </div>
                 <div className="col-12 col-md-7 d-flex gap-2 justify-content-md-end">
                   <div className="d-flex flex-wrap gap-2 align-self-center">
+                    <span className="badge rounded-pill bg-secondary bg-opacity-10 text-dark">
+                      <i className="fas fa-truck me-1"></i>Ship ước tính: {shipPercent}%
+                    </span>
                     <span className="badge rounded-pill bg-dark bg-opacity-10 text-dark">
                       <i className="fas fa-receipt me-1"></i>{formatNumber(orders.length)} đơn
                     </span>
@@ -4667,7 +4861,7 @@
               <div className="col-6 col-md-3">
                 <div className="card p-3 border-0 shadow-sm bg-info bg-opacity-10">
                   <div className="d-flex align-items-center justify-content-between">
-                    <div className="text-muted small">Hoa hồng sẽ nhận (tạm tính 5% - không gồm ship)</div>
+                    <div className="text-muted small">Hoa hồng sẽ nhận (theo % SP - trừ ship ước tính)</div>
                     <i className="fas fa-chart-line text-info"></i>
                   </div>
                   <div className="fs-4 fw-semibold text-dark">{formatVND(stats.tempCommission)}</div>
@@ -4677,7 +4871,7 @@
               <div className="col-6 col-md-3">
                 <div className="card p-3 border-0 shadow-sm bg-primary bg-opacity-10">
                   <div className="d-flex align-items-center justify-content-between">
-                    <div className="text-muted small">Hoa hồng tổng (tạm tính 5% - không gồm ship)</div>
+                    <div className="text-muted small">Hoa hồng tổng (theo % SP - trừ ship ước tính)</div>
                     <i className="fas fa-coins text-primary"></i>
                   </div>
                   <div className="fs-4 fw-semibold text-dark">{formatVND(stats.tempCommissionAll)}</div>
@@ -5003,6 +5197,10 @@
             {activeMenu === 'stats' && (
               <StatsManager />
             )}
+
+            {activeMenu === 'settings' && (
+              <SettingsManager />
+            )}
           </div>
 
           {/* ========== MOBILE BOTTOM NAVIGATION ========== */}
@@ -5092,6 +5290,7 @@
       const [updatingId, setUpdatingId] = useState(null);
       const [splitting, setSplitting] = useState(false);
       const [filterMonth, setFilterMonth] = useState('');
+      const [filterStatus, setFilterStatus] = useState('');
       const [showModal, setShowModal] = useState(false);
       const [customerLookup, setCustomerLookup] = useState(null);
       const [showPhoneHistory, setShowPhoneHistory] = useState(false);
@@ -5425,6 +5624,12 @@
       const sortedOrders = React.useMemo(() => {
         return window.KTM.orders.sortOrders(orders);
       }, [orders]);
+
+      const filteredOrders = React.useMemo(() => {
+        const s = String(filterStatus || '').trim();
+        if (!s) return sortedOrders;
+        return (Array.isArray(sortedOrders) ? sortedOrders : []).filter((o) => String(o?.status || '').trim() === s);
+      }, [sortedOrders, filterStatus]);
 
       const formatDateTime = (value) => window.KTM.date.formatDateTime(value);
 
@@ -6124,7 +6329,39 @@
                   )}
                 </div>
               </div>
-              <div className="col-12 col-md-7 d-flex gap-2 justify-content-md-end">
+              <div className="col-12 col-md-4">
+                <label className="form-label mb-1">Trạng thái</label>
+                <div className="input-group">
+                  <span className="input-group-text" aria-hidden="true">
+                    <i className="fas fa-filter"></i>
+                  </span>
+                  <select
+                    className="form-select"
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    aria-label="Lọc theo trạng thái"
+                  >
+                    <option value="">Tất cả</option>
+                    <option value="pending">Chờ xử lý</option>
+                    <option value="processing">Đang vận chuyển</option>
+                    <option value="done">Hoàn thành</option>
+                    <option value="paid">Đã nhận tiền</option>
+                  </select>
+                  {filterStatus && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={() => setFilterStatus('')}
+                      title="Bỏ lọc trạng thái"
+                      aria-label="Bỏ lọc trạng thái"
+                      disabled={loading}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="col-12 col-md-3 d-flex gap-2 justify-content-md-end">
                 <button className="btn btn-outline-secondary" onClick={loadOrders} disabled={loading}>
                   <i className="fas fa-rotate me-2"></i>Làm mới
                 </button>
@@ -6135,7 +6372,9 @@
           <div className="card p-3">
             <div className="d-flex align-items-center justify-content-between">
               <h6 className="mb-0">Danh sách đơn hàng</h6>
-              <span className="text-muted small">{orders.length} đơn</span>
+              <span className="text-muted small">
+                {filterStatus ? `${filteredOrders.length}/${orders.length} đơn` : `${orders.length} đơn`}
+              </span>
             </div>
 
             {loading ? (
@@ -6144,11 +6383,13 @@
               </div>
             ) : orders.length === 0 ? (
               <div className="text-center py-4 text-muted">Chưa có đơn hàng</div>
+            ) : filteredOrders.length === 0 ? (
+              <div className="text-center py-4 text-muted">Không có đơn phù hợp</div>
             ) : (
               <>
                 {/* Mobile cards */}
                 <div className="d-md-none mt-3">
-                  {sortedOrders.map(order => (
+                  {filteredOrders.map(order => (
                     <div key={order.id} className="card mb-2">
                       <div className="card-body p-3">
                         <div className="d-flex justify-content-between align-items-start gap-2">
@@ -6286,7 +6527,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedOrders.map(order => (
+                      {filteredOrders.map(order => (
                         <tr key={order.id}>
                           <td>{order.customer_name}</td>
                           <td>{order.phone}</td>
