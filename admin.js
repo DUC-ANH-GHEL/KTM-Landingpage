@@ -5333,13 +5333,16 @@
     // OrderManager component
     function OrderManager({ autoOpenCreateToken, autoOpenCreateProductId, showToast }) {
       const [orders, setOrders] = useState([]);
+      const [allOrders, setAllOrders] = useState([]);
       const [loading, setLoading] = useState(true);
+      const [loadingAllOrders, setLoadingAllOrders] = useState(false);
       const [saving, setSaving] = useState(false);
       const [deletingId, setDeletingId] = useState(null);
       const [updatingId, setUpdatingId] = useState(null);
       const [splitting, setSplitting] = useState(false);
       const [filterMonth, setFilterMonth] = useState('');
       const [filterStatus, setFilterStatus] = useState('');
+      const [overdueOnly, setOverdueOnly] = useState(false);
       const [showModal, setShowModal] = useState(false);
       const [customerLookup, setCustomerLookup] = useState(null);
       const [showPhoneHistory, setShowPhoneHistory] = useState(false);
@@ -5372,6 +5375,27 @@
       const CUSTOMER_LOOKUP_CACHE_TTL_NOT_FOUND_MS = 5 * 60 * 1000;
       const CUSTOMER_LOOKUP_CACHE_STORAGE_KEY = 'ktm_customer_lookup_cache_v1';
       const CUSTOMER_LOOKUP_CACHE_MAX_ENTRIES = 200;
+
+      const OVERDUE_PENDING_DAYS = 3;
+      const DAY_MS = 24 * 60 * 60 * 1000;
+
+      const getOrderAgeDays = (order) => {
+        try {
+          const t = new Date(order?.created_at).getTime();
+          if (!Number.isFinite(t)) return 0;
+          const diff = Date.now() - t;
+          if (!Number.isFinite(diff) || diff <= 0) return 0;
+          return Math.floor(diff / DAY_MS);
+        } catch {
+          return 0;
+        }
+      };
+
+      const isOverduePending = (order) => {
+        const status = String(order?.status || '').trim();
+        if (status !== 'pending') return false;
+        return getOrderAgeDays(order) >= OVERDUE_PENDING_DAYS;
+      };
 
       const resetOrderForm = (presetProductId) => {
         setForm({
@@ -5648,6 +5672,11 @@
       }, [filterMonth]);
 
       useEffect(() => {
+        // Always compute overdue alerts on ALL orders (independent from month filter)
+        loadAllOrdersForAlerts();
+      }, []);
+
+      useEffect(() => {
         if (!autoOpenCreateToken) return;
         if (lastAutoOpenCreateTokenRef.current === autoOpenCreateToken) return;
         lastAutoOpenCreateTokenRef.current = autoOpenCreateToken;
@@ -5674,11 +5703,34 @@
         return window.KTM.orders.sortOrders(orders);
       }, [orders]);
 
+      const sortedAllOrders = React.useMemo(() => {
+        return window.KTM.orders.sortOrders(allOrders);
+      }, [allOrders]);
+
+      const overduePendingOrdersAll = React.useMemo(() => {
+        const list = Array.isArray(sortedAllOrders) ? sortedAllOrders : [];
+        const overdue = list.filter((o) => isOverduePending(o));
+        // oldest first
+        overdue.sort((a, b) => {
+          const ta = new Date(a?.created_at).getTime();
+          const tb = new Date(b?.created_at).getTime();
+          return (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0);
+        });
+        return overdue;
+      }, [sortedAllOrders]);
+
+      const displayOrders = React.useMemo(() => {
+        if (overdueOnly) return overduePendingOrdersAll;
+        return sortedOrders;
+      }, [overdueOnly, overduePendingOrdersAll, sortedOrders]);
+
       const filteredOrders = React.useMemo(() => {
+        // When overdueOnly is enabled, we show the overdue-pending list regardless of other filters.
+        if (overdueOnly) return displayOrders;
         const s = String(filterStatus || '').trim();
-        if (!s) return sortedOrders;
-        return (Array.isArray(sortedOrders) ? sortedOrders : []).filter((o) => String(o?.status || '').trim() === s);
-      }, [sortedOrders, filterStatus]);
+        if (!s) return displayOrders;
+        return (Array.isArray(displayOrders) ? displayOrders : []).filter((o) => String(o?.status || '').trim() === s);
+      }, [displayOrders, filterStatus, overdueOnly]);
 
       const formatDateTime = (value) => window.KTM.date.formatDateTime(value);
 
@@ -5699,11 +5751,26 @@
           if (filterMonth) url += `?month=${filterMonth}`;
           const data = await window.KTM.api.getJSON(url, 'Lỗi tải đơn hàng');
           setOrders(Array.isArray(data) ? data : []);
+          // Keep the global overdue snapshot fresh (non-blocking)
+          loadAllOrdersForAlerts();
         } catch (e) {
           console.error('Load orders error:', e);
           setOrders([]);
         } finally {
           setLoading(false);
+        }
+      };
+
+      const loadAllOrdersForAlerts = async () => {
+        setLoadingAllOrders(true);
+        try {
+          const data = await window.KTM.api.getJSON(`${API_BASE}/api/orders`, 'Lỗi tải đơn hàng');
+          setAllOrders(Array.isArray(data) ? data : []);
+        } catch (e) {
+          console.error('Load all orders error:', e);
+          setAllOrders([]);
+        } finally {
+          setLoadingAllOrders(false);
         }
       };
 
@@ -6278,6 +6345,7 @@
         try {
           await window.KTM.api.deleteJSON(`${API_BASE}/api/orders/${id}`, 'Lỗi xóa đơn hàng');
           loadOrders();
+          loadAllOrdersForAlerts();
         } catch (err) {
           console.error(err);
           if (typeof showToast === 'function') showToast(err.message, 'danger');
@@ -6327,6 +6395,12 @@
               ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
               : prev
           ));
+
+          setAllOrders((prev) => (
+            Array.isArray(prev)
+              ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
+              : prev
+          ));
           if (typeof showToast === 'function') showToast('Đã cập nhật trạng thái', 'success');
         } catch (err) {
           console.error(err);
@@ -6361,6 +6435,7 @@
                     value={filterMonth}
                     onChange={e => setFilterMonth(e.target.value)}
                     aria-label="Chọn tháng"
+                    disabled={overdueOnly}
                   />
                   {filterMonth && (
                     <button
@@ -6389,6 +6464,7 @@
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
                     aria-label="Lọc theo trạng thái"
+                    disabled={overdueOnly}
                   >
                     <option value="">Tất cả</option>
                     <option value="pending">Chờ xử lý</option>
@@ -6409,6 +6485,24 @@
                     </button>
                   )}
                 </div>
+                <div className="form-check mt-2">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id="orders-overdue-only"
+                    checked={overdueOnly}
+                    onChange={(e) => {
+                      const next = !!e.target.checked;
+                      setOverdueOnly(next);
+                      if (next) {
+                        setFilterStatus('pending');
+                      }
+                    }}
+                  />
+                  <label className="form-check-label" htmlFor="orders-overdue-only">
+                    Chỉ hiện đơn chậm &gt; {OVERDUE_PENDING_DAYS} ngày (Chờ xử lý)
+                  </label>
+                </div>
               </div>
               <div className="col-12 col-md-3 d-flex gap-2 justify-content-md-end">
                 <button className="btn btn-outline-secondary" onClick={loadOrders} disabled={loading}>
@@ -6425,6 +6519,26 @@
                 {filterStatus ? `${filteredOrders.length}/${orders.length} đơn` : `${orders.length} đơn`}
               </span>
             </div>
+
+            {overduePendingOrdersAll.length > 0 && (
+              <div className="alert alert-warning d-flex align-items-center justify-content-between gap-2 mt-3 mb-0" role="alert">
+                <div style={{ minWidth: 0 }}>
+                  <i className="fas fa-triangle-exclamation me-2"></i>
+                  Có <strong>{overduePendingOrdersAll.length}</strong> đơn <strong>Chờ xử lý</strong> quá {OVERDUE_PENDING_DAYS} ngày.
+                  {loadingAllOrders && <span className="ms-2 text-muted small">(đang cập nhật...)</span>}
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-dark"
+                  onClick={() => {
+                    setOverdueOnly(true);
+                    setFilterStatus('pending');
+                  }}
+                >
+                  Xem ngay
+                </button>
+              </div>
+            )}
 
             {loading ? (
               <div className="text-center py-4">
@@ -6454,7 +6568,14 @@
                               </div>
                             )}
                           </div>
-                          <span className={`badge ${getStatusBadgeClass(order.status)}`}>{getStatusLabel(order.status)}</span>
+                          <div className="d-flex align-items-start gap-1 flex-shrink-0">
+                            <span className={`badge ${getStatusBadgeClass(order.status)}`}>{getStatusLabel(order.status)}</span>
+                            {isOverduePending(order) && (
+                              <span className="badge bg-danger" title={`Chờ xử lý quá ${OVERDUE_PENDING_DAYS} ngày`}>
+                                ⚠ Chậm {getOrderAgeDays(order)}d
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="mt-2 small">
@@ -6602,7 +6723,16 @@
                           </td>
                           <td>{getOrderTotalQty(order)}</td>
                           <td className="fw-semibold">{formatVND(getOrderTotalMoney(order))}</td>
-                          <td><span className={`badge ${getStatusBadgeClass(order.status)}`}>{getStatusLabel(order.status)}</span></td>
+                          <td>
+                            <div className="d-flex align-items-center gap-1 flex-wrap">
+                              <span className={`badge ${getStatusBadgeClass(order.status)}`}>{getStatusLabel(order.status)}</span>
+                              {isOverduePending(order) && (
+                                <span className="badge bg-danger" title={`Chờ xử lý quá ${OVERDUE_PENDING_DAYS} ngày`}>
+                                  ⚠ Chậm {getOrderAgeDays(order)}d
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td>{formatDateTime(order.created_at)}</td>
                           <td>
                             <button className="btn btn-sm btn-primary me-1" onClick={() => editOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>Sửa</button>
