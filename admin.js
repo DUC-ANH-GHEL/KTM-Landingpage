@@ -5089,6 +5089,7 @@
       const [loading, setLoading] = useState(true);
       const [saving, setSaving] = useState(false);
       const [deletingId, setDeletingId] = useState(null);
+      const [updatingId, setUpdatingId] = useState(null);
       const [filterMonth, setFilterMonth] = useState('');
       const [showModal, setShowModal] = useState(false);
       const [customerLookup, setCustomerLookup] = useState(null);
@@ -5917,9 +5918,59 @@
         }
       };
 
+      const updateOrderStatus = async (order, nextStatus) => {
+        const orderId = order?.id;
+        if (!orderId || !nextStatus) return;
+
+        setUpdatingId(orderId);
+        try {
+          const items = getOrderItems(order);
+          const normalizedItems = (Array.isArray(items) ? items : [])
+            .map((it) => ({
+              product_id: it?.product_id || '',
+              quantity: Number(it?.quantity ?? 1),
+            }))
+            .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0);
+
+          if (!normalizedItems.length) {
+            throw new Error('Không thể cập nhật trạng thái: đơn không có sản phẩm hợp lệ');
+          }
+
+          const primary = normalizedItems[0];
+          const payload = {
+            id: orderId,
+            customer_name: order?.customer_name || '',
+            phone: normalizePhone(order?.phone || ''),
+            address: order?.address || '',
+            adjustment_amount: Number(order?.adjustment_amount ?? 0) || 0,
+            adjustment_note: order?.adjustment_note || '',
+            // Back-compat fields
+            product_id: primary.product_id,
+            quantity: primary.quantity,
+            status: nextStatus,
+            items: normalizedItems,
+          };
+
+          await window.KTM.api.putJSON(`${API_BASE}/api/orders/${orderId}`, payload, 'Lỗi cập nhật trạng thái');
+
+          setOrders((prev) => (
+            Array.isArray(prev)
+              ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
+              : prev
+          ));
+          if (typeof showToast === 'function') showToast('Đã cập nhật trạng thái', 'success');
+        } catch (err) {
+          console.error(err);
+          if (typeof showToast === 'function') showToast(err.message, 'danger');
+          else alert(err.message);
+        } finally {
+          setUpdatingId(null);
+        }
+      };
+
       return (
         <div className="product-manager">
-          <Loading show={(loading && !showModal) || saving || !!deletingId} />
+          <Loading show={(loading && !showModal) || saving || !!deletingId || !!updatingId} />
           <div className="product-header">
             <h5>Quản lý đơn hàng</h5>
             <button className="btn btn-dark btn-sm" onClick={openCreateModal} disabled={saving || !!deletingId}>
@@ -6039,26 +6090,56 @@
                         </div>
 
                         <div className="mt-3 d-flex gap-2">
-                          <button className="btn btn-sm btn-primary flex-fill" onClick={() => editOrder(order)} disabled={saving || !!deletingId}>
+                          <button className="btn btn-sm btn-primary flex-fill" onClick={() => editOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>
                             Sửa
                           </button>
                           <button
                             className="btn btn-sm btn-outline-secondary flex-fill"
                             onClick={() => handleCopyOrder(order)}
-                            disabled={saving || !!deletingId}
+                            disabled={saving || !!deletingId || updatingId === order.id}
                           >
                             <i className="fas fa-copy me-1"></i>Copy
                           </button>
                           <button
                             className="btn btn-sm btn-danger flex-fill"
                             onClick={() => deleteOrder(order.id)}
-                            disabled={saving || deletingId === order.id}
+                            disabled={saving || deletingId === order.id || updatingId === order.id}
                           >
                             {deletingId === order.id ? (
                               <><span className="spinner-border spinner-border-sm me-2"></span>Đang xóa</>
                             ) : (
                               'Xóa'
                             )}
+                          </button>
+                        </div>
+
+                        <div className="mt-2 d-flex gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-warning flex-fill"
+                            onClick={() => updateOrderStatus(order, 'processing')}
+                            disabled={saving || !!deletingId || updatingId === order.id || order.status === 'processing'}
+                            title="Đang vận chuyển"
+                          >
+                            Processing
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-success flex-fill"
+                            onClick={() => updateOrderStatus(order, 'done')}
+                            disabled={saving || !!deletingId || updatingId === order.id || order.status === 'done'}
+                            title="Hoàn thành"
+                          >
+                            Done
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary flex-fill"
+                            onClick={() => updateOrderStatus(order, 'paid')}
+                            disabled={saving || !!deletingId || updatingId === order.id || order.status === 'paid'}
+                            title="Đã nhận tiền"
+                          >
+                            Paid
                           </button>
                         </div>
                       </div>
@@ -6092,9 +6173,36 @@
                           <td><span className={`badge ${getStatusBadgeClass(order.status)}`}>{getStatusLabel(order.status)}</span></td>
                           <td>{formatDateTime(order.created_at)}</td>
                           <td>
-                            <button className="btn btn-sm btn-primary me-1" onClick={() => editOrder(order)} disabled={saving || !!deletingId}>Sửa</button>
-                            <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => handleCopyOrder(order)} disabled={saving || !!deletingId}>
+                            <button className="btn btn-sm btn-primary me-1" onClick={() => editOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>Sửa</button>
+                            <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => handleCopyOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>
                               <i className="fas fa-copy"></i>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-warning me-1"
+                              onClick={() => updateOrderStatus(order, 'processing')}
+                              disabled={saving || !!deletingId || updatingId === order.id || order.status === 'processing'}
+                              title="Đang vận chuyển"
+                            >
+                              Processing
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-success me-1"
+                              onClick={() => updateOrderStatus(order, 'done')}
+                              disabled={saving || !!deletingId || updatingId === order.id || order.status === 'done'}
+                              title="Hoàn thành"
+                            >
+                              Done
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary me-1"
+                              onClick={() => updateOrderStatus(order, 'paid')}
+                              disabled={saving || !!deletingId || updatingId === order.id || order.status === 'paid'}
+                              title="Đã nhận tiền"
+                            >
+                              Paid
                             </button>
                             <button className="btn btn-sm btn-danger" onClick={() => deleteOrder(order.id)} disabled={saving || deletingId === order.id}>
                               {deletingId === order.id ? (
