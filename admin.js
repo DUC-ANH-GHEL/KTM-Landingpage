@@ -4693,7 +4693,7 @@
         }, [month]);
 
         const stats = React.useMemo(() => {
-          const statusCounts = { pending: 0, processing: 0, done: 0, paid: 0, other: 0 };
+          const statusCounts = { pending: 0, processing: 0, done: 0, paid: 0, canceled: 0, other: 0 };
           let totalQty = 0;
           let totalRevenue = 0;
           let doneRevenue = 0;
@@ -4782,6 +4782,7 @@
 
             if (o.status === 'pending') statusCounts.pending += 1;
             else if (o.status === 'processing') statusCounts.processing += 1;
+            else if (o.status === 'canceled') statusCounts.canceled += 1;
             else if (o.status === 'paid') {
               statusCounts.paid += 1;
               statusCounts.done += 1;
@@ -4965,6 +4966,12 @@
                     </div>
                   </div>
                   <div className="col-6">
+                    <div className="card p-2 border-0 shadow-sm bg-danger bg-opacity-10">
+                      <div className="text-muted small">Hủy đơn</div>
+                      <div className="fw-semibold">{formatNumber(stats.statusCounts.canceled)}</div>
+                    </div>
+                  </div>
+                  <div className="col-6">
                     <div className="card p-2 border-0 shadow-sm bg-success bg-opacity-10">
                       <div className="text-muted small">Hoàn thành</div>
                       <div className="fw-semibold">{formatNumber(stats.statusCounts.done)}</div>
@@ -4991,6 +4998,7 @@
                     <tr>
                       <th>Chờ xử lý</th>
                       <th>Đang vận chuyển</th>
+                      <th>Hủy đơn</th>
                       <th>Hoàn thành</th>
                       <th>Đã nhận tiền</th>
                       <th>Khác</th>
@@ -5001,6 +5009,7 @@
                     <tr>
                       <td>{formatNumber(stats.statusCounts.pending)}</td>
                       <td>{formatNumber(stats.statusCounts.processing)}</td>
+                      <td>{formatNumber(stats.statusCounts.canceled)}</td>
                       <td>{formatNumber(stats.statusCounts.done)}</td>
                       <td>{formatNumber(stats.statusCounts.paid)}</td>
                       <td>{formatNumber(stats.statusCounts.other)}</td>
@@ -5702,6 +5711,7 @@
         if (status === 'processing') return 'Đang vận chuyển';
         if (status === 'done') return 'Hoàn thành';
         if (status === 'paid') return 'Đã nhận tiền';
+        if (status === 'canceled') return 'Hủy đơn';
         return status || '';
       };
 
@@ -5710,6 +5720,7 @@
         if (status === 'processing') return 'bg-warning text-dark';
         if (status === 'done') return 'bg-success';
         if (status === 'paid') return 'bg-primary';
+        if (status === 'canceled') return 'bg-danger';
         return 'bg-light text-dark';
       };
 
@@ -5840,8 +5851,8 @@
 
         const currentOrder = (Array.isArray(orders) ? orders : []).find((o) => String(o?.id) === String(editingId)) || null;
         const currentStatus = String(currentOrder?.status || form?.status || '').trim();
-        if (currentStatus === 'done' || currentStatus === 'paid') {
-          const msg = 'Không thể tách: đơn đã hoàn thành/đã nhận tiền.';
+        if (currentStatus === 'done' || currentStatus === 'paid' || currentStatus === 'canceled') {
+          const msg = 'Không thể tách: đơn đã hoàn thành/đã nhận tiền/đã hủy.';
           if (typeof showToast === 'function') showToast(msg, 'warning');
           else alert(msg);
           return;
@@ -6485,6 +6496,7 @@
                     <option value="processing">Đang vận chuyển</option>
                     <option value="done">Hoàn thành</option>
                     <option value="paid">Đã nhận tiền</option>
+                    <option value="canceled">Hủy đơn</option>
                   </select>
                   {filterStatus && (
                     <button
@@ -6689,6 +6701,15 @@
                           >
                             Paid
                           </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger flex-fill"
+                            onClick={() => updateOrderStatus(order, 'canceled')}
+                            disabled={saving || !!deletingId || updatingId === order.id || order.status === 'canceled'}
+                            title="Hủy đơn"
+                          >
+                            Hủy
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -6779,6 +6800,15 @@
                               title="Đã nhận tiền"
                             >
                               Paid
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger me-1"
+                              onClick={() => updateOrderStatus(order, 'canceled')}
+                              disabled={saving || !!deletingId || updatingId === order.id || order.status === 'canceled'}
+                              title="Hủy đơn"
+                            >
+                              Hủy
                             </button>
                             <button className="btn btn-sm btn-danger" onClick={() => deleteOrder(order.id)} disabled={saving || deletingId === order.id}>
                               {deletingId === order.id ? (
@@ -6933,6 +6963,7 @@
                             <option value="processing">Đang vận chuyển</option>
                             <option value="done">Hoàn thành</option>
                             <option value="paid">Đã nhận tiền</option>
+                            <option value="canceled">Hủy đơn</option>
                           </select>
                         </div>
                         <div className="col-12">
