@@ -3654,13 +3654,17 @@
     }
 
     // ==================== PRODUCT MANAGER ====================
-    function ProductManager({ showToast }) {
+    function ProductManager({ showToast, settings }) {
       const [products, setProducts] = useState([]);
       const [loading, setLoading] = useState(true);
       const [showModal, setShowModal] = useState(false);
       const [editingProduct, setEditingProduct] = useState(null);
       const [searchTerm, setSearchTerm] = useState('');
       const [filterCategory, setFilterCategory] = useState('');
+
+      const shipPercent = normalizeShipPercent(settings?.ship_percent);
+
+      const { parseMoney, formatVND } = window.KTM.money;
 
       const categories = ['Ty xy lanh', 'Combo Van 1 tay', 'Combo Van 2 tay', 'Combo Van 3 tay', 'Combo Van 4 tay', 'Combo Van 5 tay', 'Trang gạt', 'Phụ kiện', 'Van điều khiển'];
 
@@ -3742,12 +3746,30 @@
         return matchSearch && matchCategory;
       });
 
-      const formatCommissionPercent = (product) => {
+      const getCommissionPercentNumber = (product) => {
         const raw = product?.commission_percent ?? product?.commissionPercent;
         const parsed = raw === '' || raw == null ? NaN : Number(raw);
-        const pct = Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 5;
-        const pretty = Number.isInteger(pct) ? String(pct) : String(Math.round(pct * 100) / 100);
-        return `${pretty}%`;
+        return Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 5;
+      };
+
+      const formatCommissionWithAmount = (product) => {
+        const pct = getCommissionPercentNumber(product);
+        const prettyPct = Number.isInteger(pct) ? String(pct) : String(Math.round(pct * 100) / 100);
+
+        const price = parseMoney(product?.price);
+        if (!Number.isFinite(price) || price <= 0) return `${prettyPct}%`;
+
+        const rate = (Number(pct) || 0) / 100;
+        const explicitShipFee = window.KTM.money.parseShipFeeFromNote(product?.note);
+        // Nếu sản phẩm đã ghi rõ ship trong note => hoa hồng tính trên nguyên giá (không trừ ship).
+        // Nếu không có ship trong note => trừ ship ước tính theo % cài đặt.
+        const shipCost = explicitShipFee != null
+          ? 0
+          : (shipPercent > 0 ? (price * shipPercent / 100) : 0);
+        const commission = (price * rate) - (shipCost * rate);
+        const commissionRounded = Math.max(0, Math.round(commission));
+
+        return `${prettyPct}% - ${formatVND(commissionRounded)}`;
       };
 
       return (
@@ -3821,7 +3843,7 @@
                         className="product-badge bg-warning text-dark"
                         title="Hoa hồng (%)"
                       >
-                        <i className="fas fa-percent me-1"></i>{formatCommissionPercent(product)}
+                        <i className="fas fa-percent me-1"></i>{formatCommissionWithAmount(product)}
                       </span>
                     </div>
                     <div className="product-price">{product.price ? product.price.replace(/[đ\s]/g, '') + 'đ' : 'Liên hệ'}</div>
@@ -5256,7 +5278,7 @@
             )}
 
             {activeMenu === 'products' && (
-              <ProductManager showToast={showToast} />
+              <ProductManager showToast={showToast} settings={settings} />
             )}
             {activeMenu === 'orders' && (
               <OrderManager
