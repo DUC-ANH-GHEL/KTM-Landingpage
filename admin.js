@@ -5396,6 +5396,7 @@
         customer_name: "",
         phone: "",
         address: "",
+        note: "",
         items: [{ product_id: "", quantity: 1 }],
         adjustment_amount: 0,
         adjustment_note: "",
@@ -5447,6 +5448,7 @@
           customer_name: "",
           phone: "",
           address: "",
+          note: "",
           items: [{ product_id: presetProductId || "", quantity: 1 }],
           adjustment_amount: 0,
           adjustment_note: "",
@@ -5835,6 +5837,7 @@
           customer_name: order.customer_name || "",
           phone: normalizePhone(order.phone || ""),
           address: order.address || "",
+          note: order?.note || "",
           items: items.length ? items : [{ product_id: "", quantity: 1 }],
           adjustment_amount: Number(order?.adjustment_amount ?? 0) || 0,
           adjustment_note: order?.adjustment_note || "",
@@ -5923,6 +5926,7 @@
             customer_name: form.customer_name,
             phone: normalizedPhone,
             address: form.address,
+            note: (form.note || '').trim(),
             adjustment_amount: adjNow,
             adjustment_note: adjNoteNow,
             status: 'processing',
@@ -5947,6 +5951,7 @@
             customer_name: form.customer_name,
             phone: normalizedPhone,
             address: form.address,
+            note: (form.note || '').trim(),
             adjustment_amount: 0,
             adjustment_note: '',
             status: 'pending',
@@ -6025,6 +6030,7 @@
         if (order?.customer_name) parts.push(`Khách: ${order.customer_name}`);
         if (order?.phone) parts.push(`SĐT: ${order.phone}`);
         if (order?.address) parts.push(`Địa chỉ: ${order.address}`);
+        if ((order?.note || '').trim()) parts.push(`Ghi chú: ${(order.note || '').trim()}`);
         if (order?.status) parts.push(`Trạng thái: ${getStatusLabel(order.status)}`);
         if (order?.created_at) parts.push(`Thời gian: ${formatDateTime(order.created_at)}`);
         parts.push('');
@@ -6343,6 +6349,7 @@
             customer_name: form.customer_name,
             phone: normalizedPhone,
             address: form.address,
+            note: (form.note || '').trim(),
             adjustment_amount: parseSignedMoney(form.adjustment_amount),
             adjustment_note: (form.adjustment_note || '').trim(),
             // Back-compat fields (API will normalize from items anyway)
@@ -6426,6 +6433,7 @@
             customer_name: order?.customer_name || '',
             phone: normalizePhone(order?.phone || ''),
             address: order?.address || '',
+            note: (order?.note || '').trim(),
             adjustment_amount: Number(order?.adjustment_amount ?? 0) || 0,
             adjustment_note: order?.adjustment_note || '',
             // Back-compat fields
@@ -6615,6 +6623,11 @@
                                 {order.address}
                               </div>
                             )}
+                            {(order?.note || '').trim() && (
+                              <div className="text-muted small" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                <span className="fw-semibold">Ghi chú:</span> {(order.note || '').trim()}
+                              </div>
+                            )}
                           </div>
                           <div className="d-flex align-items-start gap-1 flex-shrink-0">
                             <span className={`badge ${getStatusBadgeClass(order.status)}`}>{getStatusLabel(order.status)}</span>
@@ -6756,7 +6769,14 @@
                     <tbody>
                       {filteredOrders.map(order => (
                         <tr key={order.id}>
-                          <td>{order.customer_name}</td>
+                          <td>
+                            <div className="fw-semibold">{order.customer_name}</div>
+                            {(order?.note || '').trim() && (
+                              <div className="text-muted small" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                <span className="fw-semibold">Ghi chú:</span> {(order.note || '').trim()}
+                              </div>
+                            )}
+                          </td>
                           <td>{order.phone}</td>
                           <td>
                             {(() => {
@@ -7000,6 +7020,18 @@
                           {!!orderFieldIssues.addressWarn && (
                             <div className="form-text text-warning">{orderFieldIssues.addressWarn}</div>
                           )}
+                        </div>
+
+                        <div className="col-12">
+                          <label className="form-label fw-semibold small text-muted mb-1">Ghi chú đơn hàng</label>
+                          <textarea
+                            className="form-control"
+                            value={form.note}
+                            onChange={e => setForm({ ...form, note: e.target.value })}
+                            placeholder="Ví dụ: Giao giờ hành chính / Gọi trước khi giao..."
+                            rows={2}
+                            style={{ borderRadius: 10, padding: 12, resize: 'vertical' }}
+                          />
                         </div>
 
                         <div className="col-12 col-md-6">
@@ -7273,9 +7305,14 @@
                                     <span className="fw-semibold">{formatVND(adj)}</span>
                                   </div>
                                 )}
+                                {(form.note || '').trim() && (
+                                  <div className="text-muted" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                    Ghi chú đơn: {(form.note || '').trim()}
+                                  </div>
+                                )}
                                 {(form.adjustment_note || '').trim() && (
                                   <div className="text-muted" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                                    Ghi chú: {(form.adjustment_note || '').trim()}
+                                    Ghi chú điều chỉnh: {(form.adjustment_note || '').trim()}
                                   </div>
                                 )}
                                 <div className="d-flex justify-content-between pt-1 border-top">
