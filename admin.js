@@ -4740,6 +4740,7 @@
 
         const stats = React.useMemo(() => {
           const statusCounts = { pending: 0, processing: 0, done: 0, paid: 0, canceled: 0, other: 0 };
+          let activeOrders = 0;
           let totalQty = 0;
           let totalRevenue = 0;
           let doneRevenue = 0;
@@ -4766,7 +4767,15 @@
             })
           );
 
+          const normalizeOrderStatus = (raw) => {
+            const s = String(raw ?? '').trim().toLowerCase();
+            if (s === 'cancelled') return 'canceled';
+            return s;
+          };
+
           for (const o of orders) {
+            const status = normalizeOrderStatus(o?.status);
+            const isCanceled = status === 'canceled';
             const items = getOrderItems(o);
 
             let orderQty = 0;
@@ -4819,50 +4828,53 @@
               + (adj * effectiveCommissionRate)
               - (estimatedShipCost * effectiveCommissionRate);
 
-            totalQty += orderQty;
-            totalRevenue += orderRevenue;
-            totalRevenueNoShip += orderRevenueNoShip;
-            totalCommissionNoShip += orderCommissionNoShip;
+            const isCompleted = status === 'done' || status === 'paid';
 
-            const isCompleted = o.status === 'done' || o.status === 'paid';
-
-            if (o.status === 'pending') statusCounts.pending += 1;
-            else if (o.status === 'processing') statusCounts.processing += 1;
-            else if (o.status === 'canceled') statusCounts.canceled += 1;
-            else if (o.status === 'paid') {
+            if (status === 'pending') statusCounts.pending += 1;
+            else if (status === 'processing') statusCounts.processing += 1;
+            else if (status === 'canceled') statusCounts.canceled += 1;
+            else if (status === 'paid') {
               statusCounts.paid += 1;
               statusCounts.done += 1;
               doneRevenue += orderRevenue;
               doneRevenueNoShip += orderRevenueNoShip;
               doneCommissionNoShip += orderCommissionNoShip;
-            } else if (o.status === 'done') {
+            } else if (status === 'done') {
               statusCounts.done += 1;
               doneRevenue += orderRevenue;
               doneRevenueNoShip += orderRevenueNoShip;
               doneCommissionNoShip += orderCommissionNoShip;
             } else statusCounts.other += 1;
 
-            const ck = customerKey(o);
-            const c = revenueByCustomer.get(ck) || { key: ck, customer_name: o.customer_name || '', phone: o.phone || '', orders: 0, quantity: 0, revenue: 0 };
-            c.orders += 1;
-            c.quantity += orderQty;
-            c.revenue += orderRevenue;
-            if (!c.customer_name && o.customer_name) c.customer_name = o.customer_name;
-            if (!c.phone && o.phone) c.phone = o.phone;
-            revenueByCustomer.set(ck, c);
+            if (!isCanceled) {
+              activeOrders += 1;
+              totalQty += orderQty;
+              totalRevenue += orderRevenue;
+              totalRevenueNoShip += orderRevenueNoShip;
+              totalCommissionNoShip += orderCommissionNoShip;
 
-            const day = o.created_at ? new Date(o.created_at) : null;
-            if (day && !Number.isNaN(day.getTime())) {
-              const k = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-              const d = byDay.get(k) || { day: k, orders: 0, quantity: 0, revenue: 0, doneOrders: 0, doneRevenue: 0 };
-              d.orders += 1;
-              d.quantity += orderQty;
-              d.revenue += orderRevenue;
-              if (isCompleted) {
-                d.doneOrders += 1;
-                d.doneRevenue += orderRevenue;
+              const ck = customerKey(o);
+              const c = revenueByCustomer.get(ck) || { key: ck, customer_name: o.customer_name || '', phone: o.phone || '', orders: 0, quantity: 0, revenue: 0 };
+              c.orders += 1;
+              c.quantity += orderQty;
+              c.revenue += orderRevenue;
+              if (!c.customer_name && o.customer_name) c.customer_name = o.customer_name;
+              if (!c.phone && o.phone) c.phone = o.phone;
+              revenueByCustomer.set(ck, c);
+
+              const day = o.created_at ? new Date(o.created_at) : null;
+              if (day && !Number.isNaN(day.getTime())) {
+                const k = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+                const d = byDay.get(k) || { day: k, orders: 0, quantity: 0, revenue: 0, doneOrders: 0, doneRevenue: 0 };
+                d.orders += 1;
+                d.quantity += orderQty;
+                d.revenue += orderRevenue;
+                if (isCompleted) {
+                  d.doneOrders += 1;
+                  d.doneRevenue += orderRevenue;
+                }
+                byDay.set(k, d);
               }
-              byDay.set(k, d);
             }
           }
 
@@ -4871,13 +4883,14 @@
           const days = Array.from(byDay.values()).sort((a, b) => a.day.localeCompare(b.day));
           const uniqueCustomers = revenueByCustomer.size;
 
-          const avgOrderValue = orders.length ? Math.round(totalRevenue / orders.length) : 0;
-          const avgQtyPerOrder = orders.length ? (totalQty / orders.length) : 0;
+          const avgOrderValue = activeOrders ? Math.round(totalRevenue / activeOrders) : 0;
+          const avgQtyPerOrder = activeOrders ? (totalQty / activeOrders) : 0;
           const tempCommission = Math.round(doneCommissionNoShip);
           const tempCommissionAll = Math.round(totalCommissionNoShip);
 
           return {
             statusCounts,
+            activeOrders,
             totalQty,
             totalRevenue,
             doneRevenue,
@@ -4923,7 +4936,7 @@
                       <i className="fas fa-truck me-1"></i>Ship ước tính: {shipPercent}%
                     </span>
                     <span className="badge rounded-pill bg-dark bg-opacity-10 text-dark">
-                      <i className="fas fa-receipt me-1"></i>{formatNumber(orders.length)} đơn
+                      <i className="fas fa-receipt me-1"></i>{formatNumber(stats.activeOrders)} đơn
                     </span>
                     <span className="badge rounded-pill bg-info bg-opacity-10 text-dark">
                       <i className="fas fa-user me-1"></i>{formatNumber(stats.uniqueCustomers)} khách
@@ -4944,10 +4957,10 @@
               <div className="col-6 col-md-3">
                 <div className="card p-3 border-0 shadow-sm bg-dark bg-opacity-10">
                   <div className="d-flex align-items-center justify-content-between">
-                    <div className="text-muted small">Tổng đơn</div>
+                    <div className="text-muted small">Tổng đơn (không tính hủy)</div>
                     <i className="fas fa-receipt text-dark"></i>
                   </div>
-                  <div className="fs-4 fw-semibold text-dark">{formatNumber(orders.length)}</div>
+                  <div className="fs-4 fw-semibold text-dark">{formatNumber(stats.activeOrders)}</div>
                 </div>
               </div>
               <div className="col-6 col-md-3">
