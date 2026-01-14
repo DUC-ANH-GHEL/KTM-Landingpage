@@ -3,6 +3,8 @@ import crypto from 'crypto';
 const sql = neon(process.env.DATABASE_URL);
 
 let _schemaEnsured = false;
+let _lastAutoAdvanceAt = 0;
+const AUTO_ADVANCE_TTL_MS = 10 * 60 * 1000;
 
 function normalizePhone(value) {
   if (!value) return '';
@@ -33,6 +35,11 @@ async function ensureSchema() {
 
   // Track when status last changed (used for automatic transitions)
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMP`;
+
+  // Helpful indexes for orders filtering (month/status/overdue)
+  await sql`CREATE INDEX IF NOT EXISTS orders_created_at_idx ON orders(created_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS orders_status_idx ON orders(status)`;
+  await sql`CREATE INDEX IF NOT EXISTS orders_status_created_at_idx ON orders(status, created_at)`;
 
   // Order-level adjustment (discount/surcharge)
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS adjustment_amount INTEGER DEFAULT 0`;
@@ -93,6 +100,10 @@ async function ensureSchema() {
 }
 
 async function autoAdvanceOrderStatuses() {
+  const now = Date.now();
+  if (_lastAutoAdvanceAt && now - _lastAutoAdvanceAt < AUTO_ADVANCE_TTL_MS) return;
+  _lastAutoAdvanceAt = now;
+
   // Pending -> Done after 20 days (based on created_at)
   // Processing -> Done after 7 days (based on status_updated_at if present, else fallback to updated_at/created_at)
   await sql`
@@ -305,6 +316,12 @@ export default async function handler(req, res) {
       }
 
       const { month } = req.query;
+      const overdue = String(req.query.overdue || '').trim() === '1' || String(req.query.overdue || '').trim().toLowerCase() === 'true';
+      const overdueDaysRaw = req.query.days ?? req.query.overdueDays ?? 3;
+      let overdueDays = Number(overdueDaysRaw);
+      if (!Number.isFinite(overdueDays) || overdueDays < 0) overdueDays = 3;
+      overdueDays = Math.trunc(overdueDays);
+
       let query = `
         SELECT
           o.id,
@@ -346,8 +363,12 @@ export default async function handler(req, res) {
         LEFT JOIN order_items oi ON oi.order_id = (o.id::text)
         LEFT JOIN products p ON p.id = oi.product_id
       `;
+
       const params = [];
-      if (month) {
+      if (overdue) {
+        query += " WHERE o.status = 'pending' AND o.created_at <= (NOW() - ($1::int * INTERVAL '1 day'))";
+        params.push(overdueDays);
+      } else if (month) {
         query += " WHERE TO_CHAR(o.created_at, 'YYYY-MM') = $1";
         params.push(month);
       }

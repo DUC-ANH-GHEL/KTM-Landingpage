@@ -4676,6 +4676,9 @@
         const [orders, setOrders] = useState([]);
         const [products, setProducts] = useState([]);
 
+        const productsLoadedRef = useRef(false);
+        const ordersByMonthCacheRef = useRef(new Map());
+
         const shipPercent = normalizeShipPercent(settings?.ship_percent);
 
         const {
@@ -4686,25 +4689,46 @@
           formatVND
         } = window.KTM.money;
 
+        const loadProductsOnce = async () => {
+          if (productsLoadedRef.current) return;
+          try {
+            const productsData = await window.KTM.api.getJSON(
+              `${API_BASE}/api/products`,
+              'Lỗi tải danh sách sản phẩm'
+            );
+            setProducts(Array.isArray(productsData) ? productsData : []);
+            productsLoadedRef.current = true;
+          } catch (e) {
+            console.error('Load products for stats error:', e);
+            setProducts([]);
+            productsLoadedRef.current = true;
+          }
+        };
+
+        const loadOrdersForMonth = async (m) => {
+          const key = String(m || '').trim();
+          if (!key) return [];
+          const cached = ordersByMonthCacheRef.current?.get(key);
+          if (cached && Array.isArray(cached)) return cached;
+
+          const ordersData = await window.KTM.api.getJSON(
+            `${API_BASE}/api/orders?month=${encodeURIComponent(key)}`,
+            'Lỗi tải thống kê'
+          );
+          const list = Array.isArray(ordersData) ? ordersData : [];
+          ordersByMonthCacheRef.current?.set(key, list);
+          return list;
+        };
+
         const loadStats = async () => {
           setLoadingStats(true);
           try {
-            const [ordersData, productsData] = await Promise.all([
-              window.KTM.api.getJSON(
-                `${API_BASE}/api/orders?month=${encodeURIComponent(month)}`,
-                'Lỗi tải thống kê'
-              ),
-              window.KTM.api.getJSON(
-                `${API_BASE}/api/products`,
-                'Lỗi tải danh sách sản phẩm'
-              ),
-            ]);
+            await loadProductsOnce();
+            const ordersData = await loadOrdersForMonth(month);
             setOrders(Array.isArray(ordersData) ? ordersData : []);
-            setProducts(Array.isArray(productsData) ? productsData : []);
           } catch (e) {
             console.error('Load stats error:', e);
             setOrders([]);
-            setProducts([]);
           } finally {
             setLoadingStats(false);
           }
@@ -5813,7 +5837,10 @@
       const loadAllOrdersForAlerts = async () => {
         setLoadingAllOrders(true);
         try {
-          const data = await window.KTM.api.getJSON(`${API_BASE}/api/orders`, 'Lỗi tải đơn hàng');
+          const data = await window.KTM.api.getJSON(
+            `${API_BASE}/api/orders?overdue=1&days=${encodeURIComponent(OVERDUE_PENDING_DAYS)}`,
+            'Lỗi tải đơn hàng'
+          );
           setAllOrders(Array.isArray(data) ? data : []);
         } catch (e) {
           console.error('Load all orders error:', e);
