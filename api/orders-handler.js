@@ -31,6 +31,9 @@ async function ensureSchema() {
   // Some older schemas may not have updated_at on orders
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`;
 
+  // Track when status last changed (used for automatic transitions)
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMP`;
+
   // Order-level adjustment (discount/surcharge)
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS adjustment_amount INTEGER DEFAULT 0`;
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS adjustment_note TEXT`;
@@ -87,6 +90,26 @@ async function ensureSchema() {
   }
 
   _schemaEnsured = true;
+}
+
+async function autoAdvanceOrderStatuses() {
+  // Pending -> Done after 20 days (based on created_at)
+  // Processing -> Done after 7 days (based on status_updated_at if present, else fallback to updated_at/created_at)
+  await sql`
+    UPDATE orders
+    SET status = 'done', status_updated_at = NOW(), updated_at = NOW()
+    WHERE status = 'pending'
+      AND created_at IS NOT NULL
+      AND created_at <= (NOW() - INTERVAL '20 days')
+  `;
+
+  await sql`
+    UPDATE orders
+    SET status = 'done', status_updated_at = NOW(), updated_at = NOW()
+    WHERE status = 'processing'
+      AND COALESCE(status_updated_at, updated_at, created_at) IS NOT NULL
+      AND COALESCE(status_updated_at, updated_at, created_at) <= (NOW() - INTERVAL '7 days')
+  `;
 }
 
 function normalizeOrderItems(items, legacyProductId, legacyQuantity) {
@@ -230,6 +253,7 @@ export default async function handler(req, res) {
 
     // GET /api/orders and GET /api/orders/:id
     if (req.method === 'GET') {
+      await autoAdvanceOrderStatuses();
       if (id) {
         const query = `
           SELECT
@@ -398,8 +422,8 @@ export default async function handler(req, res) {
       }
 
       const created = await sql`
-        INSERT INTO orders (customer_id, parent_order_id, split_seq, product_id, quantity, status, adjustment_amount, adjustment_note, note)
-        VALUES (${customer.id}, ${parentOrderId}, ${splitSeq}, ${primary.product_id}, ${primary.quantity}, ${status}, ${adjAmount}, ${adjNote}, ${orderNote})
+        INSERT INTO orders (customer_id, parent_order_id, split_seq, product_id, quantity, status, status_updated_at, adjustment_amount, adjustment_note, note)
+        VALUES (${customer.id}, ${parentOrderId}, ${splitSeq}, ${primary.product_id}, ${primary.quantity}, ${status}, NOW(), ${adjAmount}, ${adjNote}, ${orderNote})
         RETURNING id
       `;
 
@@ -427,7 +451,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'phone is required' });
       }
 
-      const currentRows = await sql`SELECT parent_order_id, split_seq FROM orders WHERE id = ${id} LIMIT 1`;
+      const currentRows = await sql`SELECT parent_order_id, split_seq, status FROM orders WHERE id = ${id} LIMIT 1`;
       if (!currentRows.length) return res.status(404).json({ error: 'Order not found' });
       const cur = currentRows[0];
 
@@ -473,6 +497,7 @@ export default async function handler(req, res) {
           product_id = ${primary.product_id},
           quantity = ${primary.quantity},
           status = ${status},
+          status_updated_at = CASE WHEN status IS DISTINCT FROM ${status} THEN NOW() ELSE status_updated_at END,
           adjustment_amount = ${adjAmount},
           adjustment_note = ${adjNote},
           note = ${orderNote},
