@@ -6685,10 +6685,11 @@
                         </div>
 
                         <div className="mt-3 d-flex gap-2">
-                          <button className="btn btn-sm btn-primary flex-fill" onClick={() => editOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>
+                          <button type="button" className="btn btn-sm btn-primary flex-fill" onClick={() => editOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>
                             Sửa
                           </button>
                           <button
+                            type="button"
                             className="btn btn-sm btn-outline-secondary flex-fill"
                             onClick={() => handleCopyOrder(order)}
                             disabled={saving || !!deletingId || updatingId === order.id}
@@ -6696,6 +6697,7 @@
                             <i className="fas fa-copy me-1"></i>Copy
                           </button>
                           <button
+                            type="button"
                             className="btn btn-sm btn-danger flex-fill"
                             onClick={() => deleteOrder(order.id)}
                             disabled={saving || deletingId === order.id || updatingId === order.id}
@@ -6753,8 +6755,9 @@
 
                 {/* Desktop table */}
                 <div className="d-none d-md-block">
-                  <table className="table table-bordered mt-3">
-                    <thead>
+                  <div className="table-responsive orders-table-wrap mt-3">
+                    <table className="table orders-table table-hover align-middle mb-0">
+                      <thead>
                       <tr>
                         <th>Khách hàng</th>
                         <th>SĐT</th>
@@ -6765,8 +6768,8 @@
                         <th>Thời gian</th>
                         <th></th>
                       </tr>
-                    </thead>
-                    <tbody>
+                      </thead>
+                      <tbody>
                       {filteredOrders.map(order => (
                         <tr key={order.id}>
                           <td>
@@ -6812,8 +6815,8 @@
                           </td>
                           <td>{formatDateTime(order.created_at)}</td>
                           <td>
-                            <button className="btn btn-sm btn-primary me-1" onClick={() => editOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>Sửa</button>
-                            <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => handleCopyOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>
+                            <button type="button" className="btn btn-sm btn-primary me-1" onClick={() => editOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>Sửa</button>
+                            <button type="button" className="btn btn-sm btn-outline-secondary me-1" onClick={() => handleCopyOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>
                               <i className="fas fa-copy"></i>
                             </button>
                             <button
@@ -6852,7 +6855,7 @@
                             >
                               Hủy
                             </button>
-                            <button className="btn btn-sm btn-danger" onClick={() => deleteOrder(order.id)} disabled={saving || deletingId === order.id}>
+                            <button type="button" className="btn btn-sm btn-danger" onClick={() => deleteOrder(order.id)} disabled={saving || deletingId === order.id}>
                               {deletingId === order.id ? (
                                 <><span className="spinner-border spinner-border-sm me-2"></span>Đang xóa</>
                               ) : (
@@ -6862,8 +6865,9 @@
                           </td>
                         </tr>
                       ))}
-                    </tbody>
-                  </table>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </>
             )}
@@ -6872,7 +6876,7 @@
           {/* Order create/edit modal */}
           {showModal && (
             <div className="modal show d-block order-modal" style={{ background: 'rgba(0,0,0,0.6)' }} role="dialog" aria-modal="true">
-              <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+              <div className="modal-dialog modal-dialog-scrollable">
                 <div className="modal-content" style={{ borderRadius: 16 }}>
                   <div className="modal-header" style={{ background: 'linear-gradient(135deg, #ffc107, #ffca2c)', border: 'none', borderRadius: '16px 16px 0 0' }}>
                     <h5 className="modal-title fw-bold text-dark mb-0">
