@@ -442,7 +442,7 @@
   };
 
   orders.compareOrders = orders.compareOrders || function compareOrders(a, b) {
-    const statusRank = { pending: 0, processing: 1, done: 2, paid: 3 };
+    const statusRank = { draft: -1, pending: 0, processing: 1, done: 2, paid: 3 };
     const getRank = (status) => (status in statusRank ? statusRank[status] : 99);
     const getCreatedTime = (v) => {
       if (!v) return Number.POSITIVE_INFINITY;

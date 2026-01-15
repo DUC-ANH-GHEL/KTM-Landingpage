@@ -4739,7 +4739,7 @@
         }, [month]);
 
         const stats = React.useMemo(() => {
-          const statusCounts = { pending: 0, processing: 0, done: 0, paid: 0, canceled: 0, other: 0 };
+          const statusCounts = { draft: 0, pending: 0, processing: 0, done: 0, paid: 0, canceled: 0, other: 0 };
           let activeOrders = 0;
           let totalQty = 0;
           let totalRevenue = 0;
@@ -4776,6 +4776,8 @@
           for (const o of orders) {
             const status = normalizeOrderStatus(o?.status);
             const isCanceled = status === 'canceled';
+            const isDraft = status === 'draft';
+            const isExcludedFromTotals = isCanceled || isDraft;
             const items = getOrderItems(o);
 
             let orderQty = 0;
@@ -4797,19 +4799,21 @@
               orderRevenueProducts += revenue;
               orderCommissionProducts += revenue * rate;
 
-              const pidForAgg = it?.product_id || 'unknown';
-              const p = revenueByProduct.get(pid) || {
-                product_id: pidForAgg,
-                product_name: it?.product_name || '—',
-                product_code: it?.product_code || '',
-                orders: 0,
-                quantity: 0,
-                revenue: 0,
-              };
-              p.orders += 1;
-              p.quantity += qty;
-              p.revenue += revenue;
-              revenueByProduct.set(pidForAgg, p);
+              if (!isExcludedFromTotals) {
+                const pidForAgg = it?.product_id || 'unknown';
+                const p = revenueByProduct.get(pid) || {
+                  product_id: pidForAgg,
+                  product_name: it?.product_name || '—',
+                  product_code: it?.product_code || '',
+                  orders: 0,
+                  quantity: 0,
+                  revenue: 0,
+                };
+                p.orders += 1;
+                p.quantity += qty;
+                p.revenue += revenue;
+                revenueByProduct.set(pidForAgg, p);
+              }
             }
 
             const shipInfo = getShipFeeForItems(items);
@@ -4830,7 +4834,8 @@
 
             const isCompleted = status === 'done' || status === 'paid';
 
-            if (status === 'pending') statusCounts.pending += 1;
+            if (status === 'draft') statusCounts.draft += 1;
+            else if (status === 'pending') statusCounts.pending += 1;
             else if (status === 'processing') statusCounts.processing += 1;
             else if (status === 'canceled') statusCounts.canceled += 1;
             else if (status === 'paid') {
@@ -4846,7 +4851,7 @@
               doneCommissionNoShip += orderCommissionNoShip;
             } else statusCounts.other += 1;
 
-            if (!isCanceled) {
+            if (!isExcludedFromTotals) {
               activeOrders += 1;
               totalQty += orderQty;
               totalRevenue += orderRevenue;
@@ -4957,7 +4962,7 @@
               <div className="col-6 col-md-3">
                 <div className="card p-3 border-0 shadow-sm bg-dark bg-opacity-10">
                   <div className="d-flex align-items-center justify-content-between">
-                    <div className="text-muted small">Tổng đơn (không tính hủy)</div>
+                    <div className="text-muted small">Tổng đơn (không tính hủy/nháp)</div>
                     <i className="fas fa-receipt text-dark"></i>
                   </div>
                   <div className="fs-4 fw-semibold text-dark">{formatNumber(stats.activeOrders)}</div>
@@ -5013,6 +5018,12 @@
               <div className="d-md-none mt-2">
                 <div className="row g-2">
                   <div className="col-6">
+                    <div className="card p-2 border-0 shadow-sm bg-light bg-opacity-10">
+                      <div className="text-muted small">Nháp</div>
+                      <div className="fw-semibold">{formatNumber(stats.statusCounts.draft)}</div>
+                    </div>
+                  </div>
+                  <div className="col-6">
                     <div className="card p-2 border-0 shadow-sm bg-secondary bg-opacity-10">
                       <div className="text-muted small">Chờ xử lý</div>
                       <div className="fw-semibold">{formatNumber(stats.statusCounts.pending)}</div>
@@ -5055,6 +5066,7 @@
                 <table className="table table-bordered mb-0">
                   <thead>
                     <tr>
+                      <th>Nháp</th>
                       <th>Chờ xử lý</th>
                       <th>Đang vận chuyển</th>
                       <th>Hủy đơn</th>
@@ -5066,6 +5078,7 @@
                   </thead>
                   <tbody>
                     <tr>
+                      <td>{formatNumber(stats.statusCounts.draft)}</td>
                       <td>{formatNumber(stats.statusCounts.pending)}</td>
                       <td>{formatNumber(stats.statusCounts.processing)}</td>
                       <td>{formatNumber(stats.statusCounts.canceled)}</td>
@@ -5418,11 +5431,18 @@
       const [allOrders, setAllOrders] = useState([]);
       const [loading, setLoading] = useState(true);
       const [loadingAllOrders, setLoadingAllOrders] = useState(false);
+      const [draftExpiringOrders, setDraftExpiringOrders] = useState([]);
+      const [loadingDraftExpiringOrders, setLoadingDraftExpiringOrders] = useState(false);
       const [saving, setSaving] = useState(false);
       const [deletingId, setDeletingId] = useState(null);
       const [updatingId, setUpdatingId] = useState(null);
       const [splitting, setSplitting] = useState(false);
-      const [filterMonth, setFilterMonth] = useState('');
+      const [filterMonth, setFilterMonth] = useState(() => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+      });
       const [filterStatus, setFilterStatus] = useState('');
       const [overdueOnly, setOverdueOnly] = useState(false);
       const [showModal, setShowModal] = useState(false);
@@ -5460,6 +5480,8 @@
       const CUSTOMER_LOOKUP_CACHE_MAX_ENTRIES = 200;
 
       const OVERDUE_PENDING_DAYS = 3;
+      const DRAFT_AUTO_DELETE_DAYS = 7;
+      const DRAFT_WARN_REMAINING_DAYS = 3;
       const DAY_MS = 24 * 60 * 60 * 1000;
 
       const getOrderAgeDays = (order) => {
@@ -5478,6 +5500,25 @@
         const status = String(order?.status || '').trim();
         if (status !== 'pending') return false;
         return getOrderAgeDays(order) >= OVERDUE_PENDING_DAYS;
+      };
+
+      const normalizeOrderStatus = (raw) => {
+        const s = String(raw ?? '').trim().toLowerCase();
+        if (s === 'cancelled') return 'canceled';
+        return s;
+      };
+
+      const getDraftRemainingDays = (order) => {
+        const status = normalizeOrderStatus(order?.status);
+        if (status !== 'draft') return null;
+        const remaining = DRAFT_AUTO_DELETE_DAYS - getOrderAgeDays(order);
+        return Number.isFinite(remaining) ? remaining : null;
+      };
+
+      const isDraftExpiringSoon = (order) => {
+        const remaining = getDraftRemainingDays(order);
+        if (!Number.isFinite(remaining)) return false;
+        return remaining > 0 && remaining <= DRAFT_WARN_REMAINING_DAYS;
       };
 
       const resetOrderForm = (presetProductId) => {
@@ -5768,19 +5809,23 @@
       }, [autoOpenCreateToken]);
 
       const getStatusLabel = (status) => {
+        if (status === 'draft') return 'Đơn nháp';
         if (status === 'pending') return 'Chờ xử lý';
         if (status === 'processing') return 'Đang vận chuyển';
         if (status === 'done') return 'Hoàn thành';
         if (status === 'paid') return 'Đã nhận tiền';
+        if (status === 'cancelled') return 'Hủy đơn';
         if (status === 'canceled') return 'Hủy đơn';
         return status || '';
       };
 
       const getStatusBadgeClass = (status) => {
+        if (status === 'draft') return 'bg-light text-dark';
         if (status === 'pending') return 'bg-secondary';
         if (status === 'processing') return 'bg-warning text-dark';
         if (status === 'done') return 'bg-success';
         if (status === 'paid') return 'bg-primary';
+        if (status === 'cancelled') return 'bg-danger';
         if (status === 'canceled') return 'bg-danger';
         return 'bg-light text-dark';
       };
@@ -5804,6 +5849,20 @@
         });
         return overdue;
       }, [sortedAllOrders]);
+
+      const draftExpiringOrdersAll = React.useMemo(() => {
+        const list = Array.isArray(draftExpiringOrders) ? draftExpiringOrders : [];
+        const expiring = list.filter((o) => {
+          // Server should already send only expiring drafts, but keep a safe client filter too.
+          return isDraftExpiringSoon(o);
+        });
+        expiring.sort((a, b) => {
+          const ta = new Date(a?.created_at).getTime();
+          const tb = new Date(b?.created_at).getTime();
+          return (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0);
+        });
+        return expiring;
+      }, [draftExpiringOrders]);
 
       const displayOrders = React.useMemo(() => {
         if (overdueOnly) return overduePendingOrdersAll;
@@ -5849,17 +5908,28 @@
 
       const loadAllOrdersForAlerts = async () => {
         setLoadingAllOrders(true);
+        setLoadingDraftExpiringOrders(true);
         try {
-          const data = await window.KTM.api.getJSON(
-            `${API_BASE}/api/orders?overdue=1&days=${encodeURIComponent(OVERDUE_PENDING_DAYS)}`,
-            'Lỗi tải đơn hàng'
-          );
-          setAllOrders(Array.isArray(data) ? data : []);
+          const [overdueData, draftData] = await Promise.all([
+            window.KTM.api.getJSON(
+              `${API_BASE}/api/orders?overdue=1&days=${encodeURIComponent(OVERDUE_PENDING_DAYS)}`,
+              'Lỗi tải đơn hàng'
+            ),
+            window.KTM.api.getJSON(
+              `${API_BASE}/api/orders?draftExpiring=1&remainingDays=${encodeURIComponent(DRAFT_WARN_REMAINING_DAYS)}`,
+              'Lỗi tải đơn nháp'
+            ),
+          ]);
+
+          setAllOrders(Array.isArray(overdueData) ? overdueData : []);
+          setDraftExpiringOrders(Array.isArray(draftData) ? draftData : []);
         } catch (e) {
           console.error('Load all orders error:', e);
           setAllOrders([]);
+          setDraftExpiringOrders([]);
         } finally {
           setLoadingAllOrders(false);
+          setLoadingDraftExpiringOrders(false);
         }
       };
 
@@ -6562,6 +6632,7 @@
                     disabled={overdueOnly}
                   >
                     <option value="">Tất cả</option>
+                    <option value="draft">Đơn nháp</option>
                     <option value="pending">Chờ xử lý</option>
                     <option value="processing">Đang vận chuyển</option>
                     <option value="done">Hoàn thành</option>
@@ -6636,6 +6707,28 @@
               </div>
             )}
 
+            {draftExpiringOrdersAll.length > 0 && (
+              <div className="alert alert-warning d-flex align-items-center justify-content-between gap-2 mt-3 mb-0" role="alert">
+                <div style={{ minWidth: 0 }}>
+                  <i className="fas fa-clock me-2"></i>
+                  Có <strong>{draftExpiringOrdersAll.length}</strong> đơn <strong>Nháp</strong> sắp tự xóa (còn ≤ {DRAFT_WARN_REMAINING_DAYS} ngày).
+                  {loadingDraftExpiringOrders && <span className="ms-2 text-muted small">(đang cập nhật...)</span>}
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-dark"
+                  onClick={() => {
+                    setOverdueOnly(false);
+                    setFilterStatus('draft');
+                    setFilterMonth('');
+                    loadOrders();
+                  }}
+                >
+                  Xem ngay
+                </button>
+              </div>
+            )}
+
             {loading ? (
               <div className="text-center py-4">
                 <div className="spinner-border text-warning"></div>
@@ -6674,6 +6767,11 @@
                             {isOverduePending(order) && (
                               <span className="badge bg-danger" title={`Chờ xử lý quá ${OVERDUE_PENDING_DAYS} ngày`}>
                                 ⚠ Chậm {getOrderAgeDays(order)}d
+                              </span>
+                            )}
+                            {isDraftExpiringSoon(order) && (
+                              <span className="badge bg-warning text-dark" title={`Đơn nháp sẽ tự xóa sau ${DRAFT_AUTO_DELETE_DAYS} ngày`}>
+                                ⏳ Còn {getDraftRemainingDays(order)}d
                               </span>
                             )}
                           </div>
@@ -6849,6 +6947,11 @@
                               {isOverduePending(order) && (
                                 <span className="badge bg-danger" title={`Chờ xử lý quá ${OVERDUE_PENDING_DAYS} ngày`}>
                                   ⚠ Chậm {getOrderAgeDays(order)}d
+                                </span>
+                              )}
+                              {isDraftExpiringSoon(order) && (
+                                <span className="badge bg-warning text-dark" title={`Đơn nháp sẽ tự xóa sau ${DRAFT_AUTO_DELETE_DAYS} ngày`}>
+                                  ⏳ Còn {getDraftRemainingDays(order)}d
                                 </span>
                               )}
                             </div>
@@ -7045,6 +7148,7 @@
                             onChange={e => setForm({ ...form, status: e.target.value })}
                             style={{ borderRadius: 10, padding: 12 }}
                           >
+                            <option value="draft">Đơn nháp</option>
                             <option value="pending">Chờ xử lý</option>
                             <option value="processing">Đang vận chuyển</option>
                             <option value="done">Hoàn thành</option>

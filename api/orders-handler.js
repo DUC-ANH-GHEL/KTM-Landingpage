@@ -6,6 +6,10 @@ let _schemaEnsured = false;
 let _lastAutoAdvanceAt = 0;
 const AUTO_ADVANCE_TTL_MS = 10 * 60 * 1000;
 
+let _lastDraftCleanupAt = 0;
+const DRAFT_CLEANUP_TTL_MS = 10 * 60 * 1000;
+const DRAFT_AUTO_DELETE_DAYS = 7;
+
 function normalizePhone(value) {
   if (!value) return '';
   return String(value).replace(/[^0-9]/g, '');
@@ -123,6 +127,20 @@ async function autoAdvanceOrderStatuses() {
   `;
 }
 
+async function cleanupDraftOrders() {
+  const now = Date.now();
+  if (_lastDraftCleanupAt && now - _lastDraftCleanupAt < DRAFT_CLEANUP_TTL_MS) return;
+  _lastDraftCleanupAt = now;
+
+  // Delete draft orders older than 7 days (best-effort; order_items should cascade)
+  await sql`
+    DELETE FROM orders
+    WHERE status = 'draft'
+      AND created_at IS NOT NULL
+      AND created_at <= (NOW() - ((${DRAFT_AUTO_DELETE_DAYS}::int) * INTERVAL '1 day'))
+  `;
+}
+
 function normalizeOrderItems(items, legacyProductId, legacyQuantity) {
   if (Array.isArray(items) && items.length) {
     const normalized = items
@@ -209,6 +227,7 @@ export default async function handler(req, res) {
 
   try {
     await ensureSchema();
+    await cleanupDraftOrders();
 
     // ==================== CUSTOMERS ====================
     // GET /api/customers?phone=... (lookup)
@@ -317,10 +336,19 @@ export default async function handler(req, res) {
 
       const { month } = req.query;
       const overdue = String(req.query.overdue || '').trim() === '1' || String(req.query.overdue || '').trim().toLowerCase() === 'true';
+      const draftExpiring = String(req.query.draftExpiring || req.query.draft_expiring || '').trim() === '1'
+        || String(req.query.draftExpiring || req.query.draft_expiring || '').trim().toLowerCase() === 'true';
       const overdueDaysRaw = req.query.days ?? req.query.overdueDays ?? 3;
       let overdueDays = Number(overdueDaysRaw);
       if (!Number.isFinite(overdueDays) || overdueDays < 0) overdueDays = 3;
       overdueDays = Math.trunc(overdueDays);
+
+      const remainingDaysRaw = req.query.remainingDays ?? req.query.remaining_days ?? 3;
+      let remainingDays = Number(remainingDaysRaw);
+      if (!Number.isFinite(remainingDays) || remainingDays < 0) remainingDays = 3;
+      remainingDays = Math.trunc(remainingDays);
+      if (remainingDays > DRAFT_AUTO_DELETE_DAYS) remainingDays = DRAFT_AUTO_DELETE_DAYS;
+      const warnAgeDays = Math.max(0, DRAFT_AUTO_DELETE_DAYS - remainingDays);
 
       let query = `
         SELECT
@@ -365,7 +393,17 @@ export default async function handler(req, res) {
       `;
 
       const params = [];
-      if (overdue) {
+      if (draftExpiring) {
+        // Draft orders that are within <= remainingDays days of auto-deletion.
+        // Also limit to drafts created within the last 7 days (older drafts should be cleaned up).
+        query += " WHERE o.status = 'draft' AND o.created_at IS NOT NULL";
+        query += " AND o.created_at > (NOW() - ($1::int * INTERVAL '1 day'))";
+        params.push(DRAFT_AUTO_DELETE_DAYS);
+        if (warnAgeDays > 0) {
+          query += " AND o.created_at <= (NOW() - ($2::int * INTERVAL '1 day'))";
+          params.push(warnAgeDays);
+        }
+      } else if (overdue) {
         query += " WHERE o.status = 'pending' AND o.created_at <= (NOW() - ($1::int * INTERVAL '1 day'))";
         params.push(overdueDays);
       } else if (month) {
