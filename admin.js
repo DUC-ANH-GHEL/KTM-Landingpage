@@ -6100,14 +6100,281 @@
         return `${p.name}${p.code ? ` (${p.code})` : ''}`;
       };
 
-      const getFilteredProducts = (idx) => {
-        const q = String(itemSearches[idx] || '').trim().toLowerCase();
-        if (!q) return products;
-        return products.filter((p) => {
-          const name = String(p?.name || '').toLowerCase();
-          const code = String(p?.code || '').toLowerCase();
-          return name.includes(q) || code.includes(q);
+      // Match SearchCenter (Tra cứu nhanh) normalization/scoring as closely as possible
+      const normalizeText = (value) => {
+        try {
+          return String(value ?? '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[đĐ]/g, 'd');
+        } catch {
+          return String(value ?? '').toLowerCase();
+        }
+      };
+
+      const parseProductQuery = (query) => {
+        const qn = normalizeText(query).trim();
+        const tokens = qn.split(/\s+/).filter(Boolean);
+        const cleanedQuery = tokens.join(' ');
+        return { contentTokens: tokens, cleanedQuery };
+      };
+
+      const productSearchIndex = React.useMemo(() => {
+        return (Array.isArray(products) ? products : []).map((p, originalIndex) => {
+          const name = normalizeText(p?.name ?? '');
+          const code = normalizeText(p?.code ?? '');
+          const category = normalizeText(p?.category ?? '');
+          const note = normalizeText(p?.note ?? '');
+          const idStr = normalizeText(p?.id ?? '');
+          const sttStr = normalizeText(p?.stt ?? '');
+          const haystackAll = `${name} ${code} ${category} ${note} ${idStr} ${sttStr}`.trim();
+          return {
+            p,
+            originalIndex,
+            name,
+            code,
+            category,
+            note,
+            haystackAll,
+          };
         });
+      }, [products]);
+
+      const scoreProductMatch = (entry, contentTokens, cleanedQuery) => {
+        const tokens = Array.isArray(contentTokens) ? contentTokens : [];
+        const phrase = normalizeText(cleanedQuery).trim();
+        if (!tokens.length && !phrase) return 0;
+
+        const name = entry?.name ?? '';
+        const code = entry?.code ?? '';
+        const category = entry?.category ?? '';
+        const note = entry?.note ?? '';
+        const haystackAll = entry?.haystackAll ?? '';
+        if (!haystackAll) return 0;
+
+        let score = 0;
+
+        // Phrase-level boosts
+        if (phrase) {
+          if (name === phrase) score += 220;
+          if (name.includes(phrase)) score += 140;
+          if (name.startsWith(phrase)) score += 160;
+          if (code && code === phrase) score += 180;
+          if (code && code.includes(phrase)) score += 90;
+        }
+
+        // Token-level boosts
+        for (const t of tokens) {
+          if (!t) continue;
+          const reWordStart = new RegExp(`(?:^|\\s)${t.replace(/[.*+?^${}()|[\[\]\\]/g, '\\$&')}`);
+
+          if (name.includes(t)) score += 35;
+          if (reWordStart.test(name)) score += 25;
+
+          if (code && code.includes(t)) score += 20;
+          if (code && reWordStart.test(code)) score += 10;
+
+          if (category && category.includes(t)) score += 12;
+          if (note && note.includes(t)) score += 6;
+        }
+
+        // Prefer shorter names slightly when tied
+        if (score > 0 && name) score += Math.max(0, 10 - Math.min(10, Math.floor(name.length / 10)));
+
+        return score;
+      };
+
+      const levenshteinDistance = (a, b) => {
+        const s = String(a || '');
+        const t = String(b || '');
+        if (s === t) return 0;
+        if (!s) return t.length;
+        if (!t) return s.length;
+
+        const m = s.length;
+        const n = t.length;
+        // Ensure n is smaller to keep memory minimal
+        if (n > m) return levenshteinDistance(t, s);
+
+        let prev = new Array(n + 1);
+        let curr = new Array(n + 1);
+        for (let j = 0; j <= n; j++) prev[j] = j;
+
+        for (let i = 1; i <= m; i++) {
+          curr[0] = i;
+          const sc = s.charCodeAt(i - 1);
+          for (let j = 1; j <= n; j++) {
+            const cost = sc === t.charCodeAt(j - 1) ? 0 : 1;
+            curr[j] = Math.min(
+              prev[j] + 1,
+              curr[j - 1] + 1,
+              prev[j - 1] + cost
+            );
+          }
+          const tmp = prev;
+          prev = curr;
+          curr = tmp;
+        }
+        return prev[n];
+      };
+
+      const fuzzyTokenInText = (token, haystackAll) => {
+        const t = String(token || '').trim();
+        const hay = String(haystackAll || '');
+        if (!t || !hay) return false;
+        if (hay.includes(t)) return true;
+
+        const words = hay.split(/\s+/).filter(Boolean);
+        if (!words.length) return false;
+
+        // Allow small typos: shorter tokens -> stricter
+        const maxDistance = t.length <= 4 ? 1 : 2;
+        for (const w of words) {
+          // Quick length gate
+          if (Math.abs(w.length - t.length) > maxDistance) continue;
+          if (levenshteinDistance(t, w) <= maxDistance) return true;
+        }
+        return false;
+      };
+
+      const tokenizeWordsNormalized = (text) => {
+        const cleaned = normalizeText(text)
+          .replace(/[^a-z0-9]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        return cleaned ? cleaned.split(' ').filter(Boolean) : [];
+      };
+
+      const fuzzyScoreEntry = (entry, contentTokens) => {
+        const tokens = Array.isArray(contentTokens) ? contentTokens : [];
+        if (!tokens.length) return 0;
+
+        const nameWords = tokenizeWordsNormalized(entry?.name || '');
+        const codeWords = tokenizeWordsNormalized(entry?.code || '');
+        const categoryWords = tokenizeWordsNormalized(entry?.category || '');
+        const noteWords = tokenizeWordsNormalized(entry?.note || '');
+
+        const bestTokenScoreInWords = (token, words, fieldWeight) => {
+          const t = String(token || '').trim();
+          if (!t || !words.length) return 0;
+
+          const maxDistance = t.length <= 4 ? 1 : 2;
+          let bestDistance = Infinity;
+          let bestIndex = -1;
+
+          for (let i = 0; i < words.length; i++) {
+            const w = words[i];
+            if (!w) continue;
+            if (Math.abs(w.length - t.length) > maxDistance) continue;
+            const d = levenshteinDistance(t, w);
+            if (d < bestDistance) {
+              bestDistance = d;
+              bestIndex = i;
+              if (d === 0) break;
+            }
+          }
+
+          if (bestDistance === Infinity || bestDistance > maxDistance) return 0;
+
+          // closeness: dist 0 > dist 1 > dist 2
+          const closeness = bestDistance === 0 ? 1 : bestDistance === 1 ? 0.65 : 0.45;
+          let score = Math.round(fieldWeight * closeness);
+
+          // Prefer matches near beginning of the field
+          if (bestIndex === 0) score += Math.round(fieldWeight * 0.25);
+          else if (bestIndex === 1) score += Math.round(fieldWeight * 0.12);
+
+          return score;
+        };
+
+        let score = 0;
+        for (const tok of tokens) {
+          if (!tok) continue;
+          // Strongly prefer name matches, then code, then category/note
+          const sName = bestTokenScoreInWords(tok, nameWords, 180);
+          const sCode = bestTokenScoreInWords(tok, codeWords, 120);
+          const sCat = bestTokenScoreInWords(tok, categoryWords, 60);
+          const sNote = bestTokenScoreInWords(tok, noteWords, 30);
+          score += Math.max(sName, sCode, sCat, sNote);
+        }
+
+        // If we got here from fuzzy fallback, ensure it can surface even when weak
+        if (score > 0) {
+          const nameLen = (entry?.name || '').length;
+          score += Math.max(0, 60 - Math.min(60, Math.floor(nameLen / 2)));
+        }
+
+        return score;
+      };
+
+      const productSearchCacheRef = React.useRef(new Map());
+      React.useEffect(() => {
+        productSearchCacheRef.current = new Map();
+      }, [products]);
+
+      const getFilteredProducts = (idx) => {
+        const qRaw = String(itemSearches[idx] || '').trim();
+        if (!qRaw) return products;
+
+        const { contentTokens, cleanedQuery } = parseProductQuery(qRaw);
+        if (contentTokens.length === 0) return products;
+
+        const cacheKey = normalizeText(qRaw).trim();
+        const cached = productSearchCacheRef.current.get(cacheKey);
+        if (cached) return cached;
+
+        // Basic OR filter across all indexed fields (same spirit as SearchCenter)
+        const candidates = [];
+        for (const entry of productSearchIndex) {
+          const hay = entry.haystackAll;
+          if (!hay) continue;
+          if (contentTokens.some(word => hay.includes(word))) {
+            candidates.push(entry);
+          }
+        }
+
+        // Fuzzy fallback: when nothing (or too few) matched, broaden using typo-tolerant token match
+        let finalCandidates = candidates;
+        if (finalCandidates.length < 8 && contentTokens.length > 0) {
+          const extra = [];
+          const seen = new Set(finalCandidates.map(e => String(e.p?.id ?? '') + ':' + String(e.originalIndex)));
+          for (const entry of productSearchIndex) {
+            const key = String(entry.p?.id ?? '') + ':' + String(entry.originalIndex);
+            if (seen.has(key)) continue;
+            const hay = entry.haystackAll;
+            if (!hay) continue;
+
+            // Any token fuzzy-matches any word in haystack
+            if (contentTokens.some(tok => fuzzyTokenInText(tok, hay))) {
+              extra.push(entry);
+              seen.add(key);
+            }
+          }
+          if (extra.length) finalCandidates = finalCandidates.concat(extra);
+        }
+
+        const scored = finalCandidates
+          .map((entry) => ({
+            entry,
+            score: scoreProductMatch(entry, contentTokens, cleanedQuery),
+          }))
+          .map((x) => {
+            if (x.score > 0) return x;
+            // Fuzzy ranking: compute closeness-based score so the most relevant typo-match rises to top
+            const fuzzyScore = fuzzyScoreEntry(x.entry, contentTokens);
+            return fuzzyScore > 0 ? { ...x, score: fuzzyScore } : x;
+          })
+          .filter(x => x.score > 0)
+          .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return a.entry.originalIndex - b.entry.originalIndex;
+          })
+          .slice(0, 40)
+          .map(x => x.entry.p);
+
+        productSearchCacheRef.current.set(cacheKey, scored);
+        return scored;
       };
 
       const getProductById = (pid) => {
@@ -7282,10 +7549,12 @@
                                           style={{ borderRadius: 10, padding: 10 }}
                                         />
                                         <div className="mt-2" />
-                                        {getFilteredProducts(idx).length === 0 ? (
-                                          <div className="text-muted small px-2 py-1">Không có sản phẩm phù hợp</div>
-                                        ) : (
-                                          getFilteredProducts(idx).map((p) => (
+                                        {(() => {
+                                          const filtered = getFilteredProducts(idx);
+                                          if (filtered.length === 0) {
+                                            return <div className="text-muted small px-2 py-1">Không có sản phẩm phù hợp</div>;
+                                          }
+                                          return filtered.map((p) => (
                                             <button
                                               key={p.id}
                                               type="button"
@@ -7302,8 +7571,8 @@
                                             >
                                               {p.name}{p.code ? ` (${p.code})` : ''}
                                             </button>
-                                          ))
-                                        )}
+                                          ));
+                                        })()}
                                       </div>
                                     )}
 
