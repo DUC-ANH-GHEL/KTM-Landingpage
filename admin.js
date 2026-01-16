@@ -6415,7 +6415,7 @@
         parts.push('Sản phẩm:');
         if (rows.length) {
           for (const r of rows) {
-            parts.push(`- ${r.name} x${r.qty}`);
+            parts.push(`- ${r.name} (SL: ${r.qty})`);
           }
         } else {
           const summary = getOrderProductSummary(order);
