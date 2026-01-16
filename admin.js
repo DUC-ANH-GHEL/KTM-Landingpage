@@ -6403,16 +6403,13 @@
         const total = subtotal + ship + adj;
 
         const parts = [];
-        parts.push(`ĐƠN HÀNG #${order?.id ?? ''}`.trim());
-        if (order?.customer_name) parts.push(`Khách: ${order.customer_name}`);
+        if (order?.customer_name) parts.push(`KHÁCH: ${order.customer_name}`);
         if (order?.phone) parts.push(`SĐT: ${order.phone}`);
-        if (order?.address) parts.push(`Địa chỉ: ${order.address}`);
-        if ((order?.note || '').trim()) parts.push(`Ghi chú: ${(order.note || '').trim()}`);
-        if (order?.status) parts.push(`Trạng thái: ${getStatusLabel(order.status)}`);
-        if (order?.created_at) parts.push(`Thời gian: ${formatDateTime(order.created_at)}`);
+        if (order?.address) parts.push(`ĐỊA CHỈ: ${order.address}`);
+        if ((order?.note || '').trim()) parts.push(`GHI CHÚ: ${(order.note || '').trim()}`);
         parts.push('');
 
-        parts.push('Sản phẩm:');
+        parts.push('SẢN PHẨM:');
         if (rows.length) {
           for (const r of rows) {
             parts.push(`- ${r.name} (SL: ${r.qty})`);
@@ -6423,11 +6420,15 @@
         }
 
         parts.push('');
-        parts.push(`Tạm tính: ${formatVND(subtotal)}`);
-        parts.push(`Ship: ${formatVND(shipInfo.found ? ship : 0)}`);
-        if (adj !== 0) parts.push(`Điều chỉnh: ${formatVND(adj)}`);
-        if (order?.adjustment_note) parts.push(`Ghi chú điều chỉnh: ${order.adjustment_note}`);
-        parts.push(`Tổng: ${formatVND(total)}`);
+        parts.push(`TẠM TÍNH: ${formatVND(subtotal)}`);
+        if (shipInfo.found && ship !== 0) parts.push(`SHIP: ${formatVND(ship)}`);
+        {
+          const adjNote = String(order?.adjustment_note || '').trim();
+          if (adj !== 0 || adjNote) {
+            parts.push(`ĐIỀU CHỈNH: ${formatVND(adj)}${adjNote ? ` (${adjNote})` : ''}`);
+          }
+        }
+        parts.push(`TỔNG: ${formatVND(total)}`);
         return parts.filter(Boolean).join('\n');
       };
 
