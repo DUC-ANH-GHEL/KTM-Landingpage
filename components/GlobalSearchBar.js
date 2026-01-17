@@ -30,7 +30,8 @@ function GlobalSearchBar() {
             price: p.price || '',
             image: p.image || '',
             category: p.category || '',
-            note: p.note || ''
+            note: p.note || '',
+            variants: p.variants ?? null,
           })));
         }
       } catch (e) {
@@ -39,6 +40,61 @@ function GlobalSearchBar() {
     };
     loadProducts();
   }, []);
+
+  const formatVNDNumber = (n) => {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return '';
+    const intV = Math.max(0, Math.trunc(v));
+    if (window.KTM?.money?.formatVND) return window.KTM.money.formatVND(intV);
+    try {
+      return `${new Intl.NumberFormat('vi-VN').format(intV)}đ`;
+    } catch {
+      return `${String(intV)}đ`;
+    }
+  };
+
+  const parseVariantGroupsForDisplay = (value) => {
+    if (value == null || value === '') return [];
+    let v = value;
+    if (typeof v === 'string') {
+      const s = v.trim();
+      if (!s) return [];
+      try {
+        v = JSON.parse(s);
+      } catch {
+        return [];
+      }
+    }
+    return Array.isArray(v) ? v : [];
+  };
+
+  const formatVariantsSummary = (variants) => {
+    const groups = parseVariantGroupsForDisplay(variants);
+    if (!groups.length) return '';
+
+    const parts = [];
+    for (const g of groups) {
+      const name = String(g?.name ?? '').trim();
+      const options = Array.isArray(g?.options) ? g.options : [];
+      if (!options.length) continue;
+      const optionParts = [];
+      for (const o of options) {
+        const label = String(o?.label ?? '').trim();
+        if (!label) continue;
+        const p = Number(o?.price);
+        if (Number.isFinite(p) && p >= 0) optionParts.push(`${label} ${formatVNDNumber(p)}`);
+        else optionParts.push(label);
+        if (optionParts.length >= 6) break;
+      }
+      if (!optionParts.length) continue;
+      const groupLabel = name || 'Biến thể';
+      const more = options.length > optionParts.length ? '…' : '';
+      parts.push(`${groupLabel}: ${optionParts.join(', ')}${more}`);
+      if (parts.length >= 2) break;
+    }
+
+    return parts.join(' • ');
+  };
 
   // Hàm bỏ dấu tiếng Việt
   const removeAccents = (str = "") =>
@@ -251,6 +307,9 @@ function GlobalSearchBar() {
                     Tìm thấy <strong className="text-primary">{suggestions.length}</strong> sản phẩm
                   </div>
                   {suggestions.map((prod, idx) => (
+                    (() => {
+                      const variantsSummary = formatVariantsSummary(prod?.variants);
+                      return (
                     <div
                       key={prod.id}
                       className={`suggestion-item ${idx === selectedIndex ? "active" : ""}`}
@@ -276,9 +335,16 @@ function GlobalSearchBar() {
                             {prod.code && <span>{prod.code} · </span>}
                             <span className="text-danger fw-bold">{prod.price}</span>
                           </div>
+                          {variantsSummary && (
+                            <div className="small text-muted" style={{ marginTop: 2 }}>
+                              <i className="fas fa-layer-group me-1"></i>{variantsSummary}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
+                      );
+                    })()
                   ))}
                 </div>
               )}
@@ -286,6 +352,9 @@ function GlobalSearchBar() {
 
             {/* Kết quả sản phẩm đã chọn */}
             {selectedProduct && (
+              (() => {
+                const variantsSummary = formatVariantsSummary(selectedProduct?.variants);
+                return (
               <div className="card mt-3 shadow-sm">
                 <div className="card-body d-flex flex-column flex-md-row align-items-start gap-3">
                   {selectedProduct.image && (
@@ -301,12 +370,19 @@ function GlobalSearchBar() {
                     <h6 className="fw-bold text-primary mb-1">{selectedProduct.name}</h6>
                     {selectedProduct.code && (<div className="mb-1 small text-muted">Mã: {selectedProduct.code}</div>)}
                     <div className="mb-2"><span className="text-muted small me-2">Giá:</span><span className="fw-bold text-danger fs-5">{selectedProduct.price}</span></div>
+                    {variantsSummary && (
+                      <div className="mb-2 small text-muted">
+                        <i className="fas fa-layer-group me-1"></i>{variantsSummary}
+                      </div>
+                    )}
                     <a href={`https://zalo.me/0966201140?message=${encodeURIComponent("Tôi muốn hỏi về: " + selectedProduct.name + " - " + (selectedProduct.price || ""))}`} target="_blank" rel="noopener noreferrer" className="btn btn-success btn-sm">
                       <i className="fas fa-comments me-1"></i> Hỏi nhanh Bá Đức qua Zalo
                     </a>
                   </div>
                 </div>
               </div>
+                );
+              })()
             )}
 
             {/* Modal phóng to ảnh */}

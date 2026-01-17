@@ -2633,11 +2633,99 @@
       }
 
       // ========== MOBILE CARD COMPONENT ==========
+      const formatVNDNumber = (n) => window.KTM.money.formatVND(n);
+
+      const parseVariantGroupsForDisplay = (value) => {
+        if (value == null || value === '') return [];
+        let v = value;
+        if (typeof v === 'string') {
+          const s = v.trim();
+          if (!s) return [];
+          try {
+            v = JSON.parse(s);
+          } catch {
+            return [];
+          }
+        }
+        return Array.isArray(v) ? v : [];
+      };
+
+      const renderVariantsPreview = (variants, opts = {}) => {
+        const groups = parseVariantGroupsForDisplay(variants)
+          .map(g => ({
+            name: String(g?.name ?? '').trim(),
+            options: Array.isArray(g?.options) ? g.options : [],
+          }))
+          .map(g => ({
+            ...g,
+            options: g.options
+              .map(o => ({
+                label: String(o?.label ?? '').trim(),
+                price: Number(o?.price),
+              }))
+              .filter(o => !!o.label),
+          }))
+          .filter(g => g.options.length > 0);
+
+        if (!groups.length) return null;
+
+        const maxGroups = Number.isFinite(opts.maxGroups) ? Math.max(1, Math.trunc(opts.maxGroups)) : 1;
+        const maxOptionsPerGroup = Number.isFinite(opts.maxOptionsPerGroup)
+          ? Math.max(1, Math.trunc(opts.maxOptionsPerGroup))
+          : 3;
+        const compact = !!opts.compact;
+        const extraClassName = String(opts.className ?? '').trim();
+
+        const shownGroups = groups.slice(0, maxGroups);
+        const extraGroupsCount = groups.length - shownGroups.length;
+
+        return (
+          <div className={`ktm-variants-preview${compact ? ' compact' : ''}${extraClassName ? ' ' + extraClassName : ''}`}>
+            <i className="fas fa-layer-group"></i>
+            <div className="ktm-variants-chips">
+              {shownGroups.map((g, gi) => {
+                const groupName = g.name || 'Biến thể';
+                const shownOptions = g.options.slice(0, maxOptionsPerGroup);
+                const hiddenOptionsCount = g.options.length - shownOptions.length;
+
+                return (
+                  <React.Fragment key={`${groupName}-${gi}`}>
+                    <span className="ktm-chip ktm-chip-group">{groupName}</span>
+                    {shownOptions.map((o, oi) => {
+                      const p = o.price;
+                      const priceText = Number.isFinite(p) && p >= 0 ? formatVNDNumber(Math.trunc(p)) : '';
+                      const text = priceText ? `${o.label} · ${priceText}` : o.label;
+                      return (
+                        <span key={`${groupName}-${gi}-${oi}`} className="ktm-chip ktm-chip-option">{text}</span>
+                      );
+                    })}
+                    {hiddenOptionsCount > 0 && (
+                      <span className="ktm-chip ktm-chip-more">+{hiddenOptionsCount}</span>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+              {extraGroupsCount > 0 && (
+                <span className="ktm-chip ktm-chip-more">+{extraGroupsCount} nhóm</span>
+              )}
+            </div>
+          </div>
+        );
+      };
+
       const renderMobileCard = (item, index) => {
         const isProduct = item._type === 'product';
         const isAlbum = item._type === 'album';
         const isVideo = item._type === 'video';
         const hasPromo = item.note && (item.note.toLowerCase().includes('free') || item.note.toLowerCase().includes('giảm') || item.note.toLowerCase().includes('sale'));
+        const variantsPreview = isProduct
+          ? renderVariantsPreview(item.variants, {
+              compact: viewMode === 'grid',
+              maxGroups: 1,
+              maxOptionsPerGroup: viewMode === 'grid' ? 2 : 3,
+              className: viewMode === 'grid' ? 'meta text-muted' : 'text-muted',
+            })
+          : null;
 
         if (viewMode === 'grid') {
           // Grid view - compact cards
@@ -2665,6 +2753,7 @@
               <div className="card-body">
                 <div className="name">{item.name}</div>
                 {item.note && <div className="meta text-info" style={{fontSize: 10}}>{item.note}</div>}
+                {variantsPreview && <div style={{ marginTop: 2 }}>{variantsPreview}</div>}
                 <div className="quick-copy">
                   <button 
                     className={copiedId === item.id + '-img' ? 'copied' : ''}
@@ -2718,6 +2807,11 @@
                     {item.price && <span className="price">{item.price.replace(/[đ\s]/g, '')}đ</span>}
                     {hasPromo && <span className="badge-promo">🔥 ƯU ĐÃI</span>}
                   </div>
+                  {variantsPreview && (
+                    <div style={{ marginTop: 4 }}>
+                      {variantsPreview}
+                    </div>
+                  )}
                 </div>
                 <div className="meta">
                   {item.code && <span className="meta-tag">#{item.code}</span>}
@@ -4027,6 +4121,82 @@
         return `${prettyPct}% - ${formatVND(commissionRounded)}`;
       };
 
+      const parseVariantGroupsForDisplay = (value) => {
+        if (value == null || value === '') return [];
+        let v = value;
+        if (typeof v === 'string') {
+          const s = v.trim();
+          if (!s) return [];
+          try {
+            v = JSON.parse(s);
+          } catch {
+            return [];
+          }
+        }
+        return Array.isArray(v) ? v : [];
+      };
+
+      const renderVariantsPreview = (variants, opts = {}) => {
+        const groups = parseVariantGroupsForDisplay(variants)
+          .map(g => ({
+            name: String(g?.name ?? '').trim(),
+            options: Array.isArray(g?.options) ? g.options : [],
+          }))
+          .map(g => ({
+            ...g,
+            options: g.options
+              .map(o => ({
+                label: String(o?.label ?? '').trim(),
+                price: Number(o?.price),
+              }))
+              .filter(o => !!o.label),
+          }))
+          .filter(g => g.options.length > 0);
+
+        if (!groups.length) return null;
+
+        const maxGroups = Number.isFinite(opts.maxGroups) ? Math.max(1, Math.trunc(opts.maxGroups)) : 1;
+        const maxOptionsPerGroup = Number.isFinite(opts.maxOptionsPerGroup)
+          ? Math.max(1, Math.trunc(opts.maxOptionsPerGroup))
+          : 4;
+
+        const shownGroups = groups.slice(0, maxGroups);
+        const extraGroupsCount = groups.length - shownGroups.length;
+
+        return (
+          <div className="ktm-variants-preview">
+            <i className="fas fa-layer-group"></i>
+            <div className="ktm-variants-chips">
+              {shownGroups.map((g, gi) => {
+                const groupName = g.name || 'Biến thể';
+                const shownOptions = g.options.slice(0, maxOptionsPerGroup);
+                const hiddenOptionsCount = g.options.length - shownOptions.length;
+
+                return (
+                  <React.Fragment key={`${groupName}-${gi}`}>
+                    <span className="ktm-chip ktm-chip-group">{groupName}</span>
+                    {shownOptions.map((o, oi) => {
+                      const p = o.price;
+                      const priceText = Number.isFinite(p) && p >= 0 ? formatVND(Math.trunc(p)) : '';
+                      const text = priceText ? `${o.label} · ${priceText}` : o.label;
+                      return (
+                        <span key={`${groupName}-${gi}-${oi}`} className="ktm-chip ktm-chip-option">{text}</span>
+                      );
+                    })}
+                    {hiddenOptionsCount > 0 && (
+                      <span className="ktm-chip ktm-chip-more">+{hiddenOptionsCount}</span>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+              {extraGroupsCount > 0 && (
+                <span className="ktm-chip ktm-chip-more">+{extraGroupsCount} nhóm</span>
+              )}
+            </div>
+          </div>
+        );
+      };
+
       return (
         <div className="product-manager pb-5 mb-4">
           {/* Header */}
@@ -4104,6 +4274,11 @@
                     <div className="product-price">{product.price ? product.price.replace(/[đ\s]/g, '') + 'đ' : 'Liên hệ'}</div>
                     {product.note && (
                       <div className="text-muted small mt-1" style={{fontSize: '0.75rem'}}>{product.note}</div>
+                    )}
+                    {renderVariantsPreview(product.variants, { maxGroups: 1, maxOptionsPerGroup: 4 }) && (
+                      <div className="mt-1" style={{fontSize: '0.75rem'}}>
+                        {renderVariantsPreview(product.variants, { maxGroups: 1, maxOptionsPerGroup: 4 })}
+                      </div>
                     )}
                   </div>
                   

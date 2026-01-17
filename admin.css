@@ -579,6 +579,73 @@
       font-size: 10px;
       color: #888;
     }
+
+    /* ========== VARIANTS PREVIEW (CHIPS) ========== */
+    .ktm-variants-preview {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      flex-wrap: wrap;
+      line-height: 1.25;
+    }
+
+    .ktm-variants-preview > i {
+      margin-top: 2px;
+      color: #999;
+      font-size: 11px;
+    }
+
+    .ktm-variants-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .ktm-chip {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid #e6e6e6;
+      background: #f8f9fa;
+      color: #555;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ktm-chip-group {
+      background: #fff;
+      border-color: #eaeaea;
+      color: #6c757d;
+      font-weight: 600;
+    }
+
+    .ktm-chip-option {
+      background: #f7f7f7;
+      border-color: #ececec;
+      color: #444;
+    }
+
+    .ktm-chip-more {
+      background: rgba(255, 193, 7, 0.15);
+      border-color: rgba(255, 193, 7, 0.35);
+      color: #8a6d00;
+      font-weight: 700;
+    }
+
+    .ktm-variants-preview.compact > i {
+      font-size: 10px;
+      margin-top: 1px;
+    }
+
+    .ktm-variants-preview.compact .ktm-chip {
+      font-size: 9.5px;
+      padding: 1px 6px;
+    }
     
     .product-grid-mobile .grid-card .quick-copy {
       display: flex;
