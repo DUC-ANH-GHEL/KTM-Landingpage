@@ -19,6 +19,67 @@ function normalizeCommissionPercent(value) {
   return Math.max(0, Math.min(100, n));
 }
 
+function parseVndToInt(value) {
+  const digits = String(value ?? '').replace(/[^0-9]/g, '');
+  if (!digits) return null;
+  const n = Number(digits);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
+function normalizeVariants(value, basePriceText) {
+  if (value == null || value === '') return null;
+
+  let v = value;
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return null;
+    try {
+      v = JSON.parse(s);
+    } catch {
+      return null;
+    }
+  }
+
+  if (!Array.isArray(v)) return null;
+
+  const base = parseVndToInt(basePriceText);
+
+  const groups = v
+    .map((g) => {
+      if (!g || typeof g !== 'object') return null;
+      const name = String(g.name ?? '').trim();
+      const optionsRaw = Array.isArray(g.options) ? g.options : [];
+      const options = optionsRaw
+        .map((opt) => {
+          if (!opt || typeof opt !== 'object') return null;
+          const label = String(opt.label ?? '').trim();
+          if (!label) return null;
+
+          const priceRaw = opt.price ?? opt.priceValue ?? opt.unit_price ?? opt.unitPrice ?? null;
+          const priceNum = Number(priceRaw);
+          const absPrice = Number.isFinite(priceNum) ? Math.max(0, Math.trunc(priceNum)) : null;
+
+          const deltaRaw = opt.price_delta ?? opt.priceDelta ?? null;
+          const deltaNum = Number(deltaRaw);
+          const price_delta = Number.isFinite(deltaNum) ? Math.trunc(deltaNum) : 0;
+
+          // Prefer absolute price; if missing and we have base, derive from delta
+          if (absPrice != null) return { label, price: absPrice };
+          if (base != null) return { label, price: Math.max(0, Math.trunc(base + price_delta)) };
+
+          // Fallback: keep legacy delta when base is unknown
+          return { label, price_delta };
+        })
+        .filter(Boolean);
+
+      if (!name && options.length === 0) return null;
+      return { name: name || 'Biến thể', options };
+    })
+    .filter(Boolean);
+
+  return groups.length ? groups : null;
+}
+
 async function ensureProductsSchema() {
   // Create table if missing (includes new column)
   await sql`
@@ -32,6 +93,7 @@ async function ensureProductsSchema() {
       note TEXT,
       sort_order INTEGER DEFAULT 0,
       commission_percent NUMERIC(6,2) DEFAULT 5,
+      variants JSONB,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     )
@@ -39,6 +101,7 @@ async function ensureProductsSchema() {
 
   // Add column for existing deployments
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS commission_percent NUMERIC(6,2) DEFAULT 5`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB`;
 }
 
 async function ensureSettingsSchema() {
@@ -205,7 +268,7 @@ export default async function handler(req, res) {
 
     // POST - Tạo sản phẩm mới
     if (req.method === 'POST') {
-      const { id, name, code, price, image, category, note, sort_order, commission_percent } = req.body;
+      const { id, name, code, price, image, category, note, sort_order, commission_percent, variants } = req.body;
 
       if (!name) {
         return res.status(400).json({ error: 'Name is required' });
@@ -215,9 +278,11 @@ export default async function handler(req, res) {
       const productId = id || `prod-${Date.now()}`;
 
       const commission = normalizeCommissionPercent(commission_percent);
+      const normalizedVariants = normalizeVariants(variants, price);
+      const variantsJson = normalizedVariants != null ? JSON.stringify(normalizedVariants) : null;
       
       const result = await sql`
-        INSERT INTO products (id, name, code, price, image, category, note, sort_order, commission_percent)
+        INSERT INTO products (id, name, code, price, image, category, note, sort_order, commission_percent, variants)
         VALUES (
           ${productId},
           ${name},
@@ -227,7 +292,8 @@ export default async function handler(req, res) {
           ${category || null},
           ${note || null},
           ${sort_order || 0},
-          COALESCE(${commission}, 5)
+          COALESCE(${commission}, 5),
+          ${variantsJson}::jsonb
         )
         RETURNING *
       `;
@@ -238,13 +304,15 @@ export default async function handler(req, res) {
     // PUT - Cập nhật sản phẩm
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const { name, code, price, image, category, note, sort_order, commission_percent } = req.body;
+      const { name, code, price, image, category, note, sort_order, commission_percent, variants } = req.body;
 
       if (!id) {
         return res.status(400).json({ error: 'Product ID is required' });
       }
 
       const commission = normalizeCommissionPercent(commission_percent);
+      const normalizedVariants = normalizeVariants(variants, price);
+      const variantsJson = normalizedVariants != null ? JSON.stringify(normalizedVariants) : null;
 
       const result = await sql`
         UPDATE products 
@@ -257,6 +325,7 @@ export default async function handler(req, res) {
           note = COALESCE(${note}, note),
           sort_order = COALESCE(${sort_order}, sort_order),
           commission_percent = COALESCE(${commission}, commission_percent),
+          variants = COALESCE(${variantsJson}::jsonb, variants),
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *

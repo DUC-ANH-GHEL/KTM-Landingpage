@@ -373,9 +373,15 @@
         const fromItem = it?.product_name;
         const pid = String(it?.product_id || '');
         const p = getP(pid);
-        const name = (fromItem || p?.name || '').toString().trim();
+        const baseName = (fromItem || p?.name || '').toString().trim();
+        const variant = String(it?.variant ?? '').trim();
+        const name = variant ? `${baseName} (${variant})` : baseName;
         const qty = Number(it?.quantity ?? 1) || 1;
-        const unitPrice = money.parseMoney(it?.product_price ?? p?.price);
+        const rawUnit = it?.unit_price ?? it?.unitPrice;
+        const unitNum = Number(rawUnit);
+        const unitPrice = Number.isFinite(unitNum)
+          ? Math.trunc(unitNum)
+          : money.parseMoney(it?.product_price ?? p?.price);
         const lineTotal = qty * unitPrice;
         return { name, qty, unitPrice, lineTotal };
       })
@@ -391,10 +397,13 @@
     const names = items
       .map((it) => {
         const fromItem = it?.product_name;
-        if (fromItem) return String(fromItem);
-        const pid = String(it?.product_id || '');
-        const p = getP(pid);
-        return p?.name ? String(p.name) : '';
+        const base = fromItem ? String(fromItem) : (() => {
+          const pid = String(it?.product_id || '');
+          const p = getP(pid);
+          return p?.name ? String(p.name) : '';
+        })();
+        const variant = String(it?.variant ?? '').trim();
+        return variant ? `${base} (${variant})` : base;
       })
       .filter(Boolean);
 
@@ -410,7 +419,11 @@
       const qty = Number(it?.quantity || 0) || 0;
       const pid = String(it?.product_id || '');
       const p = getP(pid);
-      const unitPrice = money.parseMoney(it?.product_price ?? p?.price);
+      const rawUnit = it?.unit_price ?? it?.unitPrice;
+      const unitNum = Number(rawUnit);
+      const unitPrice = Number.isFinite(unitNum)
+        ? Math.trunc(unitNum)
+        : money.parseMoney(it?.product_price ?? p?.price);
       return sum + (qty * unitPrice);
     }, 0);
   };

@@ -64,10 +64,18 @@ async function ensureSchema() {
       order_id VARCHAR(64) NOT NULL,
       product_id VARCHAR(64) NOT NULL,
       quantity INTEGER NOT NULL DEFAULT 1,
+      unit_price INTEGER,
+      variant TEXT,
+      variant_json JSONB,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS order_items_order_id_idx ON order_items(order_id)`;
+
+  // Add columns for existing deployments
+  await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS unit_price INTEGER`;
+  await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant TEXT`;
+  await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_json JSONB`;
 
   // Best-effort FK cascade
   try {
@@ -147,6 +155,31 @@ function normalizeOrderItems(items, legacyProductId, legacyQuantity) {
       .map((it) => ({
         product_id: it?.product_id,
         quantity: Number(it?.quantity ?? 1),
+        unit_price: (() => {
+          const raw = it?.unit_price ?? it?.unitPrice;
+          const n = Number(raw);
+          return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : null;
+        })(),
+        variant: (() => {
+          const v = it?.variant;
+          const s = v != null ? String(v).trim() : '';
+          return s ? s.slice(0, 200) : null;
+        })(),
+        variant_json: (() => {
+          let v = it?.variant_json ?? it?.variantJson;
+          if (v == null || v === '') return null;
+          if (typeof v === 'string') {
+            const s = v.trim();
+            if (!s) return null;
+            try {
+              v = JSON.parse(s);
+            } catch {
+              return null;
+            }
+          }
+          if (!v || typeof v !== 'object') return null;
+          return v;
+        })(),
       }))
       .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0);
     if (normalized.length) return normalized;
@@ -174,6 +207,9 @@ function synthesizeItemsFromLegacy(orderRow) {
     product_price: orderRow.product_price || null,
     product_code: orderRow.product_code || null,
     product_note: orderRow.product_note || null,
+    unit_price: null,
+    variant: null,
+    variant_json: null,
   };
 
   return { ...orderRow, items: [legacyItem] };
@@ -311,6 +347,9 @@ export default async function handler(req, res) {
                   'id', oi.id,
                   'product_id', oi.product_id,
                   'quantity', oi.quantity,
+                  'unit_price', oi.unit_price,
+                  'variant', oi.variant,
+                  'variant_json', oi.variant_json,
                   'product_name', p.name,
                   'product_price', p.price,
                   'product_code', p.code,
@@ -376,6 +415,9 @@ export default async function handler(req, res) {
                 'id', oi.id,
                 'product_id', oi.product_id,
                 'quantity', oi.quantity,
+                'unit_price', oi.unit_price,
+                'variant', oi.variant,
+                'variant_json', oi.variant_json,
                 'product_name', p.name,
                 'product_price', p.price,
                 'product_code', p.code,
@@ -491,9 +533,10 @@ export default async function handler(req, res) {
       const orderIdStr = String(orderId);
 
       for (const it of normalizedItems) {
+        const variantJson = it.variant_json != null ? JSON.stringify(it.variant_json) : null;
         await sql`
-          INSERT INTO order_items (id, order_id, product_id, quantity)
-          VALUES (${crypto.randomUUID()}, ${orderIdStr}, ${it.product_id}, ${it.quantity})
+          INSERT INTO order_items (id, order_id, product_id, quantity, unit_price, variant, variant_json)
+          VALUES (${crypto.randomUUID()}, ${orderIdStr}, ${it.product_id}, ${it.quantity}, ${it.unit_price}, ${it.variant}, ${variantJson}::jsonb)
         `;
       }
 
@@ -567,9 +610,10 @@ export default async function handler(req, res) {
       // Replace items
       await sql`DELETE FROM order_items WHERE order_id = ${orderIdText}`;
       for (const it of normalizedItems) {
+        const variantJson = it.variant_json != null ? JSON.stringify(it.variant_json) : null;
         await sql`
-          INSERT INTO order_items (id, order_id, product_id, quantity)
-          VALUES (${crypto.randomUUID()}, ${orderIdText}, ${it.product_id}, ${it.quantity})
+          INSERT INTO order_items (id, order_id, product_id, quantity, unit_price, variant, variant_json)
+          VALUES (${crypto.randomUUID()}, ${orderIdText}, ${it.product_id}, ${it.quantity}, ${it.unit_price}, ${it.variant}, ${variantJson}::jsonb)
         `;
       }
 

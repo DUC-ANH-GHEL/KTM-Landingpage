@@ -2051,13 +2051,63 @@
 
       // Product Modal for FAB
       function ProductModal({ show, product, categories, onClose, onSave }) {
-        const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5 });
+        const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [] });
         const [saving, setSaving] = useState(false);
         const [uploading, setUploading] = useState(false);
         const imageInputRef = useRef(null);
 
         // Hàm format tiền VNĐ
         const formatVND = (digits) => window.KTM.money.formatVNDInputDigits(digits);
+
+        const getBasePriceInt = (priceText) => {
+          const digits = window.KTM.money.getDigits(String(priceText ?? ''));
+          const n = Number(digits);
+          return digits && Number.isFinite(n) ? Math.trunc(n) : 0;
+        };
+
+        const normalizeVariants = (v, basePriceText) => {
+          if (v == null || v === '') return [];
+          let next = v;
+          if (typeof next === 'string') {
+            const s = next.trim();
+            if (!s) return [];
+            try {
+              next = JSON.parse(s);
+            } catch {
+              return [];
+            }
+          }
+          if (!Array.isArray(next)) return [];
+          const base = getBasePriceInt(basePriceText);
+          return next
+            .map((g) => {
+              if (!g || typeof g !== 'object') return null;
+              const name = String(g.name ?? '').trim();
+              const options = (Array.isArray(g.options) ? g.options : [])
+                .map((o) => {
+                  if (!o || typeof o !== 'object') return null;
+                  const label = String(o.label ?? '').trim();
+                  if (!label) return null;
+                  const pRaw = o.price ?? o.priceValue ?? o.unit_price ?? o.unitPrice ?? null;
+                  const pNum = Number(pRaw);
+                  let price = Number.isFinite(pNum) ? Math.trunc(pNum) : null;
+
+                  // Backward compatibility: convert delta -> absolute when possible
+                  if (price == null) {
+                    const dRaw = o.price_delta ?? o.priceDelta ?? null;
+                    const dNum = Number(dRaw);
+                    if (Number.isFinite(dNum)) price = base + Math.trunc(dNum);
+                  }
+
+                  if (price == null) price = base;
+                  const digits = String(Math.max(0, Math.trunc(Number(price) || 0)));
+                  return { label, price: Math.max(0, Math.trunc(Number(price) || 0)), priceDigits: digits };
+                })
+                .filter(Boolean);
+              return { name: name || 'Biến thể', options };
+            })
+            .filter(Boolean);
+        };
 
         useEffect(() => {
           if (product) {
@@ -2069,7 +2119,8 @@
               category: product.category || '',
               note: product.note || '',
               sort_order: product.sort_order || 0,
-              commission_percent: (product.commission_percent ?? product.commissionPercent ?? 5)
+              commission_percent: (product.commission_percent ?? product.commissionPercent ?? 5),
+              variants: normalizeVariants(product.variants, product.price)
             });
             // Set price numbers từ product.price
             if (product.price) {
@@ -2080,10 +2131,39 @@
               setPriceNumbers('');
             }
           } else {
-            setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5 });
+            setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [] });
             setPriceNumbers('');
           }
         }, [product, show]);
+
+        const applyVariantBulkBasePriceToGroup = (groupIndex) => {
+          setFormData((prev) => {
+            const bulk = getBasePriceInt(prev.price);
+            const bulkDigits = String(bulk);
+            const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+            const g = { ...(variants[groupIndex] || {}), options: Array.isArray(variants[groupIndex]?.options) ? [...variants[groupIndex].options] : [] };
+            g.options = g.options.map((o) => ({ label: String(o?.label || ''), price: bulk, priceDigits: bulkDigits }));
+            variants[groupIndex] = g;
+            return { ...prev, variants };
+          });
+        };
+
+        const applyVariantBulkBasePriceAll = () => {
+          setFormData((prev) => {
+            const bulk = getBasePriceInt(prev.price);
+            const bulkDigits = String(bulk);
+            const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+            const next = variants.map((g) => {
+              const options = (Array.isArray(g?.options) ? g.options : []).map((o) => ({
+                label: String(o?.label || ''),
+                price: bulk,
+                priceDigits: bulkDigits,
+              }));
+              return { name: String(g?.name || 'Biến thể'), options };
+            });
+            return { ...prev, variants: next };
+          });
+        };
 
         // State để hiển thị tiến trình
         const [uploadStatus, setUploadStatus] = React.useState('');
@@ -2286,6 +2366,181 @@
                             placeholder="Ví dụ: Thêm dây là 2.150.000đ"
                             style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
                           />
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="form-label fw-semibold small text-muted mb-1">
+                            <i className="fas fa-layer-group me-1"></i>Biến thể (size, ...)
+                          </label>
+                          <div className="border rounded-3 p-2" style={{ background: '#fff' }}>
+                            {(Array.isArray(formData.variants) ? formData.variants : []).length === 0 ? (
+                              <div className="text-muted small">Chưa có biến thể. Có thể thêm (ví dụ Size: S/M/L).</div>
+                            ) : null}
+
+                            {(Array.isArray(formData.variants) ? formData.variants : []).map((group, gi) => (
+                              <div key={gi} className="mb-3">
+                                <div className="d-flex gap-2 align-items-center mb-2">
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    value={group?.name || ''}
+                                    onChange={(e) => {
+                                      const nextName = e.target.value;
+                                      setFormData((prev) => {
+                                        const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                        variants[gi] = { ...(variants[gi] || {}), name: nextName, options: Array.isArray(variants[gi]?.options) ? variants[gi].options : [] };
+                                        return { ...prev, variants };
+                                      });
+                                    }}
+                                    placeholder="Tên nhóm (ví dụ: Size)"
+                                    style={{ borderRadius: 10 }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
+                                      onClick={() => applyVariantBulkBasePriceToGroup(gi)}
+                                      title="Đặt giá giống giá gốc sản phẩm cho tất cả lựa chọn trong nhóm"
+                                      disabled={!Array.isArray(group?.options) || group.options.length === 0}
+                                  >
+                                    Đồng giá
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline-danger btn-sm"
+                                    onClick={() => {
+                                      setFormData((prev) => {
+                                        const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                        variants.splice(gi, 1);
+                                        return { ...prev, variants };
+                                      });
+                                    }}
+                                    title="Xóa nhóm"
+                                  >
+                                    <i className="fas fa-trash"></i>
+                                  </button>
+                                </div>
+
+                                <div className="d-grid gap-2">
+                                  {(Array.isArray(group?.options) ? group.options : []).map((opt, oi) => (
+                                    <div key={oi} className="row g-2 align-items-center">
+                                      <div className="col-7">
+                                        <input
+                                          type="text"
+                                          className="form-control"
+                                          value={opt?.label || ''}
+                                          onChange={(e) => {
+                                            const nextLabel = e.target.value;
+                                            setFormData((prev) => {
+                                              const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                              const g = { ...(variants[gi] || {}), options: Array.isArray(variants[gi]?.options) ? [...variants[gi].options] : [] };
+                                              const currentPrice = Number(g.options[oi]?.price ?? 0) || 0;
+                                              const currentDigits = String(g.options[oi]?.priceDigits ?? Math.max(0, Math.trunc(currentPrice)));
+                                              g.options[oi] = { ...(g.options[oi] || {}), label: nextLabel, price: Math.max(0, Math.trunc(currentPrice)), priceDigits: currentDigits };
+                                              variants[gi] = g;
+                                              return { ...prev, variants };
+                                            });
+                                          }}
+                                          placeholder="Giá trị (ví dụ: M)"
+                                          style={{ borderRadius: 10 }}
+                                        />
+                                      </div>
+                                      <div className="col-4">
+                                        <input
+                                          type="text"
+                                          className="form-control"
+                                          value={formatVND(String(opt?.priceDigits ?? window.KTM.money.getDigits(String(opt?.price ?? ''))))}
+                                          onChange={(e) => {
+                                            setFormData((prev) => {
+                                              const prevDigits = String(opt?.priceDigits ?? window.KTM.money.getDigits(String(opt?.price ?? '')));
+                                              const next = window.KTM.money.nextPriceInputState(e.target.value, prevDigits);
+                                              const digits = String(next.digits ?? '');
+                                              const n = Number(digits);
+                                              const nextPrice = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
+                                              const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                              const g = { ...(variants[gi] || {}), options: Array.isArray(variants[gi]?.options) ? [...variants[gi].options] : [] };
+                                              g.options[oi] = { ...(g.options[oi] || {}), label: String(g.options[oi]?.label || ''), price: nextPrice, priceDigits: digits };
+                                              variants[gi] = g;
+                                              return { ...prev, variants };
+                                            });
+                                          }}
+                                          placeholder="Giá (đ)"
+                                          style={{ borderRadius: 10 }}
+                                        />
+                                      </div>
+                                      <div className="col-1 d-flex justify-content-end">
+                                        <button
+                                          type="button"
+                                          className="btn btn-outline-secondary btn-sm"
+                                          onClick={() => {
+                                            setFormData((prev) => {
+                                              const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                              const g = { ...(variants[gi] || {}), options: Array.isArray(variants[gi]?.options) ? [...variants[gi].options] : [] };
+                                              g.options.splice(oi, 1);
+                                              variants[gi] = g;
+                                              return { ...prev, variants };
+                                            });
+                                          }}
+                                          title="Xóa lựa chọn"
+                                        >
+                                          <i className="fas fa-times"></i>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className="btn btn-outline-secondary btn-sm mt-2"
+                                  onClick={() => {
+                                    setFormData((prev) => {
+                                      const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                      const g = { ...(variants[gi] || {}), options: Array.isArray(variants[gi]?.options) ? [...variants[gi].options] : [] };
+                                            const base = getBasePriceInt(prev.price);
+                                            g.options.push({ label: '', price: base, priceDigits: String(base) });
+                                      variants[gi] = g;
+                                      return { ...prev, variants };
+                                    });
+                                  }}
+                                  style={{ borderRadius: 10 }}
+                                >
+                                  <i className="fas fa-plus me-1"></i>Thêm lựa chọn
+                                </button>
+                              </div>
+                            ))}
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-warning btn-sm"
+                              onClick={() => {
+                                setFormData((prev) => {
+                                  const base = getBasePriceInt(prev.price);
+                                  const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                  const d = String(base);
+                                  variants.push({ name: 'Size', options: [{ label: 'S', price: base, priceDigits: d }, { label: 'M', price: base, priceDigits: d }, { label: 'L', price: base, priceDigits: d }] });
+                                  return { ...prev, variants };
+                                });
+                              }}
+                              style={{ borderRadius: 10 }}
+                            >
+                              <i className="fas fa-plus me-1"></i>Thêm nhóm biến thể
+                            </button>
+
+                            <div className="d-flex gap-2 align-items-center mt-2">
+                              <button
+                                type="button"
+                                className="btn btn-outline-secondary btn-sm"
+                                onClick={applyVariantBulkBasePriceAll}
+                                disabled={!Array.isArray(formData.variants) || formData.variants.length === 0}
+                                style={{ borderRadius: 10 }}
+                                title="Đặt giá giống giá gốc sản phẩm cho tất cả lựa chọn ở mọi nhóm"
+                              >
+                                Đồng giá (tất cả)
+                              </button>
+                            </div>
+
+                            <div className="text-muted small mt-2">Giá biến thể là giá cụ thể (đ). Ví dụ Size S: 15.000đ, Size M: 25.000đ.</div>
+                          </div>
                         </div>
                       </div>
                       <div className="col-md-4">
@@ -3879,9 +4134,58 @@
 
     // Product Modal (Create/Edit) - Light Theme
     function ProductModal({ show, product, categories, onClose, onSave }) {
-      const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5 });
+      const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [] });
       const [saving, setSaving] = useState(false);
       const [uploading, setUploading] = useState(false);
+
+      const getBasePriceInt = (priceText) => {
+        const digits = window.KTM.money.getDigits(String(priceText ?? ''));
+        const n = Number(digits);
+        return digits && Number.isFinite(n) ? Math.trunc(n) : 0;
+      };
+
+      const normalizeVariants = (v, basePriceText) => {
+        if (v == null || v === '') return [];
+        let next = v;
+        if (typeof next === 'string') {
+          const s = next.trim();
+          if (!s) return [];
+          try {
+            next = JSON.parse(s);
+          } catch {
+            return [];
+          }
+        }
+        if (!Array.isArray(next)) return [];
+        const base = getBasePriceInt(basePriceText);
+        return next
+          .map((g) => {
+            if (!g || typeof g !== 'object') return null;
+            const name = String(g.name ?? '').trim();
+            const options = (Array.isArray(g.options) ? g.options : [])
+              .map((o) => {
+                if (!o || typeof o !== 'object') return null;
+                const label = String(o.label ?? '').trim();
+                if (!label) return null;
+                const pRaw = o.price ?? o.priceValue ?? o.unit_price ?? o.unitPrice ?? null;
+                const pNum = Number(pRaw);
+                let price = Number.isFinite(pNum) ? Math.trunc(pNum) : null;
+
+                if (price == null) {
+                  const dRaw = o.price_delta ?? o.priceDelta ?? null;
+                  const dNum = Number(dRaw);
+                  if (Number.isFinite(dNum)) price = base + Math.trunc(dNum);
+                }
+
+                if (price == null) price = base;
+                const digits = String(Math.max(0, Math.trunc(Number(price) || 0)));
+                return { label, price: Math.max(0, Math.trunc(Number(price) || 0)), priceDigits: digits };
+              })
+              .filter(Boolean);
+            return { name: name || 'Biến thể', options };
+          })
+          .filter(Boolean);
+      };
 
       useEffect(() => {
         if (product) {
@@ -3893,12 +4197,42 @@
             category: product.category || '',
             note: product.note || '',
             sort_order: product.sort_order || 0,
-            commission_percent: (product.commission_percent ?? product.commissionPercent ?? 5)
+            commission_percent: (product.commission_percent ?? product.commissionPercent ?? 5),
+            variants: normalizeVariants(product.variants, product.price)
           });
         } else {
-          setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5 });
+          setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [] });
         }
       }, [product, show]);
+
+      const applyVariantBulkBasePriceToGroup = (groupIndex) => {
+        setFormData((prev) => {
+          const bulk = getBasePriceInt(prev.price);
+          const bulkDigits = String(bulk);
+          const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+          const g = { ...(variants[groupIndex] || {}), options: Array.isArray(variants[groupIndex]?.options) ? [...variants[groupIndex].options] : [] };
+          g.options = g.options.map((o) => ({ label: String(o?.label || ''), price: bulk, priceDigits: bulkDigits }));
+          variants[groupIndex] = g;
+          return { ...prev, variants };
+        });
+      };
+
+      const applyVariantBulkBasePriceAll = () => {
+        setFormData((prev) => {
+          const bulk = getBasePriceInt(prev.price);
+          const bulkDigits = String(bulk);
+          const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+          const next = variants.map((g) => {
+            const options = (Array.isArray(g?.options) ? g.options : []).map((o) => ({
+              label: String(o?.label || ''),
+              price: bulk,
+              priceDigits: bulkDigits,
+            }));
+            return { name: String(g?.name || 'Biến thể'), options };
+          });
+          return { ...prev, variants: next };
+        });
+      };
 
       // State để hiển thị tiến trình
       const [uploadStatus, setUploadStatus] = React.useState('');
@@ -4226,6 +4560,182 @@
                       placeholder="VD: Thêm dây là 2.150.000đ"
                       style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
                     />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold small text-dark mb-1">
+                      <i className="fas fa-layer-group me-1 text-secondary"></i>Biến thể (size, ...)
+                    </label>
+                    <div className="border rounded-3 p-2" style={{ background: '#fff' }}>
+                      {(Array.isArray(formData.variants) ? formData.variants : []).length === 0 ? (
+                        <div className="text-muted small">Chưa có biến thể.</div>
+                      ) : null}
+
+                      {(Array.isArray(formData.variants) ? formData.variants : []).map((group, gi) => (
+                        <div key={gi} className="mb-3">
+                          <div className="d-flex gap-2 align-items-center mb-2">
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={group?.name || ''}
+                              onChange={(e) => {
+                                const nextName = e.target.value;
+                                setFormData((prev) => {
+                                  const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                  variants[gi] = { ...(variants[gi] || {}), name: nextName, options: Array.isArray(variants[gi]?.options) ? variants[gi].options : [] };
+                                  return { ...prev, variants };
+                                });
+                              }}
+                              placeholder="Tên nhóm (ví dụ: Size)"
+                              style={{ borderRadius: 10 }}
+                            />
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary btn-sm"
+                                onClick={() => applyVariantBulkBasePriceToGroup(gi)}
+                                title="Đặt giá giống giá gốc sản phẩm cho tất cả lựa chọn trong nhóm"
+                                disabled={!Array.isArray(group?.options) || group.options.length === 0}
+                            >
+                              Đồng giá
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-outline-danger btn-sm"
+                              onClick={() => {
+                                setFormData((prev) => {
+                                  const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                  variants.splice(gi, 1);
+                                  return { ...prev, variants };
+                                });
+                              }}
+                              title="Xóa nhóm"
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </div>
+
+                          <div className="d-grid gap-2">
+                            {(Array.isArray(group?.options) ? group.options : []).map((opt, oi) => (
+                              <div key={oi} className="row g-2 align-items-center">
+                                <div className="col-7">
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    value={opt?.label || ''}
+                                    onChange={(e) => {
+                                      const nextLabel = e.target.value;
+                                      setFormData((prev) => {
+                                        const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                        const g = { ...(variants[gi] || {}), options: Array.isArray(variants[gi]?.options) ? [...variants[gi].options] : [] };
+                                        const currentPrice = Number(g.options[oi]?.price ?? 0) || 0;
+                                        const currentDigits = String(g.options[oi]?.priceDigits ?? Math.max(0, Math.trunc(currentPrice)));
+                                        g.options[oi] = { ...(g.options[oi] || {}), label: nextLabel, price: Math.max(0, Math.trunc(currentPrice)), priceDigits: currentDigits };
+                                        variants[gi] = g;
+                                        return { ...prev, variants };
+                                      });
+                                    }}
+                                    placeholder="Giá trị (ví dụ: M)"
+                                    style={{ borderRadius: 10 }}
+                                  />
+                                </div>
+                                <div className="col-4">
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    value={formatVND(String(opt?.priceDigits ?? window.KTM.money.getDigits(String(opt?.price ?? ''))))}
+                                    onChange={(e) => {
+                                      setFormData((prev) => {
+                                        const prevDigits = String(opt?.priceDigits ?? window.KTM.money.getDigits(String(opt?.price ?? '')));
+                                        const next = window.KTM.money.nextPriceInputState(e.target.value, prevDigits);
+                                        const digits = String(next.digits ?? '');
+                                        const n = Number(digits);
+                                        const nextPrice = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
+                                        const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                        const g = { ...(variants[gi] || {}), options: Array.isArray(variants[gi]?.options) ? [...variants[gi].options] : [] };
+                                        g.options[oi] = { ...(g.options[oi] || {}), label: String(g.options[oi]?.label || ''), price: nextPrice, priceDigits: digits };
+                                        variants[gi] = g;
+                                        return { ...prev, variants };
+                                      });
+                                    }}
+                                    placeholder="Giá (đ)"
+                                    style={{ borderRadius: 10 }}
+                                  />
+                                </div>
+                                <div className="col-1 d-flex justify-content-end">
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
+                                    onClick={() => {
+                                      setFormData((prev) => {
+                                        const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                        const g = { ...(variants[gi] || {}), options: Array.isArray(variants[gi]?.options) ? [...variants[gi].options] : [] };
+                                        g.options.splice(oi, 1);
+                                        variants[gi] = g;
+                                        return { ...prev, variants };
+                                      });
+                                    }}
+                                    title="Xóa lựa chọn"
+                                  >
+                                    <i className="fas fa-times"></i>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary btn-sm mt-2"
+                            onClick={() => {
+                              setFormData((prev) => {
+                                const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                                const g = { ...(variants[gi] || {}), options: Array.isArray(variants[gi]?.options) ? [...variants[gi].options] : [] };
+                                const base = getBasePriceInt(prev.price);
+                                g.options.push({ label: '', price: base, priceDigits: String(base) });
+                                variants[gi] = g;
+                                return { ...prev, variants };
+                              });
+                            }}
+                            style={{ borderRadius: 10 }}
+                          >
+                            <i className="fas fa-plus me-1"></i>Thêm lựa chọn
+                          </button>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-warning btn-sm"
+                        onClick={() => {
+                          setFormData((prev) => {
+                            const base = getBasePriceInt(prev.price);
+                            const variants = Array.isArray(prev.variants) ? [...prev.variants] : [];
+                            const d = String(base);
+                            variants.push({ name: 'Size', options: [{ label: 'S', price: base, priceDigits: d }, { label: 'M', price: base, priceDigits: d }, { label: 'L', price: base, priceDigits: d }] });
+                            return { ...prev, variants };
+                          });
+                        }}
+                        style={{ borderRadius: 10 }}
+                      >
+                        <i className="fas fa-plus me-1"></i>Thêm nhóm biến thể
+                      </button>
+
+                      <div className="d-flex gap-2 align-items-center mt-2">
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary btn-sm"
+                          onClick={applyVariantBulkBasePriceAll}
+                          disabled={!Array.isArray(formData.variants) || formData.variants.length === 0}
+                          style={{ borderRadius: 10 }}
+                          title="Đặt giá giống giá gốc sản phẩm cho tất cả lựa chọn ở mọi nhóm"
+                        >
+                          Đồng giá (tất cả)
+                        </button>
+                      </div>
+
+                      <div className="text-muted small mt-2">Giá biến thể là giá cụ thể (đ). Ví dụ Size S: 15.000đ, Size M: 25.000đ.</div>
+                    </div>
                   </div>
 
                   <div className="mb-2">
@@ -5454,7 +5964,7 @@
         phone: "",
         address: "",
         note: "",
-        items: [{ product_id: "", quantity: 1 }],
+        items: [{ product_id: "", quantity: 1, unit_price: null, variant: '', variant_json: null }],
         adjustment_amount: 0,
         adjustment_note: "",
         status: "pending"
@@ -5527,7 +6037,7 @@
           phone: "",
           address: "",
           note: "",
-          items: [{ product_id: presetProductId || "", quantity: 1 }],
+          items: [{ product_id: presetProductId || "", quantity: 1, unit_price: null, variant: '', variant_json: null }],
           adjustment_amount: 0,
           adjustment_note: "",
           status: "pending"
@@ -5940,15 +6450,22 @@
           ? order.items.map((it) => ({
               product_id: it?.product_id || '',
               quantity: Number(it?.quantity ?? 1) || 1,
+              unit_price: (() => {
+                const raw = it?.unit_price ?? it?.unitPrice;
+                const n = Number(raw);
+                return Number.isFinite(n) ? Math.trunc(n) : null;
+              })(),
+              variant: String(it?.variant ?? '').trim(),
+              variant_json: it?.variant_json ?? it?.variantJson ?? null,
             })).filter((it) => it.product_id)
-          : [{ product_id: order.product_id || '', quantity: Number(order.quantity || 1) || 1 }];
+          : [{ product_id: order.product_id || '', quantity: Number(order.quantity || 1) || 1, unit_price: null, variant: '', variant_json: null }];
 
         setForm({
           customer_name: order.customer_name || "",
           phone: normalizePhone(order.phone || ""),
           address: order.address || "",
           note: order?.note || "",
-          items: items.length ? items : [{ product_id: "", quantity: 1 }],
+          items: items.length ? items : [{ product_id: "", quantity: 1, unit_price: null, variant: '', variant_json: null }],
           adjustment_amount: Number(order?.adjustment_amount ?? 0) || 0,
           adjustment_note: order?.adjustment_note || "",
           status: order.status || "pending",
@@ -6000,6 +6517,15 @@
             idx,
             product_id: String(it?.product_id || '').trim(),
             quantity: Number(it?.quantity ?? 0),
+            variant: String(it?.variant || '').trim() || null,
+            variant_json: it?.variant_json ?? null,
+            unit_price: (() => {
+              const n = Number(it?.unit_price);
+              if (Number.isFinite(n)) return Math.max(0, Math.trunc(n));
+              const p = getProductById(it?.product_id);
+              const selections = it?.variant_json && typeof it.variant_json === 'object' ? it.variant_json : null;
+              return computeUnitPriceForProductAndSelections(p, selections);
+            })(),
           }))
           .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0);
 
@@ -6014,7 +6540,7 @@
         const remaining = [];
         for (const it of normalizedItemsWithIndex) {
           const deliverNow = !!splitDeliverNow[it.idx];
-          const row = { product_id: it.product_id, quantity: it.quantity };
+          const row = { product_id: it.product_id, quantity: it.quantity, unit_price: it.unit_price, variant: it.variant, variant_json: it.variant_json };
           if (deliverNow) selected.push(row);
           else remaining.push(row);
         }
@@ -6383,6 +6909,90 @@
         return products.find(x => String(x?.id) === id) || null;
       };
 
+      const normalizeVariantGroups = (v) => {
+        if (v == null || v === '') return [];
+        let next = v;
+        if (typeof next === 'string') {
+          const s = next.trim();
+          if (!s) return [];
+          try {
+            next = JSON.parse(s);
+          } catch {
+            return [];
+          }
+        }
+        if (!Array.isArray(next)) return [];
+        return next
+          .map((g, gi) => {
+            if (!g || typeof g !== 'object') return null;
+            const name = String(g.name ?? '').trim() || `Biến thể ${gi + 1}`;
+            const options = (Array.isArray(g.options) ? g.options : [])
+              .map((o) => {
+                if (!o || typeof o !== 'object') return null;
+                const label = String(o.label ?? '').trim();
+                if (!label) return null;
+                const pRaw = o.price ?? o.priceValue ?? o.unit_price ?? o.unitPrice ?? null;
+                const pNum = Number(pRaw);
+                const price = Number.isFinite(pNum) ? Math.trunc(pNum) : null;
+
+                const dRaw = o.price_delta ?? o.priceDelta ?? null;
+                const dNum = Number(dRaw);
+                const price_delta = Number.isFinite(dNum) ? Math.trunc(dNum) : 0;
+
+                return { label, price, price_delta };
+              })
+              .filter(Boolean);
+            return { name, options };
+          })
+          .filter(Boolean);
+      };
+
+      const getVariantGroupsForProductId = (pid) => {
+        const p = getProductById(pid);
+        return normalizeVariantGroups(p?.variants);
+      };
+
+      const buildVariantTextFromSelections = (selections) => {
+        if (!selections || typeof selections !== 'object') return '';
+        const parts = [];
+        for (const [k, v] of Object.entries(selections)) {
+          const key = String(k || '').trim();
+          const val = String(v || '').trim();
+          if (!key || !val) continue;
+          parts.push(`${key}: ${val}`);
+        }
+        return parts.join(', ');
+      };
+
+      const computeUnitPriceForProductAndSelections = (product, selections) => {
+        const base = parseMoney(product?.price);
+        const groups = normalizeVariantGroups(product?.variants);
+        if (!groups.length || !selections || typeof selections !== 'object') return base;
+
+        let current = base;
+        let hasAbsolute = false;
+
+        for (const g of groups) {
+          const groupName = String(g?.name || '').trim();
+          const selectedLabel = String(selections?.[groupName] || '').trim();
+          if (!groupName || !selectedLabel) continue;
+          const opt = (Array.isArray(g.options) ? g.options : []).find((o) => String(o?.label || '').trim() === selectedLabel);
+          if (!opt) continue;
+
+          const p = Number(opt?.price);
+          if (Number.isFinite(p)) {
+            current = Math.max(0, Math.trunc(p));
+            hasAbsolute = true;
+            continue;
+          }
+
+          const d = Number(opt?.price_delta ?? 0);
+          if (Number.isFinite(d)) current += Math.trunc(d);
+        }
+
+        return current;
+      };
+
       const getOrderItems = (order) => window.KTM.orders.getOrderItems(order);
 
       const getOrderTotalQty = (order) => window.KTM.orders.getOrderTotalQty(order);
@@ -6477,11 +7087,14 @@
           .map((it) => ({
             product_id: String(it?.product_id || '').trim(),
             quantity: Number(it?.quantity ?? 0),
+            variant: String(it?.variant || '').trim(),
           }))
           .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0)
           .sort((a, b) => {
             if (a.product_id < b.product_id) return -1;
             if (a.product_id > b.product_id) return 1;
+            if (a.variant < b.variant) return -1;
+            if (a.variant > b.variant) return 1;
             return a.quantity - b.quantity;
           });
 
@@ -6521,11 +7134,14 @@
           .map((it) => ({
             product_id: String(it?.product_id || '').trim(),
             quantity: Number(it?.quantity ?? 0),
+            variant: String(it?.variant || '').trim(),
           }))
           .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0)
           .sort((a, b) => {
             if (a.product_id < b.product_id) return -1;
             if (a.product_id > b.product_id) return 1;
+            if (a.variant < b.variant) return -1;
+            if (a.variant > b.variant) return 1;
             return a.quantity - b.quantity;
           });
 
@@ -6584,12 +7200,14 @@
         let hasDup = false;
         for (const it of selectedItems) {
           const pid = String(it.product_id || '').trim();
+          const variant = String(it?.variant || '').trim();
           if (!pid) continue;
-          if (seen.has(pid)) {
+          const key = `${pid}||${variant}`;
+          if (seen.has(key)) {
             hasDup = true;
             break;
           }
-          seen.add(pid);
+          seen.add(key);
         }
         if (hasDup) warnings.push('Sản phẩm bị trùng dòng (nên gộp số lượng)');
 
@@ -6629,8 +7247,10 @@
         const counts = new Map();
         for (const it of items) {
           const pid = String(it?.product_id || '').trim();
+          const variant = String(it?.variant || '').trim();
           if (!pid) continue;
-          counts.set(pid, (counts.get(pid) || 0) + 1);
+          const key = `${pid}||${variant}`;
+          counts.set(key, (counts.get(key) || 0) + 1);
         }
 
         const perItem = items.map((it) => {
@@ -6638,7 +7258,9 @@
           const q = Number(it?.quantity ?? 0);
           const productError = pid ? '' : 'Chưa chọn sản phẩm';
           const qtyError = Number.isFinite(q) && q > 0 ? '' : 'Số lượng phải > 0';
-          const dupWarn = pid && (counts.get(pid) || 0) > 1 ? 'Sản phẩm bị trùng dòng (nên gộp số lượng)' : '';
+          const variant = String(it?.variant || '').trim();
+          const key = `${pid}||${variant}`;
+          const dupWarn = pid && (counts.get(key) || 0) > 1 ? 'Sản phẩm bị trùng dòng (nên gộp số lượng)' : '';
           return { productError, qtyError, dupWarn };
         });
 
@@ -6713,6 +7335,16 @@
           .map((it) => ({
             product_id: it?.product_id || '',
             quantity: Number(it?.quantity ?? 1),
+            variant: String(it?.variant || '').trim() || null,
+            variant_json: it?.variant_json ?? null,
+            unit_price: (() => {
+              const raw = it?.unit_price;
+              const n = Number(raw);
+              if (Number.isFinite(n)) return Math.max(0, Math.trunc(n));
+              const p = getProductById(it?.product_id);
+              const selections = it?.variant_json && typeof it.variant_json === 'object' ? it.variant_json : null;
+              return computeUnitPriceForProductAndSelections(p, selections);
+            })(),
           }))
           .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0);
 
@@ -6798,6 +7430,13 @@
             .map((it) => ({
               product_id: it?.product_id || '',
               quantity: Number(it?.quantity ?? 1),
+              variant: String(it?.variant || '').trim() || null,
+              variant_json: it?.variant_json ?? null,
+              unit_price: (() => {
+                const raw = it?.unit_price ?? it?.unitPrice;
+                const n = Number(raw);
+                return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : null;
+              })(),
             }))
             .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0);
 
@@ -7488,7 +8127,7 @@
                               onClick={() => {
                                 setForm((prev) => ({
                                   ...prev,
-                                  items: [...(Array.isArray(prev.items) ? prev.items : []), { product_id: "", quantity: 1 }],
+                                  items: [...(Array.isArray(prev.items) ? prev.items : []), { product_id: "", quantity: 1, unit_price: null, variant: '', variant_json: null }],
                                 }));
                                 setItemSearches((prev) => [...(Array.isArray(prev) ? prev : []), '']);
                                 if (editingId) {
@@ -7562,9 +8201,25 @@
                                               className="dropdown-item"
                                               onClick={() => {
                                                 const next = String(p.id);
+                                                const groups = normalizeVariantGroups(p?.variants);
+                                                const selections = {};
+                                                for (const g of groups) {
+                                                  const groupName = String(g?.name || '').trim();
+                                                  const first = Array.isArray(g?.options) ? g.options[0] : null;
+                                                  const firstLabel = String(first?.label || '').trim();
+                                                  if (groupName && firstLabel) selections[groupName] = firstLabel;
+                                                }
+                                                const variantText = buildVariantTextFromSelections(selections);
+                                                const unitPrice = computeUnitPriceForProductAndSelections(p, selections);
                                                 setForm((prev) => {
                                                   const items = Array.isArray(prev.items) ? [...prev.items] : [];
-                                                  items[idx] = { ...(items[idx] || { quantity: 1 }), product_id: next };
+                                                  items[idx] = {
+                                                    ...(items[idx] || { quantity: 1 }),
+                                                    product_id: next,
+                                                    variant_json: Object.keys(selections).length ? selections : null,
+                                                    variant: variantText,
+                                                    unit_price: groups.length ? unitPrice : null,
+                                                  };
                                                   return { ...prev, items };
                                                 });
                                                 setOpenProductDropdownIdx(null);
@@ -7602,6 +8257,62 @@
                                         {!!issue.productError && <div className="form-text text-danger">{issue.productError}</div>}
                                         {!!issue.dupWarn && <div className="form-text text-warning">{issue.dupWarn}</div>}
                                       </>
+                                    );
+                                  })()}
+
+                                  {(() => {
+                                    if (!it?.product_id) return null;
+                                    const p = getProductById(it.product_id);
+                                    const groups = normalizeVariantGroups(p?.variants);
+                                    if (!groups.length) return null;
+
+                                    const selections = (it?.variant_json && typeof it.variant_json === 'object') ? it.variant_json : {};
+
+                                    return (
+                                      <div className="mt-2 d-grid gap-2">
+                                        {groups.map((g, gi) => {
+                                          const groupName = String(g?.name || `Biến thể ${gi + 1}`).trim();
+                                          const selected = String(selections?.[groupName] || '').trim();
+                                          return (
+                                            <div key={groupName}>
+                                              <label className="form-label small text-muted mb-1">{groupName}</label>
+                                              <select
+                                                className="form-select"
+                                                value={selected}
+                                                onChange={(e) => {
+                                                  const nextLabel = String(e.target.value || '').trim();
+                                                  setForm((prev) => {
+                                                    const items = Array.isArray(prev.items) ? [...prev.items] : [];
+                                                    const cur = { ...(items[idx] || {}) };
+                                                    const p = getProductById(cur.product_id);
+                                                    const groups = normalizeVariantGroups(p?.variants);
+                                                    const nextSelections = (cur?.variant_json && typeof cur.variant_json === 'object') ? { ...cur.variant_json } : {};
+                                                    if (nextLabel) nextSelections[groupName] = nextLabel;
+                                                    else delete nextSelections[groupName];
+                                                    const variantText = buildVariantTextFromSelections(nextSelections);
+                                                    const unitPrice = computeUnitPriceForProductAndSelections(p, nextSelections);
+                                                    items[idx] = {
+                                                      ...cur,
+                                                      variant_json: Object.keys(nextSelections).length ? nextSelections : null,
+                                                      variant: variantText,
+                                                      unit_price: unitPrice,
+                                                    };
+                                                    return { ...prev, items };
+                                                  });
+                                                }}
+                                                style={{ borderRadius: 10, padding: 12 }}
+                                              >
+                                                <option value="">-- chọn {groupName} --</option>
+                                                {(Array.isArray(g?.options) ? g.options : []).map((opt) => (
+                                                  <option key={opt.label} value={opt.label}>
+                                                    {opt.label}{Number.isFinite(Number(opt?.price)) ? ` (${formatVND(Number(opt.price))})` : (Number(opt?.price_delta) ? ` (${opt.price_delta > 0 ? '+' : ''}${opt.price_delta})` : '')}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     );
                                   })()}
 
@@ -7662,7 +8373,7 @@
                                       setForm((prev) => {
                                         const items = Array.isArray(prev.items) ? [...prev.items] : [];
                                         items.splice(idx, 1);
-                                        return { ...prev, items: items.length ? items : [{ product_id: "", quantity: 1 }] };
+                                        return { ...prev, items: items.length ? items : [{ product_id: "", quantity: 1, unit_price: null, variant: '', variant_json: null }] };
                                       });
                                       setItemSearches((prev) => {
                                         const arr = Array.isArray(prev) ? [...prev] : [];
