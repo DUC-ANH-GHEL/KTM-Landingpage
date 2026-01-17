@@ -2051,7 +2051,7 @@
 
       // Product Modal for FAB
       function ProductModal({ show, product, categories, onClose, onSave }) {
-        const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [] });
+        const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [], attributes: [] });
         const [saving, setSaving] = useState(false);
         const [uploading, setUploading] = useState(false);
         const imageInputRef = useRef(null);
@@ -2109,6 +2109,36 @@
             .filter(Boolean);
         };
 
+        const normalizeAttributes = (v) => {
+          if (v == null || v === '') return [];
+          let next = v;
+          if (typeof next === 'string') {
+            const s = next.trim();
+            if (!s) return [];
+            try {
+              next = JSON.parse(s);
+            } catch {
+              return [];
+            }
+          }
+
+          if (next && typeof next === 'object' && !Array.isArray(next)) {
+            next = Object.entries(next).map(([k, val]) => ({ key: k, value: val }));
+          }
+          if (!Array.isArray(next)) return [];
+
+          return next
+            .map((a) => {
+              if (!a || typeof a !== 'object') return null;
+              const key = String(a.key ?? a.name ?? a.label ?? '').trim();
+              const valueStr = String(a.value ?? '').trim();
+              const unit = String(a.unit ?? '').trim();
+              if (!key) return null;
+              return { key, value: valueStr, unit };
+            })
+            .filter(Boolean);
+        };
+
         useEffect(() => {
           if (product) {
             setFormData({
@@ -2120,7 +2150,8 @@
               note: product.note || '',
               sort_order: product.sort_order || 0,
               commission_percent: (product.commission_percent ?? product.commissionPercent ?? 5),
-              variants: normalizeVariants(product.variants, product.price)
+              variants: normalizeVariants(product.variants, product.price),
+              attributes: normalizeAttributes(product.attributes)
             });
             // Set price numbers từ product.price
             if (product.price) {
@@ -2131,7 +2162,7 @@
               setPriceNumbers('');
             }
           } else {
-            setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [] });
+            setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [], attributes: [] });
             setPriceNumbers('');
           }
         }, [product, show]);
@@ -2260,7 +2291,12 @@
         const handleSubmit = async (e) => {
           e.preventDefault();
           setSaving(true);
-          await onSave(formData);
+          const payload = {
+            ...formData,
+            variants: normalizeVariants(formData.variants, formData.price),
+            attributes: normalizeAttributes(formData.attributes),
+          };
+          await onSave(payload);
           setSaving(false);
         };
 
@@ -2366,6 +2402,104 @@
                             placeholder="Ví dụ: Thêm dây là 2.150.000đ"
                             style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
                           />
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="form-label fw-semibold small text-muted mb-1">
+                            <i className="fas fa-sliders-h me-1"></i>Thuộc tính (cân nặng, chiều dài, ...)
+                          </label>
+                          <div className="border rounded-3 p-2" style={{ background: '#fff' }}>
+                            {(Array.isArray(formData.attributes) ? formData.attributes : []).length === 0 ? (
+                              <div className="text-muted small">Chưa có thuộc tính. Ví dụ: Cân nặng, Chiều dài, Vật liệu...</div>
+                            ) : null}
+
+                            {(Array.isArray(formData.attributes) ? formData.attributes : []).map((attr, ai) => (
+                              <div key={ai} className="row g-2 align-items-center mb-2">
+                                <div className="col-5">
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    value={attr?.key || ''}
+                                    onChange={(e) => {
+                                      const nextKey = e.target.value;
+                                      setFormData((prev) => {
+                                        const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+                                        attributes[ai] = { ...(attributes[ai] || {}), key: nextKey };
+                                        return { ...prev, attributes };
+                                      });
+                                    }}
+                                    placeholder="Tên (vd: Cân nặng)"
+                                    style={{ borderRadius: 10 }}
+                                  />
+                                </div>
+                                <div className="col-4">
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    value={attr?.value || ''}
+                                    onChange={(e) => {
+                                      const nextVal = e.target.value;
+                                      setFormData((prev) => {
+                                        const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+                                        attributes[ai] = { ...(attributes[ai] || {}), value: nextVal };
+                                        return { ...prev, attributes };
+                                      });
+                                    }}
+                                    placeholder="Giá trị (vd: 10)"
+                                    style={{ borderRadius: 10 }}
+                                  />
+                                </div>
+                                <div className="col-2">
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    value={attr?.unit || ''}
+                                    onChange={(e) => {
+                                      const nextUnit = e.target.value;
+                                      setFormData((prev) => {
+                                        const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+                                        attributes[ai] = { ...(attributes[ai] || {}), unit: nextUnit };
+                                        return { ...prev, attributes };
+                                      });
+                                    }}
+                                    placeholder="Đơn vị"
+                                    style={{ borderRadius: 10 }}
+                                  />
+                                </div>
+                                <div className="col-1 d-flex justify-content-end">
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
+                                    onClick={() => {
+                                      setFormData((prev) => {
+                                        const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+                                        attributes.splice(ai, 1);
+                                        return { ...prev, attributes };
+                                      });
+                                    }}
+                                    title="Xóa thuộc tính"
+                                  >
+                                    <i className="fas fa-times"></i>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary btn-sm mt-1"
+                              onClick={() => {
+                                setFormData((prev) => {
+                                  const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+                                  attributes.push({ key: '', value: '', unit: '' });
+                                  return { ...prev, attributes };
+                                });
+                              }}
+                              style={{ borderRadius: 10 }}
+                            >
+                              <i className="fas fa-plus me-1"></i>Thêm thuộc tính
+                            </button>
+                          </div>
                         </div>
 
                         <div className="mb-3">
@@ -3889,7 +4023,12 @@
       const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
-        await onSave(formData);
+        const payload = {
+          ...formData,
+          variants: normalizeVariants(formData.variants, formData.price),
+          attributes: normalizeAttributes(formData.attributes),
+        };
+        await onSave(payload);
         setSaving(false);
       };
 
@@ -4305,7 +4444,7 @@
 
     // Product Modal (Create/Edit) - Light Theme
     function ProductModal({ show, product, categories, onClose, onSave }) {
-      const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [] });
+      const [formData, setFormData] = useState({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [], attributes: [] });
       const [saving, setSaving] = useState(false);
       const [uploading, setUploading] = useState(false);
 
@@ -4313,6 +4452,36 @@
         const digits = window.KTM.money.getDigits(String(priceText ?? ''));
         const n = Number(digits);
         return digits && Number.isFinite(n) ? Math.trunc(n) : 0;
+      };
+
+      const normalizeAttributes = (v) => {
+        if (v == null || v === '') return [];
+        let next = v;
+        if (typeof next === 'string') {
+          const s = next.trim();
+          if (!s) return [];
+          try {
+            next = JSON.parse(s);
+          } catch {
+            return [];
+          }
+        }
+
+        if (next && typeof next === 'object' && !Array.isArray(next)) {
+          next = Object.entries(next).map(([k, val]) => ({ key: k, value: val }));
+        }
+        if (!Array.isArray(next)) return [];
+
+        return next
+          .map((a) => {
+            if (!a || typeof a !== 'object') return null;
+            const key = String(a.key ?? a.name ?? a.label ?? '').trim();
+            const valueStr = String(a.value ?? '').trim();
+            const unit = String(a.unit ?? '').trim();
+            if (!key) return null;
+            return { key, value: valueStr, unit };
+          })
+          .filter(Boolean);
       };
 
       const normalizeVariants = (v, basePriceText) => {
@@ -4369,10 +4538,11 @@
             note: product.note || '',
             sort_order: product.sort_order || 0,
             commission_percent: (product.commission_percent ?? product.commissionPercent ?? 5),
-            variants: normalizeVariants(product.variants, product.price)
+            variants: normalizeVariants(product.variants, product.price),
+            attributes: normalizeAttributes(product.attributes)
           });
         } else {
-          setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [] });
+          setFormData({ name: '', code: '', price: '', image: '', category: '', note: '', sort_order: 0, commission_percent: 5, variants: [], attributes: [] });
         }
       }, [product, show]);
 
@@ -4731,6 +4901,104 @@
                       placeholder="VD: Thêm dây là 2.150.000đ"
                       style={{borderRadius: '10px', border: '1px solid #dee2e6', padding: '12px'}}
                     />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold small text-dark mb-1">
+                      <i className="fas fa-sliders-h me-1 text-secondary"></i>Thuộc tính (cân nặng, chiều dài, ...)
+                    </label>
+                    <div className="border rounded-3 p-2" style={{ background: '#fff' }}>
+                      {(Array.isArray(formData.attributes) ? formData.attributes : []).length === 0 ? (
+                        <div className="text-muted small">Chưa có thuộc tính. Ví dụ: Cân nặng, Chiều dài, Vật liệu...</div>
+                      ) : null}
+
+                      {(Array.isArray(formData.attributes) ? formData.attributes : []).map((attr, ai) => (
+                        <div key={ai} className="row g-2 align-items-center mb-2">
+                          <div className="col-5">
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={attr?.key || ''}
+                              onChange={(e) => {
+                                const nextKey = e.target.value;
+                                setFormData((prev) => {
+                                  const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+                                  attributes[ai] = { ...(attributes[ai] || {}), key: nextKey };
+                                  return { ...prev, attributes };
+                                });
+                              }}
+                              placeholder="Tên (vd: Cân nặng)"
+                              style={{ borderRadius: 10 }}
+                            />
+                          </div>
+                          <div className="col-4">
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={attr?.value || ''}
+                              onChange={(e) => {
+                                const nextVal = e.target.value;
+                                setFormData((prev) => {
+                                  const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+                                  attributes[ai] = { ...(attributes[ai] || {}), value: nextVal };
+                                  return { ...prev, attributes };
+                                });
+                              }}
+                              placeholder="Giá trị (vd: 10)"
+                              style={{ borderRadius: 10 }}
+                            />
+                          </div>
+                          <div className="col-2">
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={attr?.unit || ''}
+                              onChange={(e) => {
+                                const nextUnit = e.target.value;
+                                setFormData((prev) => {
+                                  const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+                                  attributes[ai] = { ...(attributes[ai] || {}), unit: nextUnit };
+                                  return { ...prev, attributes };
+                                });
+                              }}
+                              placeholder="Đơn vị"
+                              style={{ borderRadius: 10 }}
+                            />
+                          </div>
+                          <div className="col-1 d-flex justify-content-end">
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary btn-sm"
+                              onClick={() => {
+                                setFormData((prev) => {
+                                  const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+                                  attributes.splice(ai, 1);
+                                  return { ...prev, attributes };
+                                });
+                              }}
+                              title="Xóa thuộc tính"
+                            >
+                              <i className="fas fa-times"></i>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm mt-1"
+                        onClick={() => {
+                          setFormData((prev) => {
+                            const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+                            attributes.push({ key: '', value: '', unit: '' });
+                            return { ...prev, attributes };
+                          });
+                        }}
+                        style={{ borderRadius: 10 }}
+                      >
+                        <i className="fas fa-plus me-1"></i>Thêm thuộc tính
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mb-3">

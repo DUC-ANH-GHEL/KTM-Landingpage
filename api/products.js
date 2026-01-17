@@ -19,6 +19,43 @@ function normalizeCommissionPercent(value) {
   return Math.max(0, Math.min(100, n));
 }
 
+function normalizeAttributes(value) {
+  if (value == null || value === '') return null;
+
+  let v = value;
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return null;
+    try {
+      v = JSON.parse(s);
+    } catch {
+      return null;
+    }
+  }
+
+  // Support object map: { "Cân nặng": "10kg" }
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    v = Object.entries(v).map(([k, val]) => ({ key: k, value: val }));
+  }
+
+  if (!Array.isArray(v)) return null;
+
+  const attrs = v
+    .map((a) => {
+      if (!a || typeof a !== 'object') return null;
+      const key = String(a.key ?? a.name ?? a.label ?? '').trim();
+      const valueText = a.value ?? a.val ?? a.text ?? '';
+      const valueStr = String(valueText ?? '').trim();
+      const unit = String(a.unit ?? '').trim();
+      if (!key) return null;
+      if (!valueStr && !unit) return { key };
+      return unit ? { key, value: valueStr, unit } : { key, value: valueStr };
+    })
+    .filter(Boolean);
+
+  return attrs.length ? attrs : null;
+}
+
 function parseVndToInt(value) {
   const digits = String(value ?? '').replace(/[^0-9]/g, '');
   if (!digits) return null;
@@ -94,6 +131,7 @@ async function ensureProductsSchema() {
       sort_order INTEGER DEFAULT 0,
       commission_percent NUMERIC(6,2) DEFAULT 5,
       variants JSONB,
+      attributes JSONB,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     )
@@ -102,6 +140,7 @@ async function ensureProductsSchema() {
   // Add column for existing deployments
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS commission_percent NUMERIC(6,2) DEFAULT 5`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB`;
 }
 
 async function ensureSettingsSchema() {
@@ -211,8 +250,8 @@ export default async function handler(req, res) {
           const p = INITIAL_PRODUCTS[i];
           try {
             await sql`
-              INSERT INTO products (id, name, code, price, image, category, note, sort_order, commission_percent)
-              VALUES (${p.id}, ${p.name}, ${p.code || null}, ${p.price || null}, ${p.image || null}, ${p.category || null}, ${p.note || null}, ${i}, ${5})
+              INSERT INTO products (id, name, code, price, image, category, note, sort_order, commission_percent, attributes)
+              VALUES (${p.id}, ${p.name}, ${p.code || null}, ${p.price || null}, ${p.image || null}, ${p.category || null}, ${p.note || null}, ${i}, ${5}, ${null}::jsonb)
               ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name, code = EXCLUDED.code, price = EXCLUDED.price,
                 image = EXCLUDED.image, category = EXCLUDED.category, note = EXCLUDED.note,
@@ -268,7 +307,7 @@ export default async function handler(req, res) {
 
     // POST - Tạo sản phẩm mới
     if (req.method === 'POST') {
-      const { id, name, code, price, image, category, note, sort_order, commission_percent, variants } = req.body;
+      const { id, name, code, price, image, category, note, sort_order, commission_percent, variants, attributes } = req.body;
 
       if (!name) {
         return res.status(400).json({ error: 'Name is required' });
@@ -280,9 +319,12 @@ export default async function handler(req, res) {
       const commission = normalizeCommissionPercent(commission_percent);
       const normalizedVariants = normalizeVariants(variants, price);
       const variantsJson = normalizedVariants != null ? JSON.stringify(normalizedVariants) : null;
+
+      const normalizedAttributes = normalizeAttributes(attributes);
+      const attributesJson = normalizedAttributes != null ? JSON.stringify(normalizedAttributes) : null;
       
       const result = await sql`
-        INSERT INTO products (id, name, code, price, image, category, note, sort_order, commission_percent, variants)
+        INSERT INTO products (id, name, code, price, image, category, note, sort_order, commission_percent, variants, attributes)
         VALUES (
           ${productId},
           ${name},
@@ -293,7 +335,8 @@ export default async function handler(req, res) {
           ${note || null},
           ${sort_order || 0},
           COALESCE(${commission}, 5),
-          ${variantsJson}::jsonb
+          ${variantsJson}::jsonb,
+          ${attributesJson}::jsonb
         )
         RETURNING *
       `;
@@ -304,7 +347,7 @@ export default async function handler(req, res) {
     // PUT - Cập nhật sản phẩm
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const { name, code, price, image, category, note, sort_order, commission_percent, variants } = req.body;
+      const { name, code, price, image, category, note, sort_order, commission_percent, variants, attributes } = req.body;
 
       if (!id) {
         return res.status(400).json({ error: 'Product ID is required' });
@@ -313,6 +356,9 @@ export default async function handler(req, res) {
       const commission = normalizeCommissionPercent(commission_percent);
       const normalizedVariants = normalizeVariants(variants, price);
       const variantsJson = normalizedVariants != null ? JSON.stringify(normalizedVariants) : null;
+
+      const normalizedAttributes = normalizeAttributes(attributes);
+      const attributesJson = normalizedAttributes != null ? JSON.stringify(normalizedAttributes) : null;
 
       const result = await sql`
         UPDATE products 
@@ -326,6 +372,7 @@ export default async function handler(req, res) {
           sort_order = COALESCE(${sort_order}, sort_order),
           commission_percent = COALESCE(${commission}, commission_percent),
           variants = COALESCE(${variantsJson}::jsonb, variants),
+          attributes = COALESCE(${attributesJson}::jsonb, attributes),
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
