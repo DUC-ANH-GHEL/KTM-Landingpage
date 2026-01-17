@@ -2784,6 +2784,57 @@
         return Array.isArray(v) ? v : [];
       };
 
+      const parseAttributesForDisplay = (value) => {
+        if (value == null || value === '') return [];
+        let v = value;
+        if (typeof v === 'string') {
+          const s = v.trim();
+          if (!s) return [];
+          try {
+            v = JSON.parse(s);
+          } catch {
+            return [];
+          }
+        }
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+          v = Object.entries(v).map(([k, val]) => ({ key: k, value: val }));
+        }
+        return Array.isArray(v) ? v : [];
+      };
+
+      const renderAttributesPreview = (attributes, opts = {}) => {
+        const rows = parseAttributesForDisplay(attributes)
+          .map((a) => ({
+            key: String(a?.key ?? a?.name ?? a?.label ?? '').trim(),
+            value: String(a?.value ?? '').trim(),
+            unit: String(a?.unit ?? '').trim(),
+          }))
+          .filter((a) => !!a.key);
+
+        if (!rows.length) return null;
+
+        const compact = !!opts.compact;
+        const extraClassName = String(opts.className ?? '').trim();
+
+        return (
+          <div className={`ktm-variants-preview${compact ? ' compact' : ''}${extraClassName ? ' ' + extraClassName : ''}`}>
+            <i className="fas fa-sliders-h"></i>
+            <div className="ktm-variants-chips">
+              {rows.map((a, idx) => {
+                const keyText = a.key;
+                const valueText = `${a.value || ''}${a.unit ? (a.value ? ' ' : '') + a.unit : ''}`.trim();
+                return (
+                  <div key={`${keyText}-${idx}`} className="ktm-variants-group">
+                    <span className="ktm-chip ktm-chip-group">{keyText}</span>
+                    {valueText ? <span className="ktm-chip ktm-chip-option">{valueText}</span> : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      };
+
       const renderVariantsPreview = (variants, opts = {}) => {
         const groups = parseVariantGroupsForDisplay(variants)
           .map(g => ({
@@ -2850,6 +2901,12 @@
         const isAlbum = item._type === 'album';
         const isVideo = item._type === 'video';
         const hasPromo = item.note && (item.note.toLowerCase().includes('free') || item.note.toLowerCase().includes('giảm') || item.note.toLowerCase().includes('sale'));
+        const attributesPreview = isProduct
+          ? renderAttributesPreview(item.attributes, {
+              compact: viewMode === 'grid',
+              className: viewMode === 'grid' ? 'meta text-muted' : 'text-muted',
+            })
+          : null;
         const variantsPreview = isProduct
           ? renderVariantsPreview(item.variants, {
               compact: viewMode === 'grid',
@@ -2885,6 +2942,7 @@
               <div className="card-body">
                 <div className="name">{item.name}</div>
                 {item.note && <div className="meta text-info" style={{fontSize: 10}}>{item.note}</div>}
+                {attributesPreview && <div style={{ marginTop: 2 }}>{attributesPreview}</div>}
                 {variantsPreview && <div style={{ marginTop: 2 }}>{variantsPreview}</div>}
                 <div className="quick-copy">
                   <button 
@@ -2939,6 +2997,11 @@
                     {item.price && <span className="price">{item.price.replace(/[đ\s]/g, '')}đ</span>}
                     {hasPromo && <span className="badge-promo">🔥 ƯU ĐÃI</span>}
                   </div>
+                  {attributesPreview && (
+                    <div style={{ marginTop: 4 }}>
+                      {attributesPreview}
+                    </div>
+                  )}
                   {variantsPreview && (
                     <div style={{ marginTop: 4 }}>
                       {variantsPreview}
@@ -4273,6 +4336,54 @@
         return Array.isArray(v) ? v : [];
       };
 
+      const parseAttributesForDisplay = (value) => {
+        if (value == null || value === '') return [];
+        let v = value;
+        if (typeof v === 'string') {
+          const s = v.trim();
+          if (!s) return [];
+          try {
+            v = JSON.parse(s);
+          } catch {
+            return [];
+          }
+        }
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+          v = Object.entries(v).map(([k, val]) => ({ key: k, value: val }));
+        }
+        return Array.isArray(v) ? v : [];
+      };
+
+      const renderAttributesPreview = (attributes) => {
+        const rows = parseAttributesForDisplay(attributes)
+          .map((a) => ({
+            key: String(a?.key ?? a?.name ?? a?.label ?? '').trim(),
+            value: String(a?.value ?? '').trim(),
+            unit: String(a?.unit ?? '').trim(),
+          }))
+          .filter((a) => !!a.key);
+
+        if (!rows.length) return null;
+
+        return (
+          <div className="ktm-variants-preview">
+            <i className="fas fa-sliders-h"></i>
+            <div className="ktm-variants-chips">
+              {rows.map((a, idx) => {
+                const keyText = a.key;
+                const valueText = `${a.value || ''}${a.unit ? (a.value ? ' ' : '') + a.unit : ''}`.trim();
+                return (
+                  <div key={`${keyText}-${idx}`} className="ktm-variants-group">
+                    <span className="ktm-chip ktm-chip-group">{keyText}</span>
+                    {valueText ? <span className="ktm-chip ktm-chip-option">{valueText}</span> : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      };
+
       const renderVariantsPreview = (variants, opts = {}) => {
         const groups = parseVariantGroupsForDisplay(variants)
           .map(g => ({
@@ -4409,6 +4520,11 @@
                     <div className="product-price">{product.price ? product.price.replace(/[đ\s]/g, '') + 'đ' : 'Liên hệ'}</div>
                     {product.note && (
                       <div className="text-muted small mt-1" style={{fontSize: '0.75rem'}}>{product.note}</div>
+                    )}
+                    {renderAttributesPreview(product.attributes) && (
+                      <div className="mt-1" style={{fontSize: '0.75rem'}}>
+                        {renderAttributesPreview(product.attributes)}
+                      </div>
                     )}
                     {renderVariantsPreview(product.variants, { maxOptionsPerGroup: 4 }) && (
                       <div className="mt-1" style={{fontSize: '0.75rem'}}>
