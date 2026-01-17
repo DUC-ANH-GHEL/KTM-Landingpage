@@ -2669,7 +2669,9 @@
 
         if (!groups.length) return null;
 
-        const maxGroups = Number.isFinite(opts.maxGroups) ? Math.max(1, Math.trunc(opts.maxGroups)) : 1;
+        const maxGroups = Number.isFinite(opts.maxGroups)
+          ? Math.max(1, Math.trunc(opts.maxGroups))
+          : groups.length;
         const maxOptionsPerGroup = Number.isFinite(opts.maxOptionsPerGroup)
           ? Math.max(1, Math.trunc(opts.maxOptionsPerGroup))
           : 3;
@@ -2677,7 +2679,6 @@
         const extraClassName = String(opts.className ?? '').trim();
 
         const shownGroups = groups.slice(0, maxGroups);
-        const extraGroupsCount = groups.length - shownGroups.length;
 
         return (
           <div className={`ktm-variants-preview${compact ? ' compact' : ''}${extraClassName ? ' ' + extraClassName : ''}`}>
@@ -2689,7 +2690,7 @@
                 const hiddenOptionsCount = g.options.length - shownOptions.length;
 
                 return (
-                  <React.Fragment key={`${groupName}-${gi}`}>
+                  <div key={`${groupName}-${gi}`} className="ktm-variants-group">
                     <span className="ktm-chip ktm-chip-group">{groupName}</span>
                     {shownOptions.map((o, oi) => {
                       const p = o.price;
@@ -2702,12 +2703,9 @@
                     {hiddenOptionsCount > 0 && (
                       <span className="ktm-chip ktm-chip-more">+{hiddenOptionsCount}</span>
                     )}
-                  </React.Fragment>
+                  </div>
                 );
               })}
-              {extraGroupsCount > 0 && (
-                <span className="ktm-chip ktm-chip-more">+{extraGroupsCount} nhóm</span>
-              )}
             </div>
           </div>
         );
@@ -2721,8 +2719,8 @@
         const variantsPreview = isProduct
           ? renderVariantsPreview(item.variants, {
               compact: viewMode === 'grid',
-              maxGroups: 1,
-              maxOptionsPerGroup: viewMode === 'grid' ? 2 : 3,
+              // Tra cứu: hiển thị hết option, không hiện dạng +N
+              maxOptionsPerGroup: 999,
               className: viewMode === 'grid' ? 'meta text-muted' : 'text-muted',
             })
           : null;
@@ -4155,13 +4153,14 @@
 
         if (!groups.length) return null;
 
-        const maxGroups = Number.isFinite(opts.maxGroups) ? Math.max(1, Math.trunc(opts.maxGroups)) : 1;
+        const maxGroups = Number.isFinite(opts.maxGroups)
+          ? Math.max(1, Math.trunc(opts.maxGroups))
+          : groups.length;
         const maxOptionsPerGroup = Number.isFinite(opts.maxOptionsPerGroup)
           ? Math.max(1, Math.trunc(opts.maxOptionsPerGroup))
           : 4;
 
         const shownGroups = groups.slice(0, maxGroups);
-        const extraGroupsCount = groups.length - shownGroups.length;
 
         return (
           <div className="ktm-variants-preview">
@@ -4173,7 +4172,7 @@
                 const hiddenOptionsCount = g.options.length - shownOptions.length;
 
                 return (
-                  <React.Fragment key={`${groupName}-${gi}`}>
+                  <div key={`${groupName}-${gi}`} className="ktm-variants-group">
                     <span className="ktm-chip ktm-chip-group">{groupName}</span>
                     {shownOptions.map((o, oi) => {
                       const p = o.price;
@@ -4186,12 +4185,9 @@
                     {hiddenOptionsCount > 0 && (
                       <span className="ktm-chip ktm-chip-more">+{hiddenOptionsCount}</span>
                     )}
-                  </React.Fragment>
+                  </div>
                 );
               })}
-              {extraGroupsCount > 0 && (
-                <span className="ktm-chip ktm-chip-more">+{extraGroupsCount} nhóm</span>
-              )}
             </div>
           </div>
         );
@@ -4275,9 +4271,9 @@
                     {product.note && (
                       <div className="text-muted small mt-1" style={{fontSize: '0.75rem'}}>{product.note}</div>
                     )}
-                    {renderVariantsPreview(product.variants, { maxGroups: 1, maxOptionsPerGroup: 4 }) && (
+                    {renderVariantsPreview(product.variants, { maxOptionsPerGroup: 4 }) && (
                       <div className="mt-1" style={{fontSize: '0.75rem'}}>
-                        {renderVariantsPreview(product.variants, { maxGroups: 1, maxOptionsPerGroup: 4 })}
+                        {renderVariantsPreview(product.variants, { maxOptionsPerGroup: 4 })}
                       </div>
                     )}
                   </div>

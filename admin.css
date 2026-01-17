@@ -597,8 +597,16 @@
 
     .ktm-variants-chips {
       display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .ktm-variants-group {
+      display: flex;
       flex-wrap: wrap;
       gap: 4px;
+      align-items: center;
       min-width: 0;
     }
 
