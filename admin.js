@@ -7007,7 +7007,8 @@
               quantity: Number(it?.quantity ?? 1) || 1,
               unit_price: (() => {
                 const raw = it?.unit_price ?? it?.unitPrice;
-                const n = Number(raw);
+                // IMPORTANT: Number(null) === 0; treat null/empty as "not provided"
+                const n = raw == null || raw === '' ? NaN : Number(raw);
                 return Number.isFinite(n) ? Math.trunc(n) : null;
               })(),
               variant: String(it?.variant ?? '').trim(),
@@ -7075,7 +7076,10 @@
             variant: String(it?.variant || '').trim() || null,
             variant_json: it?.variant_json ?? null,
             unit_price: (() => {
-              const n = Number(it?.unit_price);
+              const raw = it?.unit_price;
+              // IMPORTANT: Number(null) === 0, so treat null/empty as "not provided"
+              // and fall back to computing unit price from product + variant selections.
+              const n = raw === '' || raw == null ? NaN : Number(raw);
               if (Number.isFinite(n)) return Math.max(0, Math.trunc(n));
               const p = getProductById(it?.product_id);
               const selections = it?.variant_json && typeof it.variant_json === 'object' ? it.variant_json : null;
@@ -7487,7 +7491,12 @@
                 const label = String(o.label ?? '').trim();
                 if (!label) return null;
                 const pRaw = o.price ?? o.priceValue ?? o.unit_price ?? o.unitPrice ?? null;
-                const pNum = Number(pRaw);
+                const pNum = (() => {
+                  if (pRaw == null || pRaw === '') return NaN;
+                  if (typeof pRaw === 'number') return pRaw;
+                  if (typeof pRaw === 'string') return parseMoney(pRaw);
+                  return Number(pRaw);
+                })();
                 const price = Number.isFinite(pNum) ? Math.trunc(pNum) : null;
 
                 const dRaw = o.price_delta ?? o.priceDelta ?? null;
@@ -7534,15 +7543,17 @@
           const opt = (Array.isArray(g.options) ? g.options : []).find((o) => String(o?.label || '').trim() === selectedLabel);
           if (!opt) continue;
 
-          const p = Number(opt?.price);
-          if (Number.isFinite(p)) {
-            current = Math.max(0, Math.trunc(p));
+          const pRaw = opt?.price;
+          const pNum = pRaw == null || pRaw === '' ? NaN : Number(pRaw);
+          if (Number.isFinite(pNum)) {
+            current = Math.max(0, Math.trunc(pNum));
             hasAbsolute = true;
             continue;
           }
 
-          const d = Number(opt?.price_delta ?? 0);
-          if (Number.isFinite(d)) current += Math.trunc(d);
+          const dRaw = opt?.price_delta;
+          const dNum = dRaw == null || dRaw === '' ? NaN : Number(dRaw);
+          if (Number.isFinite(dNum)) current += Math.trunc(dNum);
         }
 
         return current;
@@ -7894,7 +7905,9 @@
             variant_json: it?.variant_json ?? null,
             unit_price: (() => {
               const raw = it?.unit_price;
-              const n = Number(raw);
+              // IMPORTANT: Number(null) === 0, so treat null/empty as "not provided"
+              // and fall back to computing unit price from product + variant selections.
+              const n = raw === '' || raw == null ? NaN : Number(raw);
               if (Number.isFinite(n)) return Math.max(0, Math.trunc(n));
               const p = getProductById(it?.product_id);
               const selections = it?.variant_json && typeof it.variant_json === 'object' ? it.variant_json : null;

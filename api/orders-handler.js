@@ -157,7 +157,8 @@ function normalizeOrderItems(items, legacyProductId, legacyQuantity) {
         quantity: Number(it?.quantity ?? 1),
         unit_price: (() => {
           const raw = it?.unit_price ?? it?.unitPrice;
-          const n = Number(raw);
+          // IMPORTANT: Number(null) === 0; treat null/empty as "not provided"
+          const n = raw == null || raw === '' ? NaN : Number(raw);
           return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : null;
         })(),
         variant: (() => {

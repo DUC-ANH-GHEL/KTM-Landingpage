@@ -378,7 +378,8 @@
         const name = variant ? `${baseName} (${variant})` : baseName;
         const qty = Number(it?.quantity ?? 1) || 1;
         const rawUnit = it?.unit_price ?? it?.unitPrice;
-        const unitNum = Number(rawUnit);
+        // IMPORTANT: Number(null) === 0; treat null/empty as "not provided"
+        const unitNum = rawUnit == null || rawUnit === '' ? NaN : Number(rawUnit);
         const unitPrice = Number.isFinite(unitNum)
           ? Math.trunc(unitNum)
           : money.parseMoney(it?.product_price ?? p?.price);
@@ -420,7 +421,8 @@
       const pid = String(it?.product_id || '');
       const p = getP(pid);
       const rawUnit = it?.unit_price ?? it?.unitPrice;
-      const unitNum = Number(rawUnit);
+      // IMPORTANT: Number(null) === 0; treat null/empty as "not provided"
+      const unitNum = rawUnit == null || rawUnit === '' ? NaN : Number(rawUnit);
       const unitPrice = Number.isFinite(unitNum)
         ? Math.trunc(unitNum)
         : money.parseMoney(it?.product_price ?? p?.price);
