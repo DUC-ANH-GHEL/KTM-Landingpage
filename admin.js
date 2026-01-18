@@ -6714,6 +6714,32 @@
         });
       };
 
+      const upsertCustomerLookupCacheFromForm = (rawPhone, rawName, rawAddress) => {
+        try {
+          const phone = normalizePhone(rawPhone);
+          if (!phone) return;
+
+          const name = String(rawName || '').trim();
+          const address = String(rawAddress || '').trim();
+
+          // Avoid overwriting an existing cached profile with blanks.
+          if (!name && !address) return;
+
+          customerLookupCacheRef.current?.set(phone, {
+            ts: Date.now(),
+            status: 'found',
+            customer: {
+              phone,
+              name: name || null,
+              address: address || null,
+            },
+          });
+          persistCustomerLookupCache();
+        } catch {
+          // ignore
+        }
+      };
+
       const lookupCustomerByPhone = async (rawPhone) => {
         const phone = normalizePhone(rawPhone);
         if (!phone) return;
@@ -7948,6 +7974,9 @@
               ts: Date.now(),
             };
           }
+
+          // Keep phone->customer cache in sync with edits so future "tạo đơn" prefill is updated.
+          upsertCustomerLookupCacheFromForm(normalizedPhone, form.customer_name, form.address);
 
           if (mode === 'new' && !editingId) {
             resetOrderForm('');
