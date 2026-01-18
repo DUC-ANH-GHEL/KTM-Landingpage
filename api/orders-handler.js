@@ -8,7 +8,7 @@ const AUTO_ADVANCE_TTL_MS = 10 * 60 * 1000;
 
 let _lastDraftCleanupAt = 0;
 const DRAFT_CLEANUP_TTL_MS = 10 * 60 * 1000;
-const DRAFT_AUTO_DELETE_DAYS = 7;
+const DRAFT_AUTO_DELETE_DAYS = 3;
 
 function normalizePhone(value) {
   if (!value) return '';
