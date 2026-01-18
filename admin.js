@@ -6545,8 +6545,8 @@
       const CUSTOMER_LOOKUP_CACHE_MAX_ENTRIES = 200;
 
       const OVERDUE_PENDING_DAYS = 3;
-      const DRAFT_AUTO_DELETE_DAYS = 7;
-      const DRAFT_WARN_REMAINING_DAYS = 3;
+      const DRAFT_AUTO_DELETE_DAYS = 3;
+      const DRAFT_WARN_REMAINING_DAYS = 1;
       const DAY_MS = 24 * 60 * 60 * 1000;
 
       const getOrderAgeDays = (order) => {
