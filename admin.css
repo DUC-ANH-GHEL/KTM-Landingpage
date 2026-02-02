@@ -1458,6 +1458,100 @@
       z-index: 9999;
     }
 
+    .toast-action {
+      margin-right: 10px;
+      border-radius: 10px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border: 0;
+      box-shadow: 0 10px 24px rgba(2, 6, 23, 0.18);
+    }
+
+    /* ========== SKELETONS ========== */
+    .admin-skeleton-line {
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(15, 23, 42, 0.08) 25%, rgba(15, 23, 42, 0.16) 37%, rgba(15, 23, 42, 0.08) 63%);
+      background-size: 400% 100%;
+      animation: admin-skeleton-shimmer 1.2s ease-in-out infinite;
+    }
+
+    .admin-skeleton-line.w-30 { width: 30%; }
+    .admin-skeleton-line.w-35 { width: 35%; }
+    .admin-skeleton-line.w-40 { width: 40%; }
+    .admin-skeleton-line.w-50 { width: 50%; }
+    .admin-skeleton-line.w-55 { width: 55%; }
+    .admin-skeleton-line.w-60 { width: 60%; }
+    .admin-skeleton-line.w-70 { width: 70%; }
+    .admin-skeleton-line.w-75 { width: 75%; }
+    .admin-skeleton-line.w-85 { width: 85%; }
+
+    @keyframes admin-skeleton-shimmer {
+      0% { background-position: 100% 0; }
+      100% { background-position: 0 0; }
+    }
+
+    /* ========== ORDERS OPS ========== */
+    .orders-ops-toolbar {
+      border-radius: 16px;
+    }
+
+    .orders-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .orders-chip {
+      border: 1px solid rgba(15, 23, 42, 0.10);
+      background: rgba(255, 255, 255, 0.60);
+      color: var(--ktm-admin-text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.86rem;
+      font-weight: 700;
+      line-height: 1;
+      transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+    }
+
+    .orders-chip:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255, 193, 7, 0.35);
+    }
+
+    .orders-chip.active {
+      background: rgba(255, 193, 7, 0.16);
+      border-color: rgba(255, 193, 7, 0.45);
+      box-shadow: 0 10px 26px rgba(255, 193, 7, 0.10);
+    }
+
+    .orders-filterbar .orders-search {
+      flex: 1 1 420px;
+      min-width: 260px;
+    }
+
+    .orders-filterbar .orders-month {
+      flex: 0 0 auto;
+      min-width: 190px;
+    }
+
+    .orders-status-quick {
+      min-width: 160px;
+      border-radius: 10px;
+    }
+
+    .orders-table-wrap {
+      border-radius: 14px;
+    }
+
+    .orders-table thead th {
+      position: sticky;
+      top: var(--ktm-admin-sticky-top, 88px);
+      background: var(--ktm-admin-surface);
+      z-index: 2;
+      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
+    }
+
     /* ========== PREMIUM ADMIN SHELL (OVERRIDES) ========== */
 
     .sidebar {
@@ -1516,9 +1610,59 @@
       border-radius: 12px;
       border-left: none;
       padding: 10px 12px;
+      padding-right: 44px;
+      position: relative;
       color: rgba(255, 255, 255, 0.72);
       background: transparent;
       transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+
+    .sidebar-section-title {
+      margin: 14px 16px 6px;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.50);
+      user-select: none;
+    }
+
+    .sidebar-quicklist {
+      margin-bottom: 6px;
+    }
+
+    .sidebar-pin-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 28px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      background: rgba(255, 255, 255, 0.04);
+      color: rgba(255, 255, 255, 0.70);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.12s ease, transform 0.12s ease, background 0.12s ease, color 0.12s ease;
+    }
+
+    .sidebar .nav-link:hover .sidebar-pin-btn {
+      opacity: 1;
+      transform: translateY(-50%) scale(1.02);
+    }
+
+    .sidebar-pin-btn.pinned {
+      opacity: 1;
+      background: rgba(255, 193, 7, 0.14);
+      border-color: rgba(255, 193, 7, 0.28);
+      color: #ffd24d;
+    }
+
+    .sidebar-pin-btn:active {
+      transform: translateY(-50%) scale(0.98);
     }
 
     .sidebar .nav-link:hover {

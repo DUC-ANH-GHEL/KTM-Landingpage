@@ -1,4 +1,4 @@
-﻿const { useState, useEffect, useRef } = React;
+﻿const { useState, useEffect, useRef, useMemo } = React;
 
     // Cloudinary config - Cần tạo unsigned upload preset tên "ktm_unsigned" trên Cloudinary Dashboard
     // Settings -> Upload -> Upload presets -> Add upload preset -> Signing Mode: Unsigned
@@ -102,16 +102,33 @@
     // ==================== COMPONENTS ====================
 
     // Toast notification
-    function Toast({ message, type, onClose }) {
+    function Toast({ message, type, onClose, actionLabel, onAction, durationMs }) {
       useEffect(() => {
-        const timer = setTimeout(onClose, 3000);
+        const ms = Number(durationMs);
+        const ttl = Number.isFinite(ms) && ms > 0 ? ms : 3000;
+        const timer = setTimeout(onClose, ttl);
         return () => clearTimeout(timer);
-      }, []);
+      }, [onClose, durationMs]);
 
       return (
         <div className={`toast show align-items-center text-white bg-${type} border-0`} role="alert">
-          <div className="d-flex">
+          <div className="d-flex align-items-center">
             <div className="toast-body">{message}</div>
+            {actionLabel && typeof onAction === 'function' && (
+              <button
+                type="button"
+                className="btn btn-sm btn-light toast-action"
+                onClick={() => {
+                  try {
+                    onAction();
+                  } finally {
+                    onClose();
+                  }
+                }}
+              >
+                {actionLabel}
+              </button>
+            )}
             <button type="button" className="btn-close btn-close-white me-2 m-auto" onClick={onClose}></button>
           </div>
         </div>
@@ -174,7 +191,47 @@
     }
 
     // Sidebar
-    function Sidebar({ activeMenu, onMenuChange, onLogout, currentUser }) {
+    const ADMIN_PINS_STORAGE_KEY = 'ktm_admin_pins_v1';
+    const ADMIN_RECENT_STORAGE_KEY = 'ktm_admin_recent_v1';
+
+    function loadAdminMenuIdsFromStorage(key) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr.map((x) => String(x || '').trim()).filter(Boolean) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveAdminMenuIdsToStorage(key, ids) {
+      try {
+        localStorage.setItem(key, JSON.stringify(Array.isArray(ids) ? ids : []));
+      } catch {
+        // ignore
+      }
+    }
+
+    function loadAdminPins() {
+      return loadAdminMenuIdsFromStorage(ADMIN_PINS_STORAGE_KEY);
+    }
+
+    function saveAdminPins(ids) {
+      saveAdminMenuIdsToStorage(ADMIN_PINS_STORAGE_KEY, ids);
+      return ids;
+    }
+
+    function loadAdminRecent() {
+      return loadAdminMenuIdsFromStorage(ADMIN_RECENT_STORAGE_KEY);
+    }
+
+    function saveAdminRecent(ids) {
+      saveAdminMenuIdsToStorage(ADMIN_RECENT_STORAGE_KEY, ids);
+      return ids;
+    }
+
+    function Sidebar({ activeMenu, onMenuChange, onLogout, currentUser, pinnedMenus, recentMenus, onTogglePin }) {
       const menus = [
         { id: 'search', icon: 'fa-search', label: 'Tra cứu nhanh', highlight: true },
         { id: 'albums', icon: 'fa-images', label: 'Quản lý Album' },
@@ -187,6 +244,23 @@
 
       const displayName =
         currentUser?.username || currentUser?.name || currentUser?.email || 'Admin';
+
+      const menuById = useMemo(() => {
+        const m = new Map();
+        for (const item of menus) m.set(item.id, item);
+        return m;
+      }, []);
+
+      const pinned = Array.isArray(pinnedMenus) ? pinnedMenus : [];
+      const recent = Array.isArray(recentMenus) ? recentMenus : [];
+      const pinnedItems = pinned.map((id) => menuById.get(id)).filter(Boolean);
+      const recentItems = recent
+        .filter((id) => id !== activeMenu)
+        .map((id) => menuById.get(id))
+        .filter(Boolean)
+        .slice(0, 5);
+
+      const isPinned = (id) => pinned.includes(id);
 
       return (
         <div className="sidebar d-none d-md-block">
@@ -205,6 +279,52 @@
           </div>
 
           <nav className="nav flex-column mt-3">
+            {pinnedItems.length > 0 && (
+              <>
+                <div className="sidebar-section-title">Pinned</div>
+                <div className="sidebar-quicklist">
+                  {pinnedItems.map(menu => (
+                    <a
+                      key={`pin-${menu.id}`}
+                      href="#"
+                      className={`nav-link ${activeMenu === menu.id ? 'active' : ''} sidebar-quicklink`}
+                      onClick={(e) => { e.preventDefault(); onMenuChange(menu.id); }}
+                    >
+                      <i className={`fas ${menu.icon}`}></i> {menu.label}
+                      <button
+                        type="button"
+                        className={`sidebar-pin-btn pinned`}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTogglePin && onTogglePin(menu.id); }}
+                        title="Bỏ ghim"
+                        aria-label="Bỏ ghim"
+                      >
+                        <i className="fas fa-thumbtack"></i>
+                      </button>
+                    </a>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {recentItems.length > 0 && (
+              <>
+                <div className="sidebar-section-title">Recent</div>
+                <div className="sidebar-quicklist">
+                  {recentItems.map(menu => (
+                    <a
+                      key={`recent-${menu.id}`}
+                      href="#"
+                      className={`nav-link ${activeMenu === menu.id ? 'active' : ''} sidebar-quicklink`}
+                      onClick={(e) => { e.preventDefault(); onMenuChange(menu.id); }}
+                    >
+                      <i className={`fas ${menu.icon}`}></i> {menu.label}
+                    </a>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="sidebar-section-title">Menu</div>
             {menus.map(menu => (
               <a
                 key={menu.id}
@@ -215,6 +335,20 @@
                 <i className={`fas ${menu.icon}`}></i> {menu.label}
                 {menu.disabled && <span className="badge bg-secondary ms-2">Soon</span>}
                 {menu.highlight && <span className="badge bg-warning text-dark ms-2">HOT</span>}
+
+                <button
+                  type="button"
+                  className={`sidebar-pin-btn ${isPinned(menu.id) ? 'pinned' : ''}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onTogglePin && onTogglePin(menu.id);
+                  }}
+                  title={isPinned(menu.id) ? 'Bỏ ghim' : 'Ghim'}
+                  aria-label={isPinned(menu.id) ? 'Bỏ ghim' : 'Ghim'}
+                >
+                  <i className="fas fa-thumbtack"></i>
+                </button>
               </a>
             ))}
           </nav>
@@ -5657,6 +5791,8 @@
       const [loginError, setLoginError] = useState('');
       const [currentUser, setCurrentUser] = useState(null);
       const [activeMenu, setActiveMenu] = useState('search');
+      const [pinnedMenus, setPinnedMenus] = useState(() => loadAdminPins());
+      const [recentMenus, setRecentMenus] = useState(() => loadAdminRecent());
       const [orderAutoOpenCreateToken, setOrderAutoOpenCreateToken] = useState(null);
       const [orderAutoOpenCreateProductId, setOrderAutoOpenCreateProductId] = useState('');
       const [albums, setAlbums] = useState([]);
@@ -5696,6 +5832,92 @@
           loadAlbums();
         }
       }, [isLoggedIn]);
+
+      useEffect(() => {
+        // Provide a shared sticky offset for tables/headers.
+        const apply = () => {
+          try {
+            const el = document.querySelector('.admin-topbar');
+            if (!el) return;
+            const rect = el.getBoundingClientRect();
+            const h = Math.max(0, Math.round(rect.height));
+            // Add a small gap so sticky headers don't touch topbar.
+            document.documentElement.style.setProperty('--ktm-admin-sticky-top', `${h + 10}px`);
+          } catch {
+            // ignore
+          }
+        };
+
+        apply();
+        window.addEventListener('resize', apply);
+        const t = setTimeout(apply, 0);
+        return () => {
+          clearTimeout(t);
+          window.removeEventListener('resize', apply);
+        };
+      }, [isLoggedIn, activeMenu]);
+
+      useEffect(() => {
+        if (!isLoggedIn) return;
+
+        const isEditableTarget = (target) => {
+          if (!target) return false;
+          const tag = String(target.tagName || '').toLowerCase();
+          if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+          if (target.isContentEditable) return true;
+          return false;
+        };
+
+        const onKeyDown = (e) => {
+          if (!e) return;
+          if (e.ctrlKey || e.metaKey || e.altKey) return;
+          if (isEditableTarget(e.target)) return;
+
+          const key = e.key;
+          if (key === '/' || key === 'N' || key === 'n' || key === 'Escape' || key === 'j' || key === 'J' || key === 'k' || key === 'K') {
+            // Prevent browser search for '/' in some contexts.
+            if (key === '/') e.preventDefault();
+            window.dispatchEvent(new CustomEvent('ktm-admin-hotkey', { detail: { key } }));
+          }
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+      }, [isLoggedIn]);
+
+      useEffect(() => {
+        if (!isLoggedIn) return;
+        // Ensure current menu appears in recent
+        setRecentMenus((prev) => {
+          const ids = Array.isArray(prev) ? prev : [];
+          const next = [activeMenu, ...ids.filter((x) => x !== activeMenu)].slice(0, 8);
+          saveAdminRecent(next);
+          return next;
+        });
+      }, [isLoggedIn]);
+
+      const trackRecentMenu = (menuId) => {
+        const id = String(menuId || '').trim();
+        if (!id) return;
+        setRecentMenus((prev) => {
+          const ids = Array.isArray(prev) ? prev : [];
+          const next = [id, ...ids.filter((x) => x !== id)].slice(0, 8);
+          saveAdminRecent(next);
+          return next;
+        });
+      };
+
+      const togglePinnedMenu = (menuId) => {
+        const id = String(menuId || '').trim();
+        if (!id) return;
+        setPinnedMenus((prev) => {
+          const ids = Array.isArray(prev) ? prev : [];
+          const exists = ids.includes(id);
+          const next = exists ? ids.filter((x) => x !== id) : [id, ...ids].slice(0, 10);
+          saveAdminPins(next);
+          return next;
+        });
+      };
 
       useEffect(() => {
         if (!isLoggedIn) return;
@@ -5750,9 +5972,38 @@
         setSelectedAlbum(null);
       };
 
-      const showToast = (message, type = 'success') => {
-        const id = Date.now();
-        setToasts(prev => [...prev, { id, message, type }]);
+      const showToast = (message, type = 'success', options = null) => {
+        const id = Date.now() + Math.floor(Math.random() * 1000);
+
+        // Back-compat: allow calling showToast({ message, type, ... })
+        if (message && typeof message === 'object') {
+          const obj = message;
+          setToasts((prev) => ([
+            ...prev,
+            {
+              id,
+              message: String(obj.message || ''),
+              type: String(obj.type || type || 'success'),
+              actionLabel: obj.actionLabel || null,
+              onAction: typeof obj.onAction === 'function' ? obj.onAction : null,
+              durationMs: obj.durationMs || null,
+            }
+          ]));
+          return;
+        }
+
+        const opt = options && typeof options === 'object' ? options : null;
+        setToasts((prev) => ([
+          ...prev,
+          {
+            id,
+            message: String(message || ''),
+            type: String(type || 'success'),
+            actionLabel: opt?.actionLabel || null,
+            onAction: typeof opt?.onAction === 'function' ? opt.onAction : null,
+            durationMs: opt?.durationMs || null,
+          }
+        ]));
       };
 
       const removeToast = (id) => {
@@ -6332,6 +6583,7 @@
           <Sidebar 
             activeMenu={activeMenu} 
             onMenuChange={(menu) => {
+              trackRecentMenu(menu);
               setActiveMenu(menu);
               if (menu === 'albums') {
                 setCurrentAlbumFolder(null);
@@ -6341,6 +6593,9 @@
             }} 
             onLogout={handleLogout}
             currentUser={currentUser}
+            pinnedMenus={pinnedMenus}
+            recentMenus={recentMenus}
+            onTogglePin={togglePinnedMenu}
           />
           
           <div className="main-content">
@@ -6579,6 +6834,9 @@
                 key={toast.id}
                 message={toast.message}
                 type={toast.type}
+                actionLabel={toast.actionLabel}
+                onAction={toast.onAction}
+                durationMs={toast.durationMs}
                 onClose={() => removeToast(toast.id)}
               />
             ))}
@@ -6622,6 +6880,7 @@
       const [inspectorOrder, setInspectorOrder] = useState(null);
       const [inspectorLoading, setInspectorLoading] = useState(false);
       const [inspectorError, setInspectorError] = useState('');
+      const [inspectorEditMode, setInspectorEditMode] = useState(false);
       const inspectorRequestIdRef = useRef(0);
       const [customerLookup, setCustomerLookup] = useState(null);
       const [showPhoneHistory, setShowPhoneHistory] = useState(false);
@@ -6657,6 +6916,7 @@
       const customerLookupCacheRef = useRef(new Map());
       const lastLookupPhoneRef = useRef('');
       const orderModalBodyRef = useRef(null);
+      const orderSearchInputRef = useRef(null);
       const lastItemsLenRef = useRef(0);
       const lastCreatedOrderRef = useRef(null); // { id, fingerprint, ts }
       const PHONE_LOOKUP_MIN_LEN = 9;
@@ -7295,6 +7555,63 @@
         return isSearchActive ? sortedSearchResults : filteredOrders;
       }, [filteredOrders, isSearchActive, sortedSearchResults]);
 
+      const statusCounts = React.useMemo(() => {
+        const source = Array.isArray(ordersToRender) ? ordersToRender : [];
+        const counts = { all: source.length, draft: 0, pending: 0, processing: 0, done: 0, paid: 0, canceled: 0, other: 0 };
+        for (const o of source) {
+          const s = normalizeOrderStatus(o?.status);
+          if (s === 'draft') counts.draft += 1;
+          else if (s === 'pending') counts.pending += 1;
+          else if (s === 'processing') counts.processing += 1;
+          else if (s === 'done') counts.done += 1;
+          else if (s === 'paid') counts.paid += 1;
+          else if (s === 'canceled') counts.canceled += 1;
+          else counts.other += 1;
+        }
+        return counts;
+      }, [ordersToRender]);
+
+      const currentMonthKey = React.useMemo(() => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+      }, []);
+
+      const applyOrdersPreset = (presetId) => {
+        if (isSearchActive) setOrderSearchQuery('');
+
+        if (presetId === 'thisMonth') {
+          setOverdueOnly(false);
+          setFilterStatus('');
+          setFilterMonth(currentMonthKey);
+          return;
+        }
+
+        if (presetId === 'overduePending') {
+          setFilterMonth('');
+          setOverdueOnly(true);
+          setFilterStatus('pending');
+          return;
+        }
+
+        if (presetId === 'draftExpiring') {
+          setOverdueOnly(false);
+          setFilterStatus('draft');
+          setFilterMonth('');
+          // Ensure server snapshot refreshes soon
+          loadAllOrdersForAlerts();
+          return;
+        }
+
+        if (presetId === 'all') {
+          setOverdueOnly(false);
+          setFilterStatus('');
+          setFilterMonth(currentMonthKey);
+          return;
+        }
+      };
+
       const formatDateTime = (value) => window.KTM.date.formatDateTime(value);
 
       const loadProducts = async () => {
@@ -7536,7 +7853,12 @@
         setItemSearches(new Array(items.length ? items.length : 1).fill(''));
         setSplitDeliverNow(new Array(items.length ? items.length : 1).fill(true));
         setCustomerLookup(null);
-        setShowModal(true);
+        setShowModal(false);
+        setInspectorOrder(fullOrder);
+        setInspectorOpen(true);
+        setInspectorError('');
+        setInspectorLoading(false);
+        setInspectorEditMode(true);
 
         if (fullOrder.phone) {
           lookupCustomerByPhone(normalizePhone(fullOrder.phone));
@@ -7548,6 +7870,7 @@
         setInspectorOpen(true);
         setInspectorError('');
         setInspectorLoading(true);
+        setInspectorEditMode(false);
         setInspectorOrder(order);
 
         const requestId = ++inspectorRequestIdRef.current;
@@ -7565,12 +7888,22 @@
       };
 
       const closeOrderInspector = () => {
+        if (saving || splitting) return;
         setInspectorOpen(false);
         setInspectorLoading(false);
         setInspectorError('');
+        setInspectorEditMode(false);
+        setEditingId(null);
+        resetOrderForm('');
+        setShowPhoneHistory(false);
+        setSplitDeliverNow([]);
       };
 
       function openCreateModal(presetProductId) {
+        setInspectorOpen(false);
+        setInspectorEditMode(false);
+        setInspectorLoading(false);
+        setInspectorError('');
         setEditingId(null);
         resetOrderForm(presetProductId || '');
         setShowPhoneHistory(false);
@@ -8435,6 +8768,7 @@
 
       const saveOrder = async (options) => {
         const mode = options?.mode || 'close'; // 'close' | 'new'
+        const origin = options?.origin || 'modal'; // 'modal' | 'drawer'
 
         const validation = computeOrderValidation(form);
         if (!validation.canSubmit) {
@@ -8485,6 +8819,7 @@
 
         setSaving(true);
         try {
+          const savedIdBefore = editingId;
           const url = editingId 
             ? `${API_BASE}/api/orders/${editingId}` 
             : `${API_BASE}/api/orders`;
@@ -8524,16 +8859,42 @@
           // Keep phone->customer cache in sync with edits so future "tạo đơn" prefill is updated.
           upsertCustomerLookupCacheFromForm(normalizedPhone, form.customer_name, form.address);
 
-          if (mode === 'new' && !editingId) {
-            resetOrderForm('');
-            setEditingId(null);
-            setShowModal(true);
-          } else {
+          if (origin === 'drawer') {
+            // Drawer edit: keep inspector open and switch back to view mode.
             resetOrderForm('');
             setEditingId(null);
             setShowModal(false);
+            setInspectorEditMode(false);
+            setShowPhoneHistory(false);
+            setSplitDeliverNow([]);
+            loadOrders();
+
+            if (savedIdBefore) {
+              setInspectorLoading(true);
+              setInspectorError('');
+              try {
+                const refreshed = await fetchOrderById(savedIdBefore);
+                if (refreshed && typeof refreshed === 'object') {
+                  setInspectorOrder(refreshed);
+                }
+              } catch (e) {
+                setInspectorError(e?.message || 'Không tải được chi tiết đơn');
+              } finally {
+                setInspectorLoading(false);
+              }
+            }
+          } else {
+            if (mode === 'new' && !editingId) {
+              resetOrderForm('');
+              setEditingId(null);
+              setShowModal(true);
+            } else {
+              resetOrderForm('');
+              setEditingId(null);
+              setShowModal(false);
+            }
+            loadOrders();
           }
-          loadOrders();
         } catch (err) {
           console.error(err);
           if (typeof showToast === 'function') showToast(err.message, 'danger');
@@ -8566,6 +8927,8 @@
         const fullOrder = await ensureFullOrder(order);
         const orderId = fullOrder?.id;
         if (!orderId || !nextStatus) return;
+
+        const prevStatus = normalizeOrderStatus(fullOrder?.status);
 
         setUpdatingId(orderId);
         try {
@@ -8617,7 +8980,17 @@
               ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
               : prev
           ));
-          if (typeof showToast === 'function') showToast('Đã cập nhật trạng thái', 'success');
+          if (typeof showToast === 'function') {
+            const label = `${getStatusLabel(prevStatus)} → ${getStatusLabel(nextStatus)}`.trim();
+            showToast(`Đã cập nhật trạng thái: ${label}`, 'success', {
+              actionLabel: 'Undo',
+              durationMs: 6500,
+              onAction: () => {
+                if (!prevStatus || prevStatus === normalizeOrderStatus(nextStatus)) return;
+                updateOrderStatus({ ...fullOrder, status: nextStatus }, prevStatus);
+              },
+            });
+          }
         } catch (err) {
           console.error(err);
           if (typeof showToast === 'function') showToast(err.message, 'danger');
@@ -8627,147 +9000,736 @@
         }
       };
 
-      return (
-        <div className="product-manager">
-          <Loading show={(loading && !showModal && !isSearchActive) || saving || !!deletingId || !!updatingId} />
-          <div className="product-header">
-            <h5>Quản lý đơn hàng</h5>
-            <button className="btn btn-dark btn-sm" onClick={openCreateModal} disabled={saving || !!deletingId}>
-              <i className="fas fa-plus me-2"></i>Tạo đơn
-            </button>
+      useEffect(() => {
+        const onHotkey = (e) => {
+          const key = e?.detail?.key;
+          if (!key) return;
+
+          if (key === '/') {
+            setTimeout(() => {
+              orderSearchInputRef.current?.focus?.();
+            }, 0);
+            return;
+          }
+
+          if (key === 'N' || key === 'n') {
+            openCreateModal();
+            return;
+          }
+
+          if ((key === 'j' || key === 'J' || key === 'k' || key === 'K') && inspectorOpen && inspectorOrder?.id) {
+            const list = Array.isArray(ordersToRender) ? ordersToRender : [];
+            const idx = list.findIndex((o) => String(o?.id) === String(inspectorOrder?.id));
+            if (idx < 0) return;
+            const dir = (key === 'j' || key === 'J') ? -1 : 1;
+            const next = list[idx + dir];
+            if (next) openOrderInspector(next);
+          }
+        };
+
+        window.addEventListener('ktm-admin-hotkey', onHotkey);
+        return () => window.removeEventListener('ktm-admin-hotkey', onHotkey);
+      }, [ordersToRender, inspectorOpen, inspectorOrder]);
+
+      const renderOrderFormFields = () => (
+        <div className="row g-3">
+          <div className="col-12">
+            <label className="form-label fw-semibold small text-muted mb-1">Tên khách hàng *</label>
+            <input
+              className="form-control"
+              value={form.customer_name}
+              onChange={e => setForm({ ...form, customer_name: e.target.value })}
+              placeholder="Nhập tên khách hàng"
+              required
+              style={{ borderRadius: 10, padding: 12 }}
+            />
+            {!!orderFieldIssues.nameError && (
+              <div className="form-text text-danger">{orderFieldIssues.nameError}</div>
+            )}
+          </div>
+          <div className="col-12 col-md-6">
+            <label className="form-label fw-semibold small text-muted mb-1">Số điện thoại *</label>
+            <input
+              className="form-control"
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9+\s-]*"
+              id="order-phone-input"
+              value={form.phone}
+              onChange={e => handlePhoneChange(e.target.value)}
+              onBlur={handlePhoneBlur}
+              placeholder="Nhập số điện thoại"
+              required
+              style={{ borderRadius: 10, padding: 12 }}
+            />
+            {!!orderFieldIssues.phoneError && (
+              <div className="form-text text-danger">{orderFieldIssues.phoneError}</div>
+            )}
+
+            {!orderFieldIssues.phoneError && phoneMonthHistory.count > 0 && (
+              <div className="form-text text-warning d-flex align-items-center justify-content-between gap-2">
+                <span>
+                  Khách này đã có {phoneMonthHistory.count} đơn trong tháng {phoneMonthHistory.monthKey}.
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-warning"
+                  onClick={() => setShowPhoneHistory((v) => !v)}
+                >
+                  {showPhoneHistory ? 'Ẩn lịch sử' : 'Xem lịch sử'}
+                </button>
+              </div>
+            )}
+
+            {showPhoneHistory && phoneMonthHistory.orders.length > 0 && (
+              <div className="mt-2 border rounded-3 p-2" style={{ background: '#fff' }}>
+                <div className="d-flex align-items-center justify-content-between gap-2 mb-2">
+                  <div className="small fw-semibold">Lịch sử đơn (cùng tháng)</div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => setShowPhoneHistory(false)}
+                  >
+                    Ẩn
+                  </button>
+                </div>
+                <div className="d-grid gap-2">
+                  {phoneMonthHistory.orders.slice(0, 5).map((o) => (
+                    <div key={o.id} className="d-flex align-items-start justify-content-between gap-2">
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className="small fw-semibold" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          #{o.id} • <span className={`badge ${getStatusBadgeClass(o.status)}`}>{getStatusLabel(o.status)}</span>
+                        </div>
+                        <div className="text-muted small">{formatDateTime(o.created_at)} • {formatVND(getOrderTotalMoney(o))}</div>
+                        <div className="text-muted small" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {getOrderProductSummary(o)}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => {
+                          if (!confirm(`Mở đơn #${o.id}? Dữ liệu đang nhập sẽ mất.`)) return;
+                          editOrder(o);
+                        }}
+                      >
+                        Mở
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {phoneMonthHistory.orders.length > 5 && (
+                  <div className="text-muted small mt-2">Chỉ hiển thị 5 đơn gần nhất.</div>
+                )}
+              </div>
+            )}
+
+            {customerLookup?.status === 'loading' && (
+              <div className="form-text">Đang tìm khách theo SĐT...</div>
+            )}
+            {customerLookup?.status === 'found' && (
+              <div className="form-text text-success">Đã có khách, tự động điền thông tin.</div>
+            )}
+            {customerLookup?.status === 'not-found' && (
+              <div className="form-text text-muted">Chưa có khách, sẽ tạo mới khi lưu đơn.</div>
+            )}
+            {customerLookup?.status === 'error' && (
+              <div className="form-text text-danger">Không tra được khách (lỗi mạng/server).</div>
+            )}
+          </div>
+          <div className="col-12 col-md-6">
+            <label className="form-label fw-semibold small text-muted mb-1">Trạng thái</label>
+            <select
+              className="form-select"
+              value={form.status}
+              onChange={e => setForm({ ...form, status: e.target.value })}
+              style={{ borderRadius: 10, padding: 12 }}
+            >
+              <option value="draft">Đơn nháp</option>
+              <option value="pending">Chờ xử lý</option>
+              <option value="processing">Đang vận chuyển</option>
+              <option value="done">Hoàn thành</option>
+              <option value="paid">Đã nhận tiền</option>
+              <option value="canceled">Hủy đơn</option>
+            </select>
+          </div>
+          <div className="col-12">
+            <label className="form-label fw-semibold small text-muted mb-1">Địa chỉ</label>
+            <input
+              className="form-control"
+              value={form.address}
+              onChange={e => setForm({ ...form, address: e.target.value })}
+              placeholder="Nhập địa chỉ (không bắt buộc)"
+              style={{ borderRadius: 10, padding: 12 }}
+            />
+            {!!orderFieldIssues.addressWarn && (
+              <div className="form-text text-warning">{orderFieldIssues.addressWarn}</div>
+            )}
           </div>
 
-          <div className="product-search">
-            <div className="row g-2 align-items-end">
-              <div className="col-12 col-md-4">
-                <label className="form-label mb-1">Lọc theo tháng</label>
-                <div className="input-group">
-                  <span className="input-group-text" aria-hidden="true">
-                    <i className="fas fa-calendar-alt"></i>
-                  </span>
-                  <input
-                    type="month"
-                    className="form-control"
-                    value={filterMonth}
-                    onChange={e => setFilterMonth(e.target.value)}
-                    aria-label="Chọn tháng"
-                    disabled={overdueOnly || isSearchActive}
-                  />
-                  {filterMonth && (
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary"
-                      onClick={() => {
-                        setFilterMonth('');
+          <div className="col-12">
+            <label className="form-label fw-semibold small text-muted mb-1">Ghi chú đơn hàng</label>
+            <textarea
+              className="form-control"
+              value={form.note}
+              onChange={e => setForm({ ...form, note: e.target.value })}
+              placeholder="Ví dụ: Giao giờ hành chính / Gọi trước khi giao..."
+              rows={2}
+              style={{ borderRadius: 10, padding: 12, resize: 'vertical' }}
+            />
+          </div>
+
+          <div className="col-12">
+            <div className="d-flex align-items-center justify-content-between">
+              <label className="form-label fw-semibold small text-muted mb-1">Điều chỉnh giá (thêm/bớt)</label>
+              <button
+                type="button"
+                className="btn btn-outline-secondary btn-sm"
+                onClick={() => {
+                  setForm((prev) => ({
+                    ...prev,
+                    adjustment_items: [
+                      ...(Array.isArray(prev.adjustment_items) ? prev.adjustment_items : [{ amount: '', note: '' }]),
+                      { amount: '', note: '' },
+                    ],
+                  }));
+                }}
+              >
+                <i className="fas fa-plus me-2"></i>Thêm điều chỉnh
+              </button>
+            </div>
+
+            <div className="d-grid gap-2">
+              {normalizeAdjustmentFormItems(form.adjustment_items).map((adj, idx) => (
+                <div key={idx} className="row g-2 align-items-end">
+                  <div className="col-12 col-md-3">
+                    <label className="form-label small text-muted mb-1">Số tiền</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      className="form-control"
+                      value={adj.amount}
+                      onChange={(e) => {
+                        const nextAmount = e.target.value;
+                        setForm((prev) => {
+                          const arr = normalizeAdjustmentFormItems(prev.adjustment_items);
+                          arr[idx] = { ...arr[idx], amount: nextAmount };
+                          return { ...prev, adjustment_items: arr };
+                        });
                       }}
-                      title="Bỏ lọc"
-                      aria-label="Bỏ lọc"
-                      disabled={loading || isSearchActive}
-                    >
-                      <i className="fas fa-times"></i>
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="col-12 col-md-3">
-                <label className="form-label mb-1">Trạng thái</label>
-                <div className="input-group">
-                  <span className="input-group-text" aria-hidden="true">
-                    <i className="fas fa-filter"></i>
-                  </span>
-                  <select
-                    className="form-select"
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    aria-label="Lọc theo trạng thái"
-                    disabled={overdueOnly || isSearchActive}
-                  >
-                    <option value="">Tất cả</option>
-                    <option value="draft">Đơn nháp</option>
-                    <option value="pending">Chờ xử lý</option>
-                    <option value="processing">Đang vận chuyển</option>
-                    <option value="done">Hoàn thành</option>
-                    <option value="paid">Đã nhận tiền</option>
-                    <option value="canceled">Hủy đơn</option>
-                  </select>
-                  {filterStatus && (
+                      placeholder="+500000 hoặc -200000"
+                      style={{ borderRadius: 10, padding: 12 }}
+                    />
+                  </div>
+                  <div className="col-12 col-md-8">
+                    <label className="form-label small text-muted mb-1">Ghi chú</label>
+                    <input
+                      className="form-control"
+                      value={adj.note}
+                      onChange={(e) => {
+                        const nextNote = e.target.value;
+                        setForm((prev) => {
+                          const arr = normalizeAdjustmentFormItems(prev.adjustment_items);
+                          arr[idx] = { ...arr[idx], note: nextNote };
+                          return { ...prev, adjustment_items: arr };
+                        });
+                      }}
+                      placeholder="Ví dụ: thêm van 1 tay / giảm giá..."
+                      style={{ borderRadius: 10, padding: 12 }}
+                    />
+                  </div>
+                  <div className="col-12 col-md-1 d-flex">
                     <button
                       type="button"
-                      className="btn btn-outline-secondary"
-                      onClick={() => setFilterStatus('')}
-                      title="Bỏ lọc trạng thái"
-                      aria-label="Bỏ lọc trạng thái"
-                      disabled={loading || isSearchActive}
+                      className="btn btn-outline-danger w-100"
+                      onClick={() => {
+                        setForm((prev) => {
+                          const arr = normalizeAdjustmentFormItems(prev.adjustment_items);
+                          arr.splice(idx, 1);
+                          return { ...prev, adjustment_items: arr.length ? arr : [{ amount: '', note: '' }] };
+                        });
+                      }}
+                      disabled={saving || normalizeAdjustmentFormItems(form.adjustment_items).length <= 1}
+                      title="Xóa điều chỉnh"
+                      style={{ borderRadius: 10, padding: 12 }}
                     >
-                      <i className="fas fa-times"></i>
+                      <i className="fas fa-trash"></i>
                     </button>
-                  )}
+                  </div>
                 </div>
-                <div className="form-check mt-2">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="orders-overdue-only"
-                    checked={overdueOnly}
-                    onChange={(e) => {
-                      if (isSearchActive) return;
-                      const next = !!e.target.checked;
-                      setOverdueOnly(next);
-                      if (next) {
-                        setFilterStatus('pending');
-                      }
-                    }}
-                    disabled={isSearchActive}
-                  />
-                  <label className="form-check-label" htmlFor="orders-overdue-only">
-                    Chỉ hiện đơn chậm &gt; {OVERDUE_PENDING_DAYS} ngày (Chờ xử lý)
-                  </label>
-                </div>
-              </div>
-              <div className="col-12 col-md-3">
-                <label className="form-label mb-1">Search (tên / SĐT)</label>
-                <div className="input-group">
-                  <span className="input-group-text" aria-hidden="true">
-                    <i className="fas fa-search"></i>
-                  </span>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={orderSearchQuery}
-                    onChange={(e) => setOrderSearchQuery(e.target.value)}
-                    placeholder="Nhập tên hoặc SĐT..."
-                    aria-label="Search đơn hàng theo tên hoặc SĐT"
-                  />
-                  {String(orderSearchQuery || '').trim() && (
+              ))}
+            </div>
+
+            <div className="form-text">Âm = giảm giá, dương = cộng thêm.</div>
+            {!!orderFieldIssues.adjustmentAbnormalWarn && (
+              <div className="form-text text-warning">{orderFieldIssues.adjustmentAbnormalWarn}</div>
+            )}
+            {!!orderFieldIssues.adjustmentNoteWarn && (
+              <div className="form-text text-warning">{orderFieldIssues.adjustmentNoteWarn}</div>
+            )}
+          </div>
+          <div className="col-12 col-md-8">
+            <div className="d-flex align-items-center justify-content-between">
+              <label className="form-label fw-semibold small text-muted mb-1">Sản phẩm *</label>
+              <button
+                type="button"
+                className="btn btn-outline-secondary btn-sm"
+                onClick={() => {
+                  setForm((prev) => ({
+                    ...prev,
+                    items: [...(Array.isArray(prev.items) ? prev.items : []), { product_id: "", quantity: 1, unit_price: null, variant: '', variant_json: null }],
+                  }));
+                  setItemSearches((prev) => [...(Array.isArray(prev) ? prev : []), '']);
+                  if (editingId) {
+                    setSplitDeliverNow((prev) => [...(Array.isArray(prev) ? prev : []), true]);
+                  }
+                }}
+                disabled={saving}
+              >
+                <i className="fas fa-plus me-2"></i>Thêm sản phẩm
+              </button>
+            </div>
+
+            <div className="d-grid gap-2">
+              {(Array.isArray(form.items) ? form.items : [{ product_id: "", quantity: 1 }]).map((it, idx) => (
+                <div key={idx} className="row g-2 align-items-end">
+                  <div className="col-12 col-md-8">
+                    <div
+                      className="dropdown w-100"
+                      ref={(el) => {
+                        productDropdownRefs.current[idx] = el;
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="form-control text-start d-flex align-items-center justify-content-between"
+                        style={{ borderRadius: 10, padding: 12 }}
+                        onClick={() => {
+                          setOpenProductDropdownIdx((prev) => (prev === idx ? null : idx));
+                          setTimeout(() => {
+                            const input = document.getElementById(`order-product-search-${idx}`);
+                            if (input) input.focus();
+                          }, 0);
+                        }}
+                      >
+                        <span className={it.product_id ? '' : 'text-muted'} style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {getProductLabel(it.product_id)}
+                        </span>
+                        <i className="fas fa-chevron-down text-muted" style={{ marginLeft: 8, flexShrink: 0 }}></i>
+                      </button>
+
+                      {openProductDropdownIdx === idx && (
+                        <div
+                          className="dropdown-menu show w-100 p-2"
+                          style={{ maxHeight: 320, overflowY: 'auto' }}
+                        >
+                          <input
+                            id={`order-product-search-${idx}`}
+                            className="form-control"
+                            value={itemSearches[idx] || ''}
+                            onChange={(e) => {
+                              const next = e.target.value;
+                              setItemSearches((prev) => {
+                                const arr = Array.isArray(prev) ? [...prev] : [];
+                                arr[idx] = next;
+                                return arr;
+                              });
+                            }}
+                            placeholder="Tìm theo tên / mã..."
+                            style={{ borderRadius: 10, padding: 10 }}
+                          />
+                          <div className="mt-2" />
+                          {(() => {
+                            const filtered = getFilteredProducts(idx);
+                            if (filtered.length === 0) {
+                              return <div className="text-muted small px-2 py-1">Không có sản phẩm phù hợp</div>;
+                            }
+                            return filtered.map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                className="dropdown-item"
+                                onClick={() => {
+                                  const next = String(p.id);
+                                  const groups = normalizeVariantGroups(p?.variants);
+                                  const selections = {};
+                                  for (const g of groups) {
+                                    const groupName = String(g?.name || '').trim();
+                                    const first = Array.isArray(g?.options) ? g.options[0] : null;
+                                    const firstLabel = String(first?.label || '').trim();
+                                    if (groupName && firstLabel) selections[groupName] = firstLabel;
+                                  }
+                                  const variantText = buildVariantTextFromSelections(selections);
+                                  const unitPrice = computeUnitPriceForProductAndSelections(p, selections);
+                                  setForm((prev) => {
+                                    const items = Array.isArray(prev.items) ? [...prev.items] : [];
+                                    items[idx] = {
+                                      ...(items[idx] || { quantity: 1 }),
+                                      product_id: next,
+                                      variant_json: Object.keys(selections).length ? selections : null,
+                                      variant: variantText,
+                                      unit_price: groups.length ? unitPrice : null,
+                                    };
+                                    return { ...prev, items };
+                                  });
+                                  setOpenProductDropdownIdx(null);
+                                }}
+                              >
+                                {p.name}{p.code ? ` (${p.code})` : ''}
+                              </button>
+                            ));
+                          })()}
+                        </div>
+                      )}
+
+                      {/* Keep native required validation */}
+                      <select
+                        className="form-select"
+                        value={it.product_id}
+                        onChange={() => {}}
+                        required
+                        style={{ position: 'absolute', opacity: 0, height: 0, pointerEvents: 'none' }}
+                        tabIndex={-1}
+                        aria-hidden="true"
+                      >
+                        <option value="">-- chọn sản phẩm --</option>
+                        {products.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {(() => {
+                      const issue = orderFieldIssues.items?.[idx];
+                      if (!issue) return null;
+                      return (
+                        <>
+                          {!!issue.productError && <div className="form-text text-danger">{issue.productError}</div>}
+                          {!!issue.dupWarn && <div className="form-text text-warning">{issue.dupWarn}</div>}
+                        </>
+                      );
+                    })()}
+
+                    {(() => {
+                      if (!it?.product_id) return null;
+                      const p = getProductById(it.product_id);
+                      const groups = normalizeVariantGroups(p?.variants);
+                      if (!groups.length) return null;
+
+                      const selections = (it?.variant_json && typeof it.variant_json === 'object') ? it.variant_json : {};
+
+                      return (
+                        <div className="mt-2 d-grid gap-2">
+                          {groups.map((g, gi) => {
+                            const groupName = String(g?.name || `Biến thể ${gi + 1}`).trim();
+                            const selected = String(selections?.[groupName] || '').trim();
+                            return (
+                              <div key={groupName}>
+                                <label className="form-label small text-muted mb-1">{groupName}</label>
+                                <select
+                                  className="form-select"
+                                  value={selected}
+                                  onChange={(e) => {
+                                    const nextLabel = String(e.target.value || '').trim();
+                                    setForm((prev) => {
+                                      const items = Array.isArray(prev.items) ? [...prev.items] : [];
+                                      const cur = { ...(items[idx] || {}) };
+                                      const p = getProductById(cur.product_id);
+                                      const groups = normalizeVariantGroups(p?.variants);
+                                      const nextSelections = (cur?.variant_json && typeof cur.variant_json === 'object') ? { ...cur.variant_json } : {};
+                                      if (nextLabel) nextSelections[groupName] = nextLabel;
+                                      else delete nextSelections[groupName];
+                                      const variantText = buildVariantTextFromSelections(nextSelections);
+                                      const unitPrice = computeUnitPriceForProductAndSelections(p, nextSelections);
+                                      items[idx] = {
+                                        ...cur,
+                                        variant_json: Object.keys(nextSelections).length ? nextSelections : null,
+                                        variant: variantText,
+                                        unit_price: unitPrice,
+                                      };
+                                      return { ...prev, items };
+                                    });
+                                  }}
+                                  style={{ borderRadius: 10, padding: 12 }}
+                                >
+                                  <option value="">-- chọn {groupName} --</option>
+                                  {(Array.isArray(g?.options) ? g.options : []).map((opt) => (
+                                    <option key={opt.label} value={opt.label}>
+                                      {opt.label}{Number.isFinite(Number(opt?.price)) ? ` (${formatVND(Number(opt.price))})` : (Number(opt?.price_delta) ? ` (${opt.price_delta > 0 ? '+' : ''}${opt.price_delta})` : '')}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+
+                    {editingId && (
+                      <div className="form-check mt-1">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id={`order-split-deliver-${idx}`}
+                          checked={!!splitDeliverNow[idx]}
+                          onChange={(e) => {
+                            const checked = !!e.target.checked;
+                            setSplitDeliverNow((prev) => {
+                              const arr = Array.isArray(prev) ? [...prev] : [];
+                              const targetLen = Array.isArray(form.items) ? form.items.length : 0;
+                              while (arr.length < targetLen) arr.push(true);
+                              arr[idx] = checked;
+                              return arr;
+                            });
+                          }}
+                          disabled={saving || splitting}
+                        />
+                        <label className="form-check-label small text-muted" htmlFor={`order-split-deliver-${idx}`}>
+                          Giao đợt 1
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                  <div className="col-8 col-md-3">
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={it.quantity}
+                      onChange={(e) => {
+                        const nextQty = e.target.value;
+                        setForm((prev) => {
+                          const items = Array.isArray(prev.items) ? [...prev.items] : [];
+                          items[idx] = { ...(items[idx] || { product_id: "" }), quantity: nextQty };
+                          return { ...prev, items };
+                        });
+                      }}
+                      min="1"
+                      style={{ borderRadius: 10, padding: 12 }}
+                    />
+                    {(() => {
+                      const issue = orderFieldIssues.items?.[idx];
+                      if (!issue) return null;
+                      return !!issue.qtyError ? (
+                        <div className="form-text text-danger">{issue.qtyError}</div>
+                      ) : null;
+                    })()}
+                  </div>
+                  <div className="col-4 col-md-1 d-flex justify-content-end">
                     <button
                       type="button"
-                      className="btn btn-outline-secondary"
-                      onClick={() => setOrderSearchQuery('')}
-                      title="Xóa search"
-                      aria-label="Xóa search"
-                      disabled={orderSearchLoading}
+                      className="btn btn-outline-danger"
+                      onClick={() => {
+                        setForm((prev) => {
+                          const items = Array.isArray(prev.items) ? [...prev.items] : [];
+                          items.splice(idx, 1);
+                          return { ...prev, items: items.length ? items : [{ product_id: "", quantity: 1, unit_price: null, variant: '', variant_json: null }] };
+                        });
+                        setItemSearches((prev) => {
+                          const arr = Array.isArray(prev) ? [...prev] : [];
+                          arr.splice(idx, 1);
+                          return arr.length ? arr : [''];
+                        });
+                        setSplitDeliverNow((prev) => {
+                          const arr = Array.isArray(prev) ? [...prev] : [];
+                          arr.splice(idx, 1);
+                          return arr;
+                        });
+                        setOpenProductDropdownIdx((prev) => {
+                          if (prev == null) return prev;
+                          if (prev === idx) return null;
+                          if (prev > idx) return prev - 1;
+                          return prev;
+                        });
+                      }}
+                      disabled={saving || splitting || (Array.isArray(form.items) ? form.items.length : 1) <= 1}
+                      title="Xóa sản phẩm"
+                      style={{ borderRadius: 10, padding: 10 }}
                     >
-                      <i className="fas fa-times"></i>
+                      <i className="fas fa-trash"></i>
                     </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {(() => {
+            const items = Array.isArray(form.items) ? form.items : [];
+            const normalizedItems = items.filter(it => it?.product_id);
+            const subtotal = getItemsSubtotal(normalizedItems);
+            const shipInfo = getOrderShipInfo(normalizedItems);
+            const adjDerived = getAdjustmentDerivedFromForm(form);
+            const adj = adjDerived.amount;
+            const total = subtotal + (shipInfo.found ? shipInfo.fee : 0) + adj;
+
+            return (
+              <div className="col-12">
+                <div className="d-flex flex-column gap-1 small bg-light rounded-3 p-3">
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Tạm tính</span>
+                    <span className="fw-semibold">{formatVND(subtotal)}</span>
+                  </div>
+                  {shipInfo.found && (
+                    <div className="d-flex justify-content-between">
+                      <span className="text-muted">Ship</span>
+                      <span className="fw-semibold">{formatVND(shipInfo.fee)}</span>
+                    </div>
                   )}
-                  {orderSearchLoading && (
-                    <span className="input-group-text" title="Đang search..." aria-label="Đang search">
-                      <span className="spinner-border spinner-border-sm text-warning" role="status" aria-hidden="true"></span>
+                  {!!orderFieldIssues.shipAbnormalWarn && (
+                    <div className="text-warning">{orderFieldIssues.shipAbnormalWarn}</div>
+                  )}
+                  {adj !== 0 && (
+                    <div className="d-flex justify-content-between">
+                      <span className="text-muted">Điều chỉnh</span>
+                      <span className="fw-semibold">{formatVND(adj)}</span>
+                    </div>
+                  )}
+                  {(form.note || '').trim() && (
+                    <div className="text-muted" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                      Ghi chú đơn: {(form.note || '').trim()}
+                    </div>
+                  )}
+                  {!!adjDerived.summaryText && (
+                    <div className="text-muted" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                      Ghi chú điều chỉnh: {adjDerived.summaryText}
+                    </div>
+                  )}
+                  <div className="d-flex justify-content-between pt-1 border-top">
+                    <span className="text-muted">Tổng</span>
+                    <span className="fw-bold">{formatVND(total)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      );
+
+      return (
+        <div className="product-manager">
+          <Loading show={saving || !!deletingId || !!updatingId} />
+
+          <div className="orders-ops-toolbar card p-3">
+            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div style={{ minWidth: 0 }}>
+                <div className="d-flex align-items-center gap-2">
+                  <h5 className="mb-0">Đơn hàng</h5>
+                  <span className="badge rounded-pill bg-dark bg-opacity-10 text-dark">
+                    {statusCounts.all} đơn
+                  </span>
+                  {isSearchActive && (
+                    <span className="badge rounded-pill bg-warning bg-opacity-25 text-dark">
+                      Search mode
                     </span>
                   )}
                 </div>
                 <div className="text-muted small mt-1">
-                  Search sẽ ra toàn bộ data, bỏ qua filter
+                  Hotkeys: <span className="fw-semibold">/</span> search • <span className="fw-semibold">N</span> tạo đơn • <span className="fw-semibold">Esc</span> đóng drawer
                 </div>
               </div>
-              <div className="col-12 col-md-2 d-flex gap-2 justify-content-md-end">
+              <div className="d-flex gap-2">
                 <button
-                  className="btn btn-outline-secondary"
+                  className="btn btn-outline-secondary btn-sm"
                   onClick={() => (isSearchActive ? runOrderSearch(orderSearchQuery) : loadOrders())}
-                  disabled={loading || orderSearchLoading}
+                  disabled={orderSearchLoading}
+                  title="Làm mới"
                 >
-                  <i className="fas fa-rotate me-2"></i>Làm mới
+                  <i className="fas fa-rotate"></i>
                 </button>
+                <button className="btn btn-dark btn-sm" onClick={() => openCreateModal()} disabled={saving || !!deletingId}>
+                  <i className="fas fa-plus me-2"></i>Tạo đơn
+                </button>
+              </div>
+            </div>
+
+            <div className="orders-chip-row mt-3">
+              <button
+                type="button"
+                className={`orders-chip ${!filterStatus && !overdueOnly && !isSearchActive ? 'active' : ''}`}
+                onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setFilterStatus(''); }}
+              >
+                Tất cả <span className="ms-1 badge rounded-pill bg-dark bg-opacity-10 text-dark">{statusCounts.all}</span>
+              </button>
+              <button type="button" className={`orders-chip ${filterStatus === 'draft' && !overdueOnly && !isSearchActive ? 'active' : ''}`} onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setFilterStatus('draft'); setFilterMonth(''); }}>
+                Nháp <span className="ms-1 badge rounded-pill bg-dark bg-opacity-10 text-dark">{statusCounts.draft}</span>
+              </button>
+              <button type="button" className={`orders-chip ${filterStatus === 'pending' && !overdueOnly && !isSearchActive ? 'active' : ''}`} onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setFilterStatus('pending'); }}>
+                Chờ xử lý <span className="ms-1 badge rounded-pill bg-dark bg-opacity-10 text-dark">{statusCounts.pending}</span>
+              </button>
+              <button type="button" className={`orders-chip ${filterStatus === 'processing' && !overdueOnly && !isSearchActive ? 'active' : ''}`} onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setFilterStatus('processing'); }}>
+                Vận chuyển <span className="ms-1 badge rounded-pill bg-dark bg-opacity-10 text-dark">{statusCounts.processing}</span>
+              </button>
+              <button type="button" className={`orders-chip ${filterStatus === 'done' && !overdueOnly && !isSearchActive ? 'active' : ''}`} onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setFilterStatus('done'); }}>
+                Hoàn thành <span className="ms-1 badge rounded-pill bg-dark bg-opacity-10 text-dark">{statusCounts.done}</span>
+              </button>
+              <button type="button" className={`orders-chip ${filterStatus === 'paid' && !overdueOnly && !isSearchActive ? 'active' : ''}`} onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setFilterStatus('paid'); }}>
+                Đã nhận tiền <span className="ms-1 badge rounded-pill bg-dark bg-opacity-10 text-dark">{statusCounts.paid}</span>
+              </button>
+              <button type="button" className={`orders-chip ${filterStatus === 'canceled' && !overdueOnly && !isSearchActive ? 'active' : ''}`} onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setFilterStatus('canceled'); }}>
+                Hủy <span className="ms-1 badge rounded-pill bg-dark bg-opacity-10 text-dark">{statusCounts.canceled}</span>
+              </button>
+            </div>
+
+            <div className="orders-presets mt-2 d-flex flex-wrap gap-2">
+              <button type="button" className="btn btn-sm btn-outline-dark" onClick={() => applyOrdersPreset('thisMonth')} disabled={isSearchActive}>
+                <i className="fas fa-calendar me-2"></i>Tháng này
+              </button>
+              <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => applyOrdersPreset('overduePending')} disabled={isSearchActive}>
+                <i className="fas fa-triangle-exclamation me-2"></i>Chậm &gt; {OVERDUE_PENDING_DAYS} ngày
+              </button>
+              <button type="button" className="btn btn-sm btn-outline-warning" onClick={() => applyOrdersPreset('draftExpiring')} disabled={isSearchActive}>
+                <i className="fas fa-clock me-2"></i>Nháp sắp xóa
+              </button>
+              {(filterStatus || overdueOnly || (!filterMonth && !isSearchActive)) && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => applyOrdersPreset('all')}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div className="orders-filterbar mt-3 d-flex flex-wrap gap-2 align-items-center">
+              <div className="input-group input-group-sm orders-search">
+                <span className="input-group-text" aria-hidden="true"><i className="fas fa-search"></i></span>
+                <input
+                  ref={orderSearchInputRef}
+                  type="text"
+                  className="form-control"
+                  value={orderSearchQuery}
+                  onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  placeholder="Search tên / SĐT… (nhấn /)"
+                  aria-label="Search đơn hàng theo tên hoặc SĐT"
+                />
+                {String(orderSearchQuery || '').trim() && (
+                  <button type="button" className="btn btn-outline-secondary" onClick={() => setOrderSearchQuery('')} disabled={orderSearchLoading}>
+                    <i className="fas fa-times"></i>
+                  </button>
+                )}
+                {orderSearchLoading && (
+                  <span className="input-group-text" title="Đang search..." aria-label="Đang search">
+                    <span className="spinner-border spinner-border-sm text-warning" role="status" aria-hidden="true"></span>
+                  </span>
+                )}
+              </div>
+
+              <div className="input-group input-group-sm orders-month">
+                <span className="input-group-text" aria-hidden="true"><i className="fas fa-calendar-alt"></i></span>
+                <input
+                  type="month"
+                  className="form-control"
+                  value={filterMonth}
+                  onChange={e => setFilterMonth(e.target.value)}
+                  aria-label="Chọn tháng"
+                  disabled={overdueOnly || isSearchActive}
+                />
+              </div>
+
+              <div className="text-muted small ms-auto">
+                {isSearchActive ? 'Search bỏ qua filter' : (overdueOnly ? 'Đang xem đơn chậm' : (filterStatus ? `Lọc: ${getStatusLabel(filterStatus)}` : ''))}
               </div>
             </div>
           </div>
@@ -8832,8 +9794,50 @@
             )}
 
             {(isSearchActive ? orderSearchLoading : loading) ? (
-              <div className="text-center py-4">
-                <div className="spinner-border text-warning"></div>
+              <div className="orders-skeleton-wrap mt-3">
+                <div className="d-md-none">
+                  {new Array(6).fill(0).map((_, idx) => (
+                    <div key={idx} className="card mb-2">
+                      <div className="card-body p-3">
+                        <div className="admin-skeleton-line w-50 mb-2"></div>
+                        <div className="admin-skeleton-line w-75 mb-2"></div>
+                        <div className="admin-skeleton-line w-35"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="d-none d-md-block">
+                  <div className="table-responsive orders-table-wrap mt-3">
+                    <table className="table orders-table align-middle mb-0">
+                      <thead>
+                        <tr>
+                          <th>Khách hàng</th>
+                          <th>SĐT</th>
+                          <th>Sản phẩm</th>
+                          <th>SL</th>
+                          <th>Tổng tiền</th>
+                          <th>Trạng thái</th>
+                          <th>Thời gian</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {new Array(10).fill(0).map((_, idx) => (
+                          <tr key={idx}>
+                            <td><div className="admin-skeleton-line w-60"></div></td>
+                            <td><div className="admin-skeleton-line w-70"></div></td>
+                            <td><div className="admin-skeleton-line w-85"></div></td>
+                            <td><div className="admin-skeleton-line w-30"></div></td>
+                            <td><div className="admin-skeleton-line w-50"></div></td>
+                            <td><div className="admin-skeleton-line w-40"></div></td>
+                            <td><div className="admin-skeleton-line w-55"></div></td>
+                            <td><div className="admin-skeleton-line w-40"></div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             ) : (isSearchActive ? ordersToRender.length === 0 : orders.length === 0) ? (
               <div className="text-center py-4 text-muted">{isSearchActive ? 'Không có kết quả' : 'Chưa có đơn hàng'}</div>
@@ -8937,69 +9941,36 @@
                           <div className="text-muted"><span>Thời gian:</span> {formatDateTime(order.created_at)}</div>
                         </div>
 
-                        <div className="mt-3 d-flex gap-2">
-                          <button type="button" className="btn btn-sm btn-primary flex-fill" onClick={(e) => { e.stopPropagation(); editOrder(order); }} disabled={saving || !!deletingId || updatingId === order.id}>
-                            Sửa
-                          </button>
+                        <div className="mt-3 d-flex gap-2 align-items-center">
                           <button
                             type="button"
-                            className="btn btn-sm btn-outline-secondary flex-fill"
+                            className="btn btn-sm btn-outline-secondary"
                             onClick={(e) => { e.stopPropagation(); handleCopyOrder(order); }}
                             disabled={saving || !!deletingId || updatingId === order.id}
                           >
                             <i className="fas fa-copy me-1"></i>Copy
                           </button>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-danger flex-fill"
-                            onClick={(e) => { e.stopPropagation(); deleteOrder(order.id); }}
-                            disabled={saving || deletingId === order.id || updatingId === order.id}
+                          <select
+                            className="form-select form-select-sm orders-status-quick"
+                            defaultValue=""
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              const v = String(e.target.value || '').trim();
+                              e.target.value = '';
+                              if (!v) return;
+                              updateOrderStatus(order, v);
+                            }}
+                            disabled={saving || !!deletingId || updatingId === order.id}
+                            aria-label="Đổi trạng thái"
                           >
-                            {deletingId === order.id ? (
-                              <><span className="spinner-border spinner-border-sm me-2"></span>Đang xóa</>
-                            ) : (
-                              'Xóa'
-                            )}
-                          </button>
-                        </div>
-
-                        <div className="mt-2 d-flex gap-2">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-warning flex-fill"
-                            onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'processing'); }}
-                            disabled={saving || !!deletingId || updatingId === order.id || order.status === 'processing'}
-                            title="Đang vận chuyển"
-                          >
-                            Processing
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-success flex-fill"
-                            onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'done'); }}
-                            disabled={saving || !!deletingId || updatingId === order.id || order.status === 'done'}
-                            title="Hoàn thành"
-                          >
-                            Done
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-primary flex-fill"
-                            onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'paid'); }}
-                            disabled={saving || !!deletingId || updatingId === order.id || order.status === 'paid'}
-                            title="Đã nhận tiền"
-                          >
-                            Paid
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger flex-fill"
-                            onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'canceled'); }}
-                            disabled={saving || !!deletingId || updatingId === order.id || order.status === 'canceled'}
-                            title="Hủy đơn"
-                          >
-                            Hủy
-                          </button>
+                            <option value="">Đổi trạng thái…</option>
+                            <option value="pending">Chờ xử lý</option>
+                            <option value="processing">Đang vận chuyển</option>
+                            <option value="done">Hoàn thành</option>
+                            <option value="paid">Đã nhận tiền</option>
+                            <option value="canceled">Hủy đơn</option>
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -9078,53 +10049,32 @@
                           </td>
                           <td>{formatDateTime(order.created_at)}</td>
                           <td>
-                            <button type="button" className="btn btn-sm btn-primary me-1" onClick={(e) => { e.stopPropagation(); editOrder(order); }} disabled={saving || !!deletingId || updatingId === order.id}>Sửa</button>
-                            <button type="button" className="btn btn-sm btn-outline-secondary me-1" onClick={(e) => { e.stopPropagation(); handleCopyOrder(order); }} disabled={saving || !!deletingId || updatingId === order.id}>
-                              <i className="fas fa-copy"></i>
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-warning me-1"
-                              onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'processing'); }}
-                              disabled={saving || !!deletingId || updatingId === order.id || order.status === 'processing'}
-                              title="Đang vận chuyển"
-                            >
-                              Processing
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-success me-1"
-                              onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'done'); }}
-                              disabled={saving || !!deletingId || updatingId === order.id || order.status === 'done'}
-                              title="Hoàn thành"
-                            >
-                              Done
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-primary me-1"
-                              onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'paid'); }}
-                              disabled={saving || !!deletingId || updatingId === order.id || order.status === 'paid'}
-                              title="Đã nhận tiền"
-                            >
-                              Paid
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-danger me-1"
-                              onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'canceled'); }}
-                              disabled={saving || !!deletingId || updatingId === order.id || order.status === 'canceled'}
-                              title="Hủy đơn"
-                            >
-                              Hủy
-                            </button>
-                            <button type="button" className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); deleteOrder(order.id); }} disabled={saving || deletingId === order.id}>
-                              {deletingId === order.id ? (
-                                <><span className="spinner-border spinner-border-sm me-2"></span>Đang xóa</>
-                              ) : (
-                                'Xóa'
-                              )}
-                            </button>
+                            <div className="d-flex gap-2 justify-content-end">
+                              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={(e) => { e.stopPropagation(); handleCopyOrder(order); }} disabled={saving || !!deletingId || updatingId === order.id}>
+                                <i className="fas fa-copy"></i>
+                              </button>
+                              <select
+                                className="form-select form-select-sm orders-status-quick"
+                                defaultValue=""
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  const v = String(e.target.value || '').trim();
+                                  e.target.value = '';
+                                  if (!v) return;
+                                  updateOrderStatus(order, v);
+                                }}
+                                disabled={saving || !!deletingId || updatingId === order.id}
+                                aria-label="Đổi trạng thái"
+                              >
+                                <option value="">Status…</option>
+                                <option value="pending">Pending</option>
+                                <option value="processing">Processing</option>
+                                <option value="done">Done</option>
+                                <option value="paid">Paid</option>
+                                <option value="canceled">Hủy</option>
+                              </select>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -9171,66 +10121,116 @@
             onClose={closeOrderInspector}
             footer={(
               <div className="d-flex flex-wrap gap-2 justify-content-between">
-                <div className="d-flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={() => inspectorOrder && handleCopyOrder(inspectorOrder)}
-                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId}
-                  >
-                    <i className="fas fa-copy me-2"></i>Copy
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    onClick={() => inspectorOrder && editOrder(inspectorOrder)}
-                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId}
-                  >
-                    <i className="fas fa-pen me-2"></i>Sửa
-                  </button>
-                </div>
-                <div className="d-flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-warning"
-                    onClick={() => inspectorOrder && updateOrderStatus(inspectorOrder, 'processing')}
-                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId || updatingId === inspectorOrder?.id || inspectorOrder?.status === 'processing'}
-                    title="Đang vận chuyển"
-                  >
-                    Processing
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-success"
-                    onClick={() => inspectorOrder && updateOrderStatus(inspectorOrder, 'done')}
-                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId || updatingId === inspectorOrder?.id || inspectorOrder?.status === 'done'}
-                    title="Hoàn thành"
-                  >
-                    Done
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={() => inspectorOrder && updateOrderStatus(inspectorOrder, 'paid')}
-                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId || updatingId === inspectorOrder?.id || inspectorOrder?.status === 'paid'}
-                    title="Đã nhận tiền"
-                  >
-                    Paid
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() => inspectorOrder && updateOrderStatus(inspectorOrder, 'canceled')}
-                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId || updatingId === inspectorOrder?.id || inspectorOrder?.status === 'canceled'}
-                    title="Hủy đơn"
-                  >
-                    Hủy
-                  </button>
-                </div>
+                {inspectorEditMode ? (
+                  <>
+                    <div className="d-flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => {
+                          setInspectorEditMode(false);
+                          setEditingId(null);
+                          resetOrderForm('');
+                          setShowPhoneHistory(false);
+                          setSplitDeliverNow([]);
+                        }}
+                        disabled={saving || splitting}
+                      >
+                        <i className="fas fa-xmark me-2"></i>Hủy sửa
+                      </button>
+
+                      {!!editingId && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-primary fw-semibold"
+                          onClick={splitOrderDeliverNow}
+                          disabled={saving || splitting}
+                          title="Chọn sản phẩm giao đợt 1 và tách phần còn lại sang đơn chờ hàng"
+                        >
+                          {splitting ? (
+                            <><span className="spinner-border spinner-border-sm me-2"></span>Đang tách...</>
+                          ) : (
+                            <><i className="fas fa-random me-2"></i>Tách giao ngay</>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    <div className="d-flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-warning fw-semibold"
+                        onClick={() => saveOrder({ mode: 'close', origin: 'drawer' })}
+                        disabled={saving || splitting || !orderFieldIssues.canSubmit}
+                        style={{ boxShadow: '0 4px 12px rgba(255,193,7,0.25)' }}
+                      >
+                        {saving ? (
+                          <><span className="spinner-border spinner-border-sm me-2"></span>Đang lưu...</>
+                        ) : (
+                          <><i className="fas fa-check me-2"></i>Lưu</>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="d-flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => inspectorOrder && handleCopyOrder(inspectorOrder)}
+                        disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId}
+                      >
+                        <i className="fas fa-copy me-2"></i>Copy
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-primary"
+                        onClick={() => inspectorOrder && editOrder(inspectorOrder)}
+                        disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId}
+                      >
+                        <i className="fas fa-pen me-2"></i>Sửa
+                      </button>
+                    </div>
+                    <div className="d-flex flex-wrap gap-2 align-items-center">
+                      <select
+                        className="form-select form-select-sm"
+                        defaultValue=""
+                        onChange={(e) => {
+                          const v = String(e.target.value || '').trim();
+                          e.target.value = '';
+                          if (!v) return;
+                          inspectorOrder && updateOrderStatus(inspectorOrder, v);
+                        }}
+                        disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId || updatingId === inspectorOrder?.id}
+                        aria-label="Đổi trạng thái"
+                        style={{ minWidth: 140 }}
+                      >
+                        <option value="">Status…</option>
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="done">Done</option>
+                        <option value="paid">Paid</option>
+                        <option value="canceled">Hủy</option>
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           >
-            {inspectorLoading ? (
+            {inspectorEditMode ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  saveOrder({ mode: 'close', origin: 'drawer' });
+                }}
+              >
+                <div className="admin-drawer-section">
+                  <h6><i className="fas fa-pen me-2 text-warning"></i>Chỉnh sửa</h6>
+                  {renderOrderFormFields()}
+                </div>
+              </form>
+            ) : inspectorLoading ? (
               <div className="admin-drawer-section">
                 <div className="text-muted small mb-2">Đang tải chi tiết…</div>
                 <div className="d-flex align-items-center gap-2">
@@ -9357,7 +10357,7 @@
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      saveOrder({ mode: 'close' });
+                      saveOrder({ mode: 'close', origin: 'modal' });
                     }}
                   >
                     <div className="modal-body" ref={orderModalBodyRef}>
@@ -9960,7 +10960,7 @@
                         <button
                           type="button"
                           className="btn btn-outline-warning fw-semibold"
-                          onClick={() => saveOrder({ mode: 'new' })}
+                          onClick={() => saveOrder({ mode: 'new', origin: 'modal' })}
                           disabled={saving || !orderFieldIssues.canSubmit}
                           style={{ borderRadius: 10 }}
                           title="Lưu xong giữ form để tạo đơn mới"
