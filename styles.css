@@ -44,13 +44,73 @@
   overflow: visible !important;
 }
 
+/* ================== KTM DESIGN SYSTEM (Premium UI) ================== */
+:root {
+  --ktm-bg: #0b1020;
+  --ktm-surface: #ffffff;
+  --ktm-surface-2: #f8fafc;
+  --ktm-text: #0f172a;
+  --ktm-muted: #475569;
+  --ktm-border: rgba(15, 23, 42, 0.10);
+
+  --ktm-primary: #0d6efd;
+  --ktm-primary-2: #2563eb;
+  --ktm-accent: #fbbf24;
+  --ktm-accent-2: #f59e0b;
+
+  --ktm-radius-sm: 10px;
+  --ktm-radius-md: 14px;
+  --ktm-radius-lg: 18px;
+
+  --ktm-shadow-sm: 0 8px 20px rgba(2, 6, 23, 0.08);
+  --ktm-shadow-md: 0 18px 45px rgba(2, 6, 23, 0.14);
+  --ktm-ring: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-    font-family: 'Noto Sans', sans-serif;
-    line-height: 1.6;
-    color: #222;
-    background-color: #fff;
-    scroll-behavior: smooth;
+  font-family: 'Noto Sans', sans-serif;
+  line-height: 1.6;
+  color: var(--ktm-text);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(37, 99, 235, 0.18), transparent 60%),
+    radial-gradient(1200px 600px at 90% 0%, rgba(251, 191, 36, 0.14), transparent 55%),
+    #ffffff;
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
   }
+}
+
+a {
+  color: var(--ktm-primary-2);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: var(--ktm-primary);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ktm-ring) !important;
+  border-radius: 10px;
+}
+
+/* NOTE: body base styles are defined in KTM DESIGN SYSTEM above */
   
   img {
     max-width: 100%;
@@ -68,11 +128,61 @@ body {
   }
   
   .hero-section {
-    background-size: cover;
-    background-position: center;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      color: #fff;
+      text-align: center;
+  }
+
+  /* Hero (premium) */
+  .ktm-hero {
+    background-image: var(--hero-bg);
+    padding: 5.5rem 0;
+    border-bottom: 1px solid rgba(2, 6, 23, 0.10);
+    overflow: hidden;
+  }
+
+  .ktm-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(2, 6, 23, 0.70) 0%, rgba(2, 6, 23, 0.45) 45%, rgba(2, 6, 23, 0.75) 100%),
+      radial-gradient(900px 480px at 20% 10%, rgba(37, 99, 235, 0.25), transparent 60%),
+      radial-gradient(900px 480px at 80% 30%, rgba(251, 191, 36, 0.18), transparent 60%);
+  }
+
+  .ktm-hero-inner {
     position: relative;
-    color: #fff;
-    text-align: center;
+    z-index: 1;
+    max-width: 980px;
+  }
+
+  .ktm-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(8px);
+    font-weight: 600;
+  }
+
+  .ktm-hero-title {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-top: 16px;
+    margin-bottom: 12px;
+    font-size: clamp(1.75rem, 3.4vw, 3rem);
+  }
+
+  .ktm-hero-subtitle {
+    color: rgba(255, 255, 255, 0.92);
+    font-size: clamp(1rem, 1.5vw, 1.2rem);
+    margin: 0;
   }
   
   .btn {
@@ -80,6 +190,64 @@ body {
     padding: 10px 20px;
     font-weight: 600;
     transition: all 0.3s ease;
+  }
+
+  /* KTM buttons (only applied when ktm-btn class is present) */
+  .ktm-btn {
+    border-radius: 999px !important;
+    padding: 0.7rem 1.05rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em;
+    border: 1px solid transparent;
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.14);
+  }
+
+  .ktm-btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .ktm-btn:active {
+    transform: translateY(0);
+  }
+
+  .ktm-btn-primary {
+    color: #fff !important;
+    background: linear-gradient(135deg, #2563eb, #0d6efd) !important;
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+
+  .ktm-btn-accent {
+    color: #111827 !important;
+    background: linear-gradient(135deg, var(--ktm-accent), var(--ktm-accent-2)) !important;
+    border-color: rgba(17, 24, 39, 0.12);
+  }
+
+  .ktm-btn-ghost {
+    color: var(--ktm-primary-2) !important;
+    background: rgba(37, 99, 235, 0.08) !important;
+    border-color: rgba(37, 99, 235, 0.18) !important;
+    box-shadow: none;
+  }
+
+  .ktm-btn-ghost-on-dark {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.20) !important;
+    box-shadow: none;
+  }
+
+  .ktm-btn-icon {
+    width: 44px;
+    height: 44px;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px !important;
+    color: var(--ktm-primary-2) !important;
+    background: rgba(37, 99, 235, 0.08) !important;
+    border-color: rgba(37, 99, 235, 0.18) !important;
+    box-shadow: none;
   }
   
   .btn:hover {
@@ -116,6 +284,17 @@ body {
     border: none;
     border-radius: 12px;
     overflow: hidden;
+  }
+
+  /* Give cards a more premium feel, without breaking Bootstrap */
+  .card {
+    background: var(--ktm-surface);
+    border: 1px solid var(--ktm-border);
+    box-shadow: var(--ktm-shadow-sm);
+  }
+
+  .card:hover {
+    box-shadow: var(--ktm-shadow-md);
   }
   
   .card-title {
@@ -751,7 +930,51 @@ body {
   left: 0;
   right: 0;
   z-index: 1200;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.86);
+  border-bottom: 1px solid rgba(2, 6, 23, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.ktm-header {
+  padding: 10px 0;
+}
+
+.ktm-header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.ktm-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ktm-text);
+  text-decoration: none;
+}
+
+.ktm-brand:hover {
+  color: var(--ktm-text);
+}
+
+.ktm-brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.14);
+}
+
+.ktm-brand-title {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+
+.ktm-brand-sub {
+  font-size: 12.5px;
+  color: var(--ktm-muted);
+  line-height: 1.15;
 }
 
 /* Thanh search nằm ngay dưới header, cũng on top */
@@ -761,7 +984,9 @@ body {
   left: 0;
   right: 0;
   z-index: 1190;
-  background: #f8f9fa;
+  background: rgba(248, 250, 252, 0.92);
+  border-bottom: 1px solid rgba(2, 6, 23, 0.06);
+  backdrop-filter: blur(10px);
 }
 
 /* Mobile chỉnh top nhỏ hơn chút cho dễ thở */
@@ -775,6 +1000,117 @@ body {
 /* Đệm nội dung xuống dưới header + thanh search */
 body {
   padding-top: 150px; /* nếu thấy thừa/thiếu thì chỉnh 140–170px */
+}
+
+/* Footer (premium) */
+.ktm-footer {
+  margin-top: 32px;
+}
+
+.ktm-footer-top {
+  padding: 44px 0;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border-top: 1px solid rgba(2, 6, 23, 0.08);
+}
+
+.ktm-footer-brand-title {
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #0f172a;
+}
+
+.ktm-footer-brand-sub {
+  color: var(--ktm-muted);
+  margin-top: 8px;
+}
+
+.ktm-footer-col-title {
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+
+.ktm-footer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  color: #0f172a;
+}
+
+.ktm-footer-label {
+  font-weight: 800;
+  color: var(--ktm-primary-2);
+}
+
+.ktm-footer-cta {
+  font-weight: 700;
+}
+
+.ktm-footer-hotline {
+  margin-left: 8px;
+  color: #dc2626;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.ktm-footer-hotline:hover {
+  color: #b91c1c;
+}
+
+.ktm-footer-hotline-note {
+  margin-left: 6px;
+  color: var(--ktm-muted);
+  font-weight: 600;
+}
+
+.ktm-footer-link {
+  color: var(--ktm-primary-2);
+  font-weight: 700;
+}
+
+.ktm-footer-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  color: var(--ktm-primary-2);
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.ktm-footer-pill:hover {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.ktm-footer-bottom {
+  padding: 18px 0;
+  background: #0b1020;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.ktm-footer-bottom-link {
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.ktm-footer-bottom-link:hover {
+  text-decoration: underline;
+}
+
+.ktm-footer-bottom-center {
+  text-align: center;
+}
+
+.ktm-footer-badge img {
+  height: 46px;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.35));
 }
 
 /* Khung ảnh trong dropdown autosuggest (global search) */
