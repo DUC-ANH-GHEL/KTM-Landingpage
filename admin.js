@@ -6524,6 +6524,8 @@
         address: "",
         note: "",
         items: [{ product_id: "", quantity: 1, unit_price: null, variant: '', variant_json: null }],
+        adjustment_items: [{ amount: '', note: '' }],
+        // Stored/derived fields (back-compat with API/database)
         adjustment_amount: 0,
         adjustment_note: "",
         status: "pending"
@@ -6617,6 +6619,7 @@
           address: "",
           note: "",
           items: [{ product_id: presetProductId || "", quantity: 1, unit_price: null, variant: '', variant_json: null }],
+          adjustment_items: [{ amount: '', note: '' }],
           adjustment_amount: 0,
           adjustment_note: "",
           status: "pending"
@@ -6645,6 +6648,65 @@
       const parseSignedMoney = (value) => window.KTM.money.parseSignedMoney(value);
 
       const formatVND = (n) => window.KTM.money.formatVND(n);
+
+      const normalizeAdjustmentFormItems = (raw) => {
+        const arr = Array.isArray(raw) ? raw : [];
+        const items = arr.map((it) => ({
+          amount: String(it?.amount ?? ''),
+          note: String(it?.note ?? ''),
+        }));
+        return items.length ? items : [{ amount: '', note: '' }];
+      };
+
+      const getAdjustmentFormItemsFromOrder = (order) => {
+        try {
+          const items = window.KTM.orders.getOrderAdjustmentItems(order);
+          const ui = (Array.isArray(items) ? items : [])
+            .map((it) => ({
+              amount: it?.amount === 0 ? '' : String(it?.amount ?? ''),
+              note: String(it?.note ?? '').trim(),
+            }))
+            .filter((it) => String(it.amount || '').trim() || String(it.note || '').trim());
+          return ui.length ? ui : [{ amount: '', note: '' }];
+        } catch {
+          return [{ amount: '', note: '' }];
+        }
+      };
+
+      const cleanAdjustmentItemsForPayload = (formItems) => {
+        const arr = Array.isArray(formItems) ? formItems : [];
+        return arr
+          .map((it) => ({
+            amount: parseSignedMoney(it?.amount),
+            note: String(it?.note || '').trim(),
+          }))
+          .filter((it) => it.amount !== 0 || !!it.note);
+      };
+
+      const getAdjustmentDerivedFromForm = (formLike) => {
+        const adjFormItems = Array.isArray(formLike?.adjustment_items) ? formLike.adjustment_items : [];
+        const cleanAdjItems = cleanAdjustmentItemsForPayload(adjFormItems);
+        const amount = computeAdjustmentSum(cleanAdjItems);
+        const summaryText = (() => {
+          if (!cleanAdjItems.length) return '';
+          const notes = cleanAdjItems
+            .map((it) => String(it?.note || '').trim())
+            .filter(Boolean);
+          if (notes.length) return notes.join(' • ');
+          return cleanAdjItems.length > 1 ? `${cleanAdjItems.length} mục` : '';
+        })();
+        return { cleanAdjItems, amount, summaryText };
+      };
+
+      const computeAdjustmentSum = (payloadItems) => {
+        const arr = Array.isArray(payloadItems) ? payloadItems : [];
+        return arr.reduce((sum, it) => sum + (Number(it?.amount) || 0), 0);
+      };
+
+      const serializeAdjustmentItems = (payloadItems) => {
+        const arr = Array.isArray(payloadItems) ? payloadItems : [];
+        return arr.length ? JSON.stringify(arr) : '';
+      };
 
       const parseShipFeeFromNote = (note) => window.KTM.money.parseShipFeeFromNote(note);
 
@@ -7174,14 +7236,20 @@
             })).filter((it) => it.product_id)
           : [{ product_id: order.product_id || '', quantity: Number(order.quantity || 1) || 1, unit_price: null, variant: '', variant_json: null }];
 
+        const adjFormItems = getAdjustmentFormItemsFromOrder(order);
+        const cleanAdjItems = cleanAdjustmentItemsForPayload(adjFormItems);
+        const adjSum = computeAdjustmentSum(cleanAdjItems);
+        const adjNoteStored = serializeAdjustmentItems(cleanAdjItems);
+
         setForm({
           customer_name: order.customer_name || "",
           phone: normalizePhone(order.phone || ""),
           address: order.address || "",
           note: order?.note || "",
           items: items.length ? items : [{ product_id: "", quantity: 1, unit_price: null, variant: '', variant_json: null }],
-          adjustment_amount: Number(order?.adjustment_amount ?? 0) || 0,
-          adjustment_note: order?.adjustment_note || "",
+          adjustment_items: adjFormItems,
+          adjustment_amount: adjSum,
+          adjustment_note: adjNoteStored || (order?.adjustment_note || ""),
           status: order.status || "pending",
         });
         setItemSearches(new Array(items.length ? items.length : 1).fill(''));
@@ -7271,8 +7339,10 @@
 
         setSplitting(true);
         try {
-          const adjNow = parseSignedMoney(form.adjustment_amount);
-          const adjNoteNow = (form.adjustment_note || '').trim();
+          const adjFormItems = Array.isArray(form?.adjustment_items) ? form.adjustment_items : [];
+          const cleanAdjItems = cleanAdjustmentItemsForPayload(adjFormItems);
+          const adjNow = computeAdjustmentSum(cleanAdjItems);
+          const adjNoteNow = serializeAdjustmentItems(cleanAdjItems);
 
           // 1) Create new order for immediate delivery
           const createPayload = {
@@ -7282,6 +7352,7 @@
             note: (form.note || '').trim(),
             adjustment_amount: adjNow,
             adjustment_note: adjNoteNow,
+            adjustment_items: cleanAdjItems,
             status: 'processing',
             items: selected,
             // Back-compat fields
@@ -7307,6 +7378,7 @@
             note: (form.note || '').trim(),
             adjustment_amount: 0,
             adjustment_note: '',
+            adjustment_items: [],
             status: 'pending',
             items: remaining,
             // Back-compat fields
@@ -7727,6 +7799,8 @@
 
       const getOrderAdjustmentMoney = (order) => window.KTM.orders.getOrderAdjustmentMoney(order);
 
+      const getOrderAdjustmentSummaryText = (order) => window.KTM.orders.getOrderAdjustmentSummaryText(order);
+
       const getOrderCopyText = (order) => {
         const items = getOrderItems(order);
         const rows = getOrderItemRows(order);
@@ -7735,6 +7809,12 @@
         const ship = shipInfo.fee;
         const adj = getOrderAdjustmentMoney(order);
         const total = subtotal + ship + adj;
+
+        const formatSignedVND = (n) => {
+          const num = Number(n) || 0;
+          if (num > 0) return `+${formatVND(num)}`;
+          return formatVND(num);
+        };
 
         const parts = [];
         if (order?.customer_name) parts.push(`KHÁCH: ${order.customer_name}`);
@@ -7757,9 +7837,26 @@
         parts.push(`TẠM TÍNH: ${formatVND(subtotal)}`);
         if (shipInfo.found && ship !== 0) parts.push(`SHIP: ${formatVND(ship)}`);
         {
-          const adjNote = String(order?.adjustment_note || '').trim();
-          if (adj !== 0 || adjNote) {
-            parts.push(`ĐIỀU CHỈNH: ${formatVND(adj)}${adjNote ? ` (${adjNote})` : ''}`);
+          const adjItemsRaw = window.KTM.orders.getOrderAdjustmentItems(order);
+          const adjItems = (Array.isArray(adjItemsRaw) ? adjItemsRaw : [])
+            .map((it) => ({
+              amount: Number(it?.amount ?? 0) || 0,
+              note: String(it?.note || '').trim(),
+            }))
+            .filter((it) => it.amount !== 0 || !!it.note);
+
+          const adjNoteSummary = getOrderAdjustmentSummaryText(order);
+          const hasAnyAdj = adj !== 0 || adjItems.length > 0 || !!adjNoteSummary;
+          if (hasAnyAdj) {
+            if (adjItems.length === 1) {
+              const it = adjItems[0];
+              parts.push(`ĐIỀU CHỈNH: ${formatSignedVND(adj)}${it.note ? ` — ${it.note}` : ''}`);
+            } else {
+              parts.push(`ĐIỀU CHỈNH: ${formatSignedVND(adj)}${(!adjItems.length && adjNoteSummary) ? ` — ${adjNoteSummary}` : ''}`);
+              for (const it of adjItems) {
+                parts.push(`- ${formatSignedVND(it.amount)}${it.note ? `: ${it.note}` : ''}`);
+              }
+            }
           }
         }
         parts.push(`TỔNG: ${formatVND(total)}`);
@@ -7804,7 +7901,7 @@
         const name = String(nextForm?.customer_name || '').trim().toLowerCase();
         const phone = normalizePhone(nextForm?.phone || '');
         const address = String(nextForm?.address || '').trim().toLowerCase();
-        const adj = parseSignedMoney(nextForm?.adjustment_amount);
+        const adj = getAdjustmentDerivedFromForm(nextForm).amount;
 
         const items = Array.isArray(nextForm?.items) ? nextForm.items : [];
         const normalizedItems = items
@@ -7938,8 +8035,10 @@
         const subtotal = getItemsSubtotal(selectedItems);
         const shipInfo = getOrderShipInfo(selectedItems);
         const ship = shipInfo?.found ? Number(shipInfo?.fee ?? 0) : 0;
-        const adj = parseSignedMoney(nextForm?.adjustment_amount);
-        const adjNote = String(nextForm?.adjustment_note || '').trim();
+        const adjFormItems = Array.isArray(nextForm?.adjustment_items) ? nextForm.adjustment_items : [];
+        const cleanAdjItems = cleanAdjustmentItemsForPayload(adjFormItems);
+        const adj = computeAdjustmentSum(cleanAdjItems);
+        const hasMissingAdjNote = cleanAdjItems.some((it) => (Number(it?.amount) || 0) !== 0 && !String(it?.note || '').trim());
 
         if (shipInfo?.found) {
           if (ship >= 200000 || (subtotal > 0 && ship > subtotal * 0.6)) {
@@ -7947,9 +8046,7 @@
           }
         }
 
-        if (adj !== 0 && !adjNote) {
-          warnings.push('Có điều chỉnh nhưng thiếu ghi chú điều chỉnh');
-        }
+        if (hasMissingAdjNote) warnings.push('Có điều chỉnh nhưng thiếu ghi chú điều chỉnh');
         const absAdj = Math.abs(adj);
         if (absAdj >= 500000 || (subtotal > 0 && absAdj > subtotal * 0.5)) {
           if (adj !== 0) warnings.push(`Điều chỉnh có vẻ bất thường: ${formatVND(adj)}`);
@@ -7993,10 +8090,12 @@
         const shipInfo = getOrderShipInfo(selectedItems);
         const ship = shipInfo?.found ? Number(shipInfo?.fee ?? 0) : 0;
 
-        const adj = parseSignedMoney(form?.adjustment_amount);
-        const adjNote = String(form?.adjustment_note || '').trim();
+        const adjFormItems = Array.isArray(form?.adjustment_items) ? form.adjustment_items : [];
+        const cleanAdjItems = cleanAdjustmentItemsForPayload(adjFormItems);
+        const adj = computeAdjustmentSum(cleanAdjItems);
+        const hasMissingAdjNote = cleanAdjItems.some((it) => (Number(it?.amount) || 0) !== 0 && !String(it?.note || '').trim());
         const absAdj = Math.abs(adj);
-        const adjustmentNoteWarn = adj !== 0 && !adjNote ? 'Có điều chỉnh nhưng thiếu ghi chú điều chỉnh' : '';
+        const adjustmentNoteWarn = hasMissingAdjNote ? 'Có điều chỉnh nhưng thiếu ghi chú điều chỉnh' : '';
         const adjustmentAbnormalWarn = (adj !== 0 && (absAdj >= 500000 || (subtotal > 0 && absAdj > subtotal * 0.5)))
           ? `Điều chỉnh có vẻ bất thường: ${formatVND(adj)}`
           : '';
@@ -8081,13 +8180,18 @@
             : `${API_BASE}/api/orders`;
 
           const primary = normalizedItems[0];
+          const adjFormItems = Array.isArray(form?.adjustment_items) ? form.adjustment_items : [];
+          const cleanAdjItems = cleanAdjustmentItemsForPayload(adjFormItems);
+          const adjAmountNow = computeAdjustmentSum(cleanAdjItems);
+          const adjNoteNow = serializeAdjustmentItems(cleanAdjItems);
           const payload = {
             customer_name: form.customer_name,
             phone: normalizedPhone,
             address: form.address,
             note: (form.note || '').trim(),
-            adjustment_amount: parseSignedMoney(form.adjustment_amount),
-            adjustment_note: (form.adjustment_note || '').trim(),
+            adjustment_amount: adjAmountNow,
+            adjustment_note: adjNoteNow,
+            adjustment_items: cleanAdjItems,
             // Back-compat fields (API will normalize from items anyway)
             product_id: primary.product_id,
             quantity: primary.quantity,
@@ -8493,12 +8597,12 @@
                               );
                             })()}
                           </div>
-                          {(getOrderAdjustmentMoney(order) !== 0 || (order?.adjustment_note || '').trim()) && (
+                          {(getOrderAdjustmentMoney(order) !== 0 || getOrderAdjustmentSummaryText(order)) && (
                             <div style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
                               <span className="text-muted">Điều chỉnh:</span>{' '}
                               <span className="fw-semibold">{formatVND(getOrderAdjustmentMoney(order))}</span>
-                              {(order?.adjustment_note || '').trim() ? (
-                                <span className="text-muted">{' '}({(order.adjustment_note || '').trim()})</span>
+                              {getOrderAdjustmentSummaryText(order) ? (
+                                <span className="text-muted">{' '}({getOrderAdjustmentSummaryText(order)})</span>
                               ) : null}
                             </div>
                           )}
@@ -8869,31 +8973,91 @@
                           />
                         </div>
 
-                        <div className="col-12 col-md-6">
-                          <label className="form-label fw-semibold small text-muted mb-1">Điều chỉnh giá (thêm/bớt)</label>
-                          <input
-                            type="number"
-                            className="form-control"
-                            value={form.adjustment_amount}
-                            onChange={e => setForm({ ...form, adjustment_amount: e.target.value })}
-                            placeholder="-20000 hoặc 20000"
-                            step="1000"
-                            style={{ borderRadius: 10, padding: 12 }}
-                          />
+                        <div className="col-12">
+                          <div className="d-flex align-items-center justify-content-between">
+                            <label className="form-label fw-semibold small text-muted mb-1">Điều chỉnh giá (thêm/bớt)</label>
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary btn-sm"
+                              onClick={() => {
+                                setForm((prev) => ({
+                                  ...prev,
+                                  adjustment_items: [
+                                    ...(Array.isArray(prev.adjustment_items) ? prev.adjustment_items : [{ amount: '', note: '' }]),
+                                    { amount: '', note: '' },
+                                  ],
+                                }));
+                              }}
+                            >
+                              <i className="fas fa-plus me-2"></i>Thêm điều chỉnh
+                            </button>
+                          </div>
+
+                          <div className="d-grid gap-2">
+                            {normalizeAdjustmentFormItems(form.adjustment_items).map((adj, idx) => (
+                              <div key={idx} className="row g-2 align-items-end">
+                                <div className="col-12 col-md-3">
+                                  <label className="form-label small text-muted mb-1">Số tiền</label>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    className="form-control"
+                                    value={adj.amount}
+                                    onChange={(e) => {
+                                      const nextAmount = e.target.value;
+                                      setForm((prev) => {
+                                        const arr = normalizeAdjustmentFormItems(prev.adjustment_items);
+                                        arr[idx] = { ...arr[idx], amount: nextAmount };
+                                        return { ...prev, adjustment_items: arr };
+                                      });
+                                    }}
+                                    placeholder="+500000 hoặc -200000"
+                                    style={{ borderRadius: 10, padding: 12 }}
+                                  />
+                                </div>
+                                <div className="col-12 col-md-8">
+                                  <label className="form-label small text-muted mb-1">Ghi chú</label>
+                                  <input
+                                    className="form-control"
+                                    value={adj.note}
+                                    onChange={(e) => {
+                                      const nextNote = e.target.value;
+                                      setForm((prev) => {
+                                        const arr = normalizeAdjustmentFormItems(prev.adjustment_items);
+                                        arr[idx] = { ...arr[idx], note: nextNote };
+                                        return { ...prev, adjustment_items: arr };
+                                      });
+                                    }}
+                                    placeholder="Ví dụ: thêm van 1 tay / giảm giá..."
+                                    style={{ borderRadius: 10, padding: 12 }}
+                                  />
+                                </div>
+                                <div className="col-12 col-md-1 d-flex">
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline-danger w-100"
+                                    onClick={() => {
+                                      setForm((prev) => {
+                                        const arr = normalizeAdjustmentFormItems(prev.adjustment_items);
+                                        arr.splice(idx, 1);
+                                        return { ...prev, adjustment_items: arr.length ? arr : [{ amount: '', note: '' }] };
+                                      });
+                                    }}
+                                    disabled={saving || normalizeAdjustmentFormItems(form.adjustment_items).length <= 1}
+                                    title="Xóa điều chỉnh"
+                                    style={{ borderRadius: 10, padding: 12 }}
+                                  >
+                                    <i className="fas fa-trash"></i>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
                           <div className="form-text">Âm = giảm giá, dương = cộng thêm.</div>
                           {!!orderFieldIssues.adjustmentAbnormalWarn && (
                             <div className="form-text text-warning">{orderFieldIssues.adjustmentAbnormalWarn}</div>
                           )}
-                        </div>
-                        <div className="col-12 col-md-6">
-                          <label className="form-label fw-semibold small text-muted mb-1">Ghi chú điều chỉnh</label>
-                          <input
-                            className="form-control"
-                            value={form.adjustment_note}
-                            onChange={e => setForm({ ...form, adjustment_note: e.target.value })}
-                            placeholder="Ví dụ: Giảm giá cho khách / Bù phí đóng gói..."
-                            style={{ borderRadius: 10, padding: 12 }}
-                          />
                           {!!orderFieldIssues.adjustmentNoteWarn && (
                             <div className="form-text text-warning">{orderFieldIssues.adjustmentNoteWarn}</div>
                           )}
@@ -9189,7 +9353,8 @@
                           const normalizedItems = items.filter(it => it?.product_id);
                           const subtotal = getItemsSubtotal(normalizedItems);
                           const shipInfo = getOrderShipInfo(normalizedItems);
-                          const adj = parseSignedMoney(form.adjustment_amount);
+                          const adjDerived = getAdjustmentDerivedFromForm(form);
+                          const adj = adjDerived.amount;
                           const total = subtotal + (shipInfo.found ? shipInfo.fee : 0) + adj;
 
                           return (
@@ -9219,9 +9384,9 @@
                                     Ghi chú đơn: {(form.note || '').trim()}
                                   </div>
                                 )}
-                                {(form.adjustment_note || '').trim() && (
+                                {!!adjDerived.summaryText && (
                                   <div className="text-muted" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                                    Ghi chú điều chỉnh: {(form.adjustment_note || '').trim()}
+                                    Ghi chú điều chỉnh: {adjDerived.summaryText}
                                   </div>
                                 )}
                                 <div className="d-flex justify-content-between pt-1 border-top">

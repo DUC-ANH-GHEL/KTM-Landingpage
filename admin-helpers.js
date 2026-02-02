@@ -362,6 +362,46 @@
     return Number.isFinite(n) ? Math.trunc(n) : 0;
   };
 
+  orders.getOrderAdjustmentItems = orders.getOrderAdjustmentItems || function getOrderAdjustmentItems(order) {
+    const legacyAmount = orders.getOrderAdjustmentMoney(order);
+    const rawNote = order?.adjustment_note;
+    const noteText = rawNote == null ? '' : String(rawNote);
+
+    // New format: adjustment_note stores JSON array: [{ amount: 500000, note: '...' }, ...]
+    // Keep this best-effort and safe.
+    try {
+      const trimmed = noteText.trim();
+      if (trimmed && (trimmed.startsWith('[') || trimmed.startsWith('{'))) {
+        const parsed = JSON.parse(trimmed);
+        const arr = Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' ? [parsed] : []);
+        const items = arr
+          .map((it) => {
+            const amount = money.parseSignedMoney(it?.amount ?? it?.adjustment_amount ?? 0);
+            const note = String(it?.note ?? it?.adjustment_note ?? '').trim();
+            return { amount, note };
+          })
+          .filter((it) => it.amount !== 0 || !!it.note);
+        if (items.length) return items;
+      }
+    } catch {
+      // ignore
+    }
+
+    const legacyNote = noteText.trim();
+    if (legacyAmount !== 0 || legacyNote) {
+      return [{ amount: legacyAmount, note: legacyNote }];
+    }
+    return [];
+  };
+
+  orders.getOrderAdjustmentSummaryText = orders.getOrderAdjustmentSummaryText || function getOrderAdjustmentSummaryText(order) {
+    const items = orders.getOrderAdjustmentItems(order);
+    if (!items.length) return '';
+    const notes = items.map((it) => String(it?.note || '').trim()).filter(Boolean);
+    if (notes.length) return notes.join('; ');
+    return items.length > 1 ? `${items.length} mục` : '';
+  };
+
   orders.getOrderItemRows = orders.getOrderItemRows || function getOrderItemRows(order, getProductById) {
     const items = orders.getOrderItems(order);
     if (!items.length) return [];
