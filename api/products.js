@@ -1,7 +1,18 @@
 import { neon } from '@neondatabase/serverless';
 import crypto from 'crypto';
 
-const sql = neon(process.env.DATABASE_URL);
+let _sql = null;
+function getSql() {
+  if (!process.env.DATABASE_URL) return null;
+  if (!_sql) _sql = neon(process.env.DATABASE_URL);
+  return _sql;
+}
+
+let _productsSchemaEnsured = false;
+let _productsSchemaPromise = null;
+
+let _settingsSchemaEnsured = false;
+let _settingsSchemaPromise = null;
 
 const DEFAULT_SHIP_PERCENT = 1.64;
 
@@ -118,6 +129,9 @@ function normalizeVariants(value, basePriceText) {
 }
 
 async function ensureProductsSchema() {
+  const sql = getSql();
+  if (!sql) throw new Error('DATABASE_URL not configured');
+
   // Create table if missing (includes new column)
   await sql`
     CREATE TABLE IF NOT EXISTS products (
@@ -141,9 +155,31 @@ async function ensureProductsSchema() {
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS commission_percent NUMERIC(6,2) DEFAULT 5`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB`;
+
+  // Helpful indexes for common list queries
+  await sql`CREATE INDEX IF NOT EXISTS products_sort_order_created_at_idx ON products(sort_order ASC, created_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS products_category_sort_order_created_at_idx ON products(category, sort_order ASC, created_at DESC)`;
+}
+
+async function ensureProductsSchemaOnce() {
+  if (_productsSchemaEnsured) return;
+  if (!_productsSchemaPromise) {
+    _productsSchemaPromise = ensureProductsSchema()
+      .then(() => {
+        _productsSchemaEnsured = true;
+      })
+      .catch((err) => {
+        _productsSchemaPromise = null;
+        throw err;
+      });
+  }
+  return _productsSchemaPromise;
 }
 
 async function ensureSettingsSchema() {
+  const sql = getSql();
+  if (!sql) throw new Error('DATABASE_URL not configured');
+
   await sql`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -151,6 +187,21 @@ async function ensureSettingsSchema() {
       updated_at TIMESTAMP DEFAULT NOW()
     )
   `;
+}
+
+async function ensureSettingsSchemaOnce() {
+  if (_settingsSchemaEnsured) return;
+  if (!_settingsSchemaPromise) {
+    _settingsSchemaPromise = ensureSettingsSchema()
+      .then(() => {
+        _settingsSchemaEnsured = true;
+      })
+      .catch((err) => {
+        _settingsSchemaPromise = null;
+        throw err;
+      });
+  }
+  return _settingsSchemaPromise;
 }
 
 // Initial products data for migration
@@ -198,16 +249,50 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  const sql = getSql();
+  if (!sql) {
+    return res.status(500).json({ error: 'DATABASE_URL not configured' });
+  }
+
   try {
+    const debug = String(req.query?.debug ?? '') === '1';
+    const withMeta = String(req.query?.meta ?? '') === '1';
+    const t0 = debug ? Date.now() : 0;
+
+    const fields = String(req.query?.fields ?? req.query?.select ?? '').trim().toLowerCase();
+    const fieldsMode = fields || (String(req.query?.lite ?? '') === '1' ? 'lite' : '');
+
+    const selectColumnsForMode = (mode) => {
+      // IMPORTANT: Only use whitelisted columns to avoid SQL injection.
+      if (mode === 'min') {
+        return 'id, name, code, price';
+      }
+      if (mode === 'search') {
+        // Used by admin global search: needs image preview.
+        return 'id, name, code, price, image, category, note, sort_order';
+      }
+      if (mode === 'order' || mode === 'lite') {
+        // Used by order entry/statistics: needs note/variants/commission.
+        return 'id, name, code, price, category, note, sort_order, commission_percent, variants';
+      }
+      return '*';
+    };
+
     // Settings passthrough (Vercel rewrite: /api/settings -> /api/products?__settings=1)
     if (req.query && String(req.query.__settings ?? '') === '1') {
-      await ensureSettingsSchema();
+      await ensureSettingsSchemaOnce();
 
       if (req.method === 'GET') {
         const rows = await sql`SELECT value FROM settings WHERE key = ${'ship_percent'} LIMIT 1`;
         const shipPercent = rows.length
           ? normalizeShipPercent(rows[0]?.value)
           : DEFAULT_SHIP_PERCENT;
+        if (withMeta) {
+          return res.status(200).json({
+            ship_percent: shipPercent,
+            meta: debug ? { timingsMs: { total: Date.now() - t0 } } : undefined,
+          });
+        }
         return res.status(200).json({ ship_percent: shipPercent });
       }
 
@@ -220,13 +305,20 @@ export default async function handler(req, res) {
             value = EXCLUDED.value,
             updated_at = NOW()
         `;
+        if (withMeta) {
+          return res.status(200).json({
+            ship_percent: shipPercent,
+            meta: debug ? { timingsMs: { total: Date.now() - t0 } } : undefined,
+          });
+        }
         return res.status(200).json({ ship_percent: shipPercent });
       }
 
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    await ensureProductsSchema();
+    await ensureProductsSchemaOnce();
+    const tSchema = debug ? Date.now() : 0;
 
     // POST với action delete-image - Xóa ảnh Cloudinary
     if (req.method === 'POST' && req.query.action === 'delete-image') {
@@ -291,17 +383,47 @@ export default async function handler(req, res) {
       }
       
       if (id) {
-        const result = await sql`SELECT * FROM products WHERE id = ${id}`;
+        const cols = selectColumnsForMode(fieldsMode);
+        const q = cols === '*'
+          ? 'SELECT * FROM products WHERE id = $1'
+          : `SELECT ${cols} FROM products WHERE id = $1`;
+        const result = await sql(q, [id]);
         if (result.length === 0) return res.status(404).json({ error: 'Product not found' });
+        if (withMeta) {
+          return res.status(200).json({
+            data: result[0],
+            meta: debug ? { timingsMs: { schema: tSchema - t0, total: Date.now() - t0 } } : undefined,
+          });
+        }
         return res.status(200).json(result[0]);
       }
       
       if (category) {
-        const products = await sql`SELECT * FROM products WHERE category = ${category} ORDER BY sort_order ASC, created_at DESC`;
+        const cols = selectColumnsForMode(fieldsMode);
+        const q = cols === '*'
+          ? 'SELECT * FROM products WHERE category = $1 ORDER BY sort_order ASC, created_at DESC'
+          : `SELECT ${cols} FROM products WHERE category = $1 ORDER BY sort_order ASC, created_at DESC`;
+        const products = await sql(q, [category]);
+        if (withMeta) {
+          return res.status(200).json({
+            data: products,
+            meta: debug ? { timingsMs: { schema: tSchema - t0, total: Date.now() - t0 } } : undefined,
+          });
+        }
         return res.status(200).json(products);
       }
       
-      const products = await sql`SELECT * FROM products ORDER BY sort_order ASC, created_at DESC`;
+      const cols = selectColumnsForMode(fieldsMode);
+      const q = cols === '*'
+        ? 'SELECT * FROM products ORDER BY sort_order ASC, created_at DESC'
+        : `SELECT ${cols} FROM products ORDER BY sort_order ASC, created_at DESC`;
+      const products = await sql(q);
+      if (withMeta) {
+        return res.status(200).json({
+          data: products,
+          meta: debug ? { timingsMs: { schema: tSchema - t0, total: Date.now() - t0 } } : undefined,
+        });
+      }
       return res.status(200).json(products);
     }
 

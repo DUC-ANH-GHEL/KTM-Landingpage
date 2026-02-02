@@ -1,6 +1,8 @@
 // api/albums/[id].js - Vercel Serverless Function for single Album
 import { neon } from '@neondatabase/serverless';
 
+const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -16,18 +18,33 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'DATABASE_URL not configured' });
   }
 
-  const sql = neon(process.env.DATABASE_URL);
+  const debug = String(req.query?.debug ?? '').trim() === '1';
+  const withMeta = String(req.query?.meta ?? '').trim() === '1';
+  const t0 = debug ? Date.now() : 0;
   const { id } = req.query; // album id or slug
+
+  // Cache (public content). Use short CDN cache and allow stale-while-revalidate.
+  if (req.method === 'GET') {
+    const noCache = String(req.query?.nocache ?? req.query?.noCache ?? '').trim() === '1'
+      || String(req.query?.debug ?? '').trim() === '1';
+    if (noCache) {
+      res.setHeader('Cache-Control', 'no-store');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=86400');
+    }
+  }
 
   // GET /api/albums/[id] - Lấy album với tất cả ảnh
   if (req.method === 'GET') {
     try {
       // Tìm album theo uuid hoặc slug
+      const a0 = debug ? Date.now() : 0;
       const albumRows = await sql`
         SELECT * FROM albums 
         WHERE id::text = ${id} OR slug = ${id} 
         LIMIT 1
       `;
+      const a1 = debug ? Date.now() : 0;
       
       if (albumRows.length === 0) {
         return res.status(404).json({ error: 'Album not found' });
@@ -36,12 +53,14 @@ export default async function handler(req, res) {
       const album = albumRows[0];
       
       // Lấy tất cả ảnh của album
+      const i0 = debug ? Date.now() : 0;
       const imageRows = await sql`
         SELECT id, url, caption, sort_order, metadata 
         FROM images 
         WHERE album_id = ${album.id} 
         ORDER BY sort_order, created_at
       `;
+      const i1 = debug ? Date.now() : 0;
 
       // Transform to match frontend format
       const result = {
@@ -56,6 +75,15 @@ export default async function handler(req, res) {
           caption: img.caption || ''
         }))
       };
+
+      if (withMeta) {
+        return res.status(200).json({
+          data: result,
+          meta: {
+            ...(debug ? { timingsMs: { albumQuery: a1 - a0, imagesQuery: i1 - i0, total: i1 - t0 } } : {}),
+          },
+        });
+      }
       
       return res.status(200).json(result);
     } catch (err) {
@@ -87,6 +115,16 @@ export default async function handler(req, res) {
         VALUES (${albumId}, ${url}, ${caption || null}, ${sort_order || 0}) 
         RETURNING *
       `;
+
+      if (withMeta) {
+        return res.status(201).json({
+          data: rows[0],
+          meta: {
+            ...(debug ? { timingsMs: { total: Date.now() - t0 } } : {}),
+          },
+        });
+      }
+
       return res.status(201).json(rows[0]);
     } catch (err) {
       console.error('POST /api/albums/[id]/images error:', err);
@@ -116,8 +154,18 @@ export default async function handler(req, res) {
       if (rows.length === 0) {
         return res.status(404).json({ error: 'Album not found' });
       }
-      
-      return res.status(200).json({ message: 'Album updated', album: rows[0] });
+
+      const payload = { message: 'Album updated', album: rows[0] };
+      if (withMeta) {
+        return res.status(200).json({
+          data: payload,
+          meta: {
+            ...(debug ? { timingsMs: { total: Date.now() - t0 } } : {}),
+          },
+        });
+      }
+
+      return res.status(200).json(payload);
     } catch (err) {
       console.error('PUT /api/albums/[id] error:', err);
       return res.status(500).json({ error: 'Database error', detail: err.message });
@@ -132,8 +180,18 @@ export default async function handler(req, res) {
       if (rows.length === 0) {
         return res.status(404).json({ error: 'Album not found' });
       }
-      
-      return res.status(200).json({ message: 'Album deleted', album: rows[0] });
+
+      const payload = { message: 'Album deleted', album: rows[0] };
+      if (withMeta) {
+        return res.status(200).json({
+          data: payload,
+          meta: {
+            ...(debug ? { timingsMs: { total: Date.now() - t0 } } : {}),
+          },
+        });
+      }
+
+      return res.status(200).json(payload);
     } catch (err) {
       console.error('DELETE /api/albums/[id] error:', err);
       return res.status(500).json({ error: 'Database error', detail: err.message });

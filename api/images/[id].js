@@ -1,5 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 
+const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -10,14 +12,33 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const sql = neon(process.env.DATABASE_URL);
+  // Check DATABASE_URL
+  if (!process.env.DATABASE_URL) {
+    return res.status(500).json({ error: 'DATABASE_URL not configured' });
+  }
+
+  const debug = String(req.query?.debug ?? '').trim() === '1';
+  const withMeta = String(req.query?.meta ?? '').trim() === '1';
+  const t0 = debug ? Date.now() : 0;
+
   const { id } = req.query;
 
   try {
     if (req.method === 'DELETE') {
       // Delete image
       await sql`DELETE FROM images WHERE id = ${id}`;
-      return res.status(200).json({ success: true, message: 'Image deleted' });
+
+      const payload = { success: true, message: 'Image deleted' };
+      if (withMeta) {
+        return res.status(200).json({
+          data: payload,
+          meta: {
+            ...(debug ? { timingsMs: { total: Date.now() - t0 } } : {}),
+          },
+        });
+      }
+
+      return res.status(200).json(payload);
     }
 
     if (req.method === 'PUT') {
@@ -27,13 +48,35 @@ export default async function handler(req, res) {
       if (album_id) {
         // Move to new album
         await sql`UPDATE images SET album_id = ${album_id}::uuid, updated_at = NOW() WHERE id = ${id}::uuid`;
-        return res.status(200).json({ success: true, message: 'Image moved successfully' });
+
+        const payload = { success: true, message: 'Image moved successfully' };
+        if (withMeta) {
+          return res.status(200).json({
+            data: payload,
+            meta: {
+              ...(debug ? { timingsMs: { total: Date.now() - t0 } } : {}),
+            },
+          });
+        }
+
+        return res.status(200).json(payload);
       }
       
       if (caption !== undefined) {
         // Update caption
         await sql`UPDATE images SET caption = ${caption}, updated_at = NOW() WHERE id = ${id}::uuid`;
-        return res.status(200).json({ success: true, message: 'Image updated' });
+
+        const payload = { success: true, message: 'Image updated' };
+        if (withMeta) {
+          return res.status(200).json({
+            data: payload,
+            meta: {
+              ...(debug ? { timingsMs: { total: Date.now() - t0 } } : {}),
+            },
+          });
+        }
+
+        return res.status(200).json(payload);
       }
       
       return res.status(400).json({ error: 'album_id or caption is required' });

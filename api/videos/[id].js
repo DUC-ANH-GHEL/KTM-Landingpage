@@ -1,6 +1,8 @@
 // api/videos/[id].js - Vercel Serverless Function for single Video
 import { neon } from '@neondatabase/serverless';
 
+const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -16,20 +18,35 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'DATABASE_URL not configured' });
   }
 
-  const sql = neon(process.env.DATABASE_URL);
+  const debug = String(req.query?.debug ?? '').trim() === '1';
+  const withMeta = String(req.query?.meta ?? '').trim() === '1';
+  const t0 = debug ? Date.now() : 0;
   const { id } = req.query;
+
+  // Cache (public content). Use short CDN cache and allow stale-while-revalidate.
+  if (req.method === 'GET') {
+    const noCache = String(req.query?.nocache ?? req.query?.noCache ?? '').trim() === '1'
+      || String(req.query?.debug ?? '').trim() === '1';
+    if (noCache) {
+      res.setHeader('Cache-Control', 'no-store');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=86400');
+    }
+  }
 
   // GET /api/videos/[id] - Lấy chi tiết video
   if (req.method === 'GET') {
     try {
+      const q0 = debug ? Date.now() : 0;
       const rows = await sql`SELECT * FROM videos WHERE id = ${id}`;
+      const q1 = debug ? Date.now() : 0;
       
       if (rows.length === 0) {
         return res.status(404).json({ error: 'Video not found' });
       }
 
       const row = rows[0];
-      return res.status(200).json({
+      const result = {
         id: row.id,
         title: row.title,
         youtubeId: row.youtube_id,
@@ -37,7 +54,18 @@ export default async function handler(req, res) {
         url: `https://www.youtube.com/embed/${row.youtube_id}`,
         category: row.category,
         sortOrder: row.sort_order
-      });
+      };
+
+      if (withMeta) {
+        return res.status(200).json({
+          data: result,
+          meta: {
+            ...(debug ? { timingsMs: { query: q1 - q0, total: q1 - t0 } } : {}),
+          },
+        });
+      }
+
+      return res.status(200).json(result);
     } catch (err) {
       console.error('GET /api/videos/[id] error:', err);
       return res.status(500).json({ error: 'Database error', detail: err.message });
@@ -72,7 +100,16 @@ export default async function handler(req, res) {
       if (rows.length === 0) {
         return res.status(404).json({ error: 'Video not found' });
       }
-      
+
+      if (withMeta) {
+        return res.status(200).json({
+          data: rows[0],
+          meta: {
+            ...(debug ? { timingsMs: { total: Date.now() - t0 } } : {}),
+          },
+        });
+      }
+
       return res.status(200).json(rows[0]);
     } catch (err) {
       console.error('PUT /api/videos/[id] error:', err);
@@ -88,8 +125,18 @@ export default async function handler(req, res) {
       if (rows.length === 0) {
         return res.status(404).json({ error: 'Video not found' });
       }
-      
-      return res.status(200).json({ success: true, message: 'Video deleted' });
+
+      const payload = { success: true, message: 'Video deleted' };
+      if (withMeta) {
+        return res.status(200).json({
+          data: payload,
+          meta: {
+            ...(debug ? { timingsMs: { total: Date.now() - t0 } } : {}),
+          },
+        });
+      }
+
+      return res.status(200).json(payload);
     } catch (err) {
       console.error('DELETE /api/videos/[id] error:', err);
       return res.status(500).json({ error: 'Database error', detail: err.message });

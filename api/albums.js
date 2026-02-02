@@ -1,6 +1,8 @@
 // api/albums.js - Vercel Serverless Function for Albums API
 import { neon } from '@neondatabase/serverless';
 
+const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -16,13 +18,27 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'DATABASE_URL not configured' });
   }
 
-  // Create SQL client
-  const sql = neon(process.env.DATABASE_URL);
+  const debug = String(req.query?.debug ?? '').trim() === '1';
+  const withMeta = String(req.query?.meta ?? '').trim() === '1';
+  const t0 = debug ? Date.now() : 0;
+
+  // Cache (public content). Use short CDN cache and allow stale-while-revalidate.
+  if (req.method === 'GET') {
+    const noCache = String(req.query?.nocache ?? req.query?.noCache ?? '').trim() === '1'
+      || String(req.query?.debug ?? '').trim() === '1';
+    if (noCache) {
+      res.setHeader('Cache-Control', 'no-store');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=86400');
+    }
+  }
 
   // GET /api/albums - Lấy danh sách albums
   if (req.method === 'GET') {
     try {
       const { parent_id } = req.query;
+
+      const q0 = debug ? Date.now() : 0;
       
       let rows;
       if (parent_id === 'root' || parent_id === '') {
@@ -56,6 +72,8 @@ export default async function handler(req, res) {
         `;
       }
       
+      const q1 = debug ? Date.now() : 0;
+
       // Transform to match frontend format
       const albums = rows.map(row => ({
         id: row.slug || row.id,
@@ -68,7 +86,17 @@ export default async function handler(req, res) {
         parentId: row.parent_id,
         images: []
       }));
-      
+
+      if (withMeta) {
+        return res.status(200).json({
+          data: albums,
+          meta: {
+            count: albums.length,
+            ...(debug ? { timingsMs: { query: q1 - q0, total: q1 - t0 } } : {}),
+          },
+        });
+      }
+
       return res.status(200).json(albums);
     } catch (err) {
       console.error('GET /api/albums error:', err);

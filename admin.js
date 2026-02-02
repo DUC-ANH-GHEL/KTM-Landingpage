@@ -1552,7 +1552,7 @@
 
           // Song song hóa 3 API
           const [productsData, albumsList, videosList] = await Promise.all([
-            safeGetJSON(`${API_BASE}/api/products`, []),
+            safeGetJSON(`${API_BASE}/api/products?fields=search`, []),
             safeGetJSON(`${API_BASE}/api/albums`, []),
             safeGetJSON(`${API_BASE}/api/video-folders?withVideos=true`, [])
           ]);
@@ -5738,143 +5738,54 @@
       function StatsManager() {
         const [month, setMonth] = useState(getCurrentMonth());
         const [loadingStats, setLoadingStats] = useState(true);
-        const [orders, setOrders] = useState([]);
-        const [products, setProducts] = useState([]);
+        const createEmptyStats = () => ({
+          statusCounts: { draft: 0, pending: 0, processing: 0, done: 0, paid: 0, canceled: 0, other: 0 },
+          activeOrders: 0,
+          totalQty: 0,
+          totalRevenue: 0,
+          doneRevenue: 0,
+          tempCommission: 0,
+          tempCommissionAll: 0,
+          products: [],
+          customers: [],
+          days: [],
+          uniqueCustomers: 0,
+          avgOrderValue: 0,
+          avgQtyPerOrder: 0,
+        });
 
-        const productsLoadedRef = useRef(false);
-        const ordersByMonthCacheRef = useRef(new Map());
+        const [stats, setStats] = useState(createEmptyStats);
+        const statsByKeyCacheRef = useRef(new Map());
 
         const shipPercent = normalizeShipPercent(settings?.ship_percent);
 
-        const productsById = React.useMemo(() => {
-          const map = new Map();
-          for (const p of (Array.isArray(products) ? products : [])) {
-            const id = String(p?.id ?? '').trim();
-            if (!id) continue;
-            map.set(id, p);
-          }
-          return map;
-        }, [products]);
-
-        const getProductById = (id) => {
-          const key = String(id ?? '').trim();
-          if (!key) return null;
-          return productsById.get(key) || null;
-        };
-
         const {
-          parseMoney,
           formatNumber,
           formatVND
         } = window.KTM.money;
+        const loadStatsForMonth = async (m, force = false) => {
+          const keyMonth = String(m || '').trim();
+          if (!keyMonth) return createEmptyStats();
+          const cacheKey = `${keyMonth}|${shipPercent}`;
+          const cached = statsByKeyCacheRef.current?.get(cacheKey);
+          if (!force && cached) return cached;
 
-        const normalizeVariantGroups = (variantsRaw) => {
-          const raw = Array.isArray(variantsRaw) ? variantsRaw : [];
-          return raw
-            .map((g) => {
-              const name = String(g?.name || '').trim();
-              if (!name) return null;
-              const options = (Array.isArray(g?.options) ? g.options : [])
-                .map((o) => {
-                  const label = String(o?.label || '').trim();
-                  if (!label) return null;
-
-                  const pRaw = o?.price;
-                  const pNum = (() => {
-                    if (pRaw == null || pRaw === '') return NaN;
-                    if (typeof pRaw === 'number') return pRaw;
-                    if (typeof pRaw === 'string') return parseMoney(pRaw);
-                    return Number(pRaw);
-                  })();
-                  const price = Number.isFinite(pNum) ? Math.trunc(pNum) : null;
-
-                  const dRaw = o?.price_delta ?? o?.priceDelta ?? null;
-                  const dNum = Number(dRaw);
-                  const price_delta = Number.isFinite(dNum) ? Math.trunc(dNum) : 0;
-
-                  return { label, price, price_delta };
-                })
-                .filter(Boolean);
-              return { name, options };
-            })
-            .filter(Boolean);
+          const url = `${API_BASE}/api/orders?resource=stats&month=${encodeURIComponent(keyMonth)}&ship_percent=${encodeURIComponent(shipPercent)}`;
+          const data = await window.KTM.api.getJSON(url, 'Lỗi tải thống kê');
+          const payload = data?.stats && data?.meta ? data.stats : data;
+          const normalized = payload && typeof payload === 'object' ? payload : createEmptyStats();
+          statsByKeyCacheRef.current?.set(cacheKey, normalized);
+          return normalized;
         };
 
-        const computeUnitPriceForItem = (it) => {
-          const raw = it?.unit_price ?? it?.unitPrice;
-          const n = raw == null || raw === '' ? NaN : Number(raw);
-          if (Number.isFinite(n)) return Math.max(0, Math.trunc(n));
-
-          const pid = String(it?.product_id || '').trim();
-          const product = getProductById(pid);
-          const base = parseMoney(product?.price);
-
-          const selectionsRaw = it?.variant_json ?? it?.variantJson;
-          const selections = selectionsRaw && typeof selectionsRaw === 'object' ? selectionsRaw : null;
-          if (!selections) return base;
-
-          const groups = normalizeVariantGroups(product?.variants);
-          if (!groups.length) return base;
-
-          let current = base;
-          for (const g of groups) {
-            const groupName = String(g?.name || '').trim();
-            const selectedLabel = String(selections?.[groupName] || '').trim();
-            if (!groupName || !selectedLabel) continue;
-            const opt = (Array.isArray(g.options) ? g.options : []).find((o) => String(o?.label || '').trim() === selectedLabel);
-            if (!opt) continue;
-
-            if (Number.isFinite(Number(opt.price))) {
-              current = Math.max(0, Math.trunc(Number(opt.price)));
-              continue;
-            }
-            const dNum = Number(opt.price_delta);
-            if (Number.isFinite(dNum)) current += Math.trunc(dNum);
-          }
-
-          return current;
-        };
-
-        const loadProductsOnce = async () => {
-          if (productsLoadedRef.current) return;
-          try {
-            const productsData = await window.KTM.api.getJSON(
-              `${API_BASE}/api/products`,
-              'Lỗi tải danh sách sản phẩm'
-            );
-            setProducts(Array.isArray(productsData) ? productsData : []);
-            productsLoadedRef.current = true;
-          } catch (e) {
-            console.error('Load products for stats error:', e);
-            setProducts([]);
-            productsLoadedRef.current = true;
-          }
-        };
-
-        const loadOrdersForMonth = async (m) => {
-          const key = String(m || '').trim();
-          if (!key) return [];
-          const cached = ordersByMonthCacheRef.current?.get(key);
-          if (cached && Array.isArray(cached)) return cached;
-
-          const ordersData = await window.KTM.api.getJSON(
-            `${API_BASE}/api/orders?month=${encodeURIComponent(key)}`,
-            'Lỗi tải thống kê'
-          );
-          const list = Array.isArray(ordersData) ? ordersData : [];
-          ordersByMonthCacheRef.current?.set(key, list);
-          return list;
-        };
-
-        const loadStats = async () => {
+        const loadStats = async (force = false) => {
           setLoadingStats(true);
           try {
-            await loadProductsOnce();
-            const ordersData = await loadOrdersForMonth(month);
-            setOrders(Array.isArray(ordersData) ? ordersData : []);
+            const next = await loadStatsForMonth(month, force);
+            setStats(next);
           } catch (e) {
             console.error('Load stats error:', e);
-            setOrders([]);
+            setStats(createEmptyStats());
           } finally {
             setLoadingStats(false);
           }
@@ -5882,187 +5793,14 @@
 
         useEffect(() => {
           loadStats();
-        }, [month]);
-
-        const stats = React.useMemo(() => {
-          const statusCounts = { draft: 0, pending: 0, processing: 0, done: 0, paid: 0, canceled: 0, other: 0 };
-          let activeOrders = 0;
-          let totalQty = 0;
-          let totalRevenue = 0;
-          let doneRevenue = 0;
-          let totalRevenueNoShip = 0;
-          let doneRevenueNoShip = 0;
-          let totalCommissionNoShip = 0;
-          let doneCommissionNoShip = 0;
-
-          const customerKey = (o) => o.customer_id || o.phone || 'unknown';
-
-          const getOrderItems = (o) => window.KTM.orders.getOrderItems(o);
-
-          const revenueByProduct = new Map();
-          const revenueByCustomer = new Map();
-          const byDay = new Map();
-
-          const DEFAULT_COMMISSION_PERCENT = 5;
-          const productCommissionById = new Map(
-            (Array.isArray(products) ? products : []).map(p => {
-              const raw = p?.commission_percent ?? p?.commissionPercent;
-              const parsed = Number(raw);
-              const pct = Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : DEFAULT_COMMISSION_PERCENT;
-              return [String(p?.id), pct];
-            })
-          );
-
-          const normalizeOrderStatus = (raw) => {
-            const s = String(raw ?? '').trim().toLowerCase();
-            if (s === 'cancelled') return 'canceled';
-            return s;
-          };
-
-          for (const o of orders) {
-            const status = normalizeOrderStatus(o?.status);
-            const isCanceled = status === 'canceled';
-            const isDraft = status === 'draft';
-            const isExcludedFromTotals = isCanceled || isDraft;
-            const items = getOrderItems(o);
-
-            let orderQty = 0;
-            let orderRevenueProducts = 0;
-            let orderCommissionProducts = 0;
-
-            for (const it of items) {
-              const qty = Number(it?.quantity || 0) || 0;
-              const price = computeUnitPriceForItem(it);
-              const revenue = qty * price;
-
-              const pid = String(it?.product_id || '');
-              const pct = productCommissionById.has(pid)
-                ? productCommissionById.get(pid)
-                : DEFAULT_COMMISSION_PERCENT;
-              const rate = (Number(pct) || 0) / 100;
-
-              orderQty += qty;
-              orderRevenueProducts += revenue;
-              orderCommissionProducts += revenue * rate;
-
-              if (!isExcludedFromTotals) {
-                const pidForAgg = it?.product_id || 'unknown';
-                const prod = getProductById(pidForAgg);
-                const p = revenueByProduct.get(pidForAgg) || {
-                  product_id: pidForAgg,
-                  product_name: prod?.name || '—',
-                  product_code: prod?.code || '',
-                  orders: 0,
-                  quantity: 0,
-                  revenue: 0,
-                };
-                p.orders += 1;
-                p.quantity += qty;
-                p.revenue += revenue;
-                revenueByProduct.set(pidForAgg, p);
-              }
-            }
-
-            const shipInfo = window.KTM.orders.getOrderShipInfo(items, getProductById);
-            const adj = Number(o?.adjustment_amount ?? 0) || 0;
-            const orderRevenue = orderRevenueProducts + (shipInfo.found ? shipInfo.fee : 0) + adj;
-            const orderRevenueNoShip = orderRevenueProducts + adj;
-
-            const estimatedShipCost = (!shipInfo.found && shipPercent > 0 && orderRevenueProducts > 0)
-              ? (orderRevenueProducts * shipPercent / 100)
-              : 0;
-
-            const effectiveCommissionRate = orderRevenueProducts > 0
-              ? (orderCommissionProducts / orderRevenueProducts)
-              : (DEFAULT_COMMISSION_PERCENT / 100);
-            const orderCommissionNoShip = orderCommissionProducts
-              + (adj * effectiveCommissionRate)
-              - (estimatedShipCost * effectiveCommissionRate);
-
-            const isCompleted = status === 'done' || status === 'paid';
-
-            if (status === 'draft') statusCounts.draft += 1;
-            else if (status === 'pending') statusCounts.pending += 1;
-            else if (status === 'processing') statusCounts.processing += 1;
-            else if (status === 'canceled') statusCounts.canceled += 1;
-            else if (status === 'paid') {
-              statusCounts.paid += 1;
-              statusCounts.done += 1;
-              doneRevenue += orderRevenue;
-              doneRevenueNoShip += orderRevenueNoShip;
-              doneCommissionNoShip += orderCommissionNoShip;
-            } else if (status === 'done') {
-              statusCounts.done += 1;
-              doneRevenue += orderRevenue;
-              doneRevenueNoShip += orderRevenueNoShip;
-              doneCommissionNoShip += orderCommissionNoShip;
-            } else statusCounts.other += 1;
-
-            if (!isExcludedFromTotals) {
-              activeOrders += 1;
-              totalQty += orderQty;
-              totalRevenue += orderRevenue;
-              totalRevenueNoShip += orderRevenueNoShip;
-              totalCommissionNoShip += orderCommissionNoShip;
-
-              const ck = customerKey(o);
-              const c = revenueByCustomer.get(ck) || { key: ck, customer_name: o.customer_name || '', phone: o.phone || '', orders: 0, quantity: 0, revenue: 0 };
-              c.orders += 1;
-              c.quantity += orderQty;
-              c.revenue += orderRevenue;
-              if (!c.customer_name && o.customer_name) c.customer_name = o.customer_name;
-              if (!c.phone && o.phone) c.phone = o.phone;
-              revenueByCustomer.set(ck, c);
-
-              const day = o.created_at ? new Date(o.created_at) : null;
-              if (day && !Number.isNaN(day.getTime())) {
-                const k = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-                const d = byDay.get(k) || { day: k, orders: 0, quantity: 0, revenue: 0, doneOrders: 0, doneRevenue: 0 };
-                d.orders += 1;
-                d.quantity += orderQty;
-                d.revenue += orderRevenue;
-                if (isCompleted) {
-                  d.doneOrders += 1;
-                  d.doneRevenue += orderRevenue;
-                }
-                byDay.set(k, d);
-              }
-            }
-          }
-
-          const topProducts = Array.from(revenueByProduct.values()).sort((a, b) => b.revenue - a.revenue);
-          const customers = Array.from(revenueByCustomer.values()).sort((a, b) => b.revenue - a.revenue);
-          const days = Array.from(byDay.values()).sort((a, b) => a.day.localeCompare(b.day));
-          const uniqueCustomers = revenueByCustomer.size;
-
-          const avgOrderValue = activeOrders ? Math.round(totalRevenue / activeOrders) : 0;
-          const avgQtyPerOrder = activeOrders ? (totalQty / activeOrders) : 0;
-          const tempCommission = Math.round(doneCommissionNoShip);
-          const tempCommissionAll = Math.round(totalCommissionNoShip);
-
-          return {
-            statusCounts,
-            activeOrders,
-            totalQty,
-            totalRevenue,
-            doneRevenue,
-            tempCommission,
-            tempCommissionAll,
-            products: topProducts,
-            customers,
-            days,
-            uniqueCustomers,
-            avgOrderValue,
-            avgQtyPerOrder,
-          };
-        }, [orders, products, month]);
+        }, [month, shipPercent]);
 
         return (
           <div className="product-manager pb-5 mb-4 stats-manager">
             <Loading show={loadingStats} />
             <div className="product-header">
               <h5 className="mb-0"><i className="fas fa-chart-column me-2 text-warning"></i>Thống kê</h5>
-              <button className="btn btn-outline-secondary btn-sm" onClick={loadStats} disabled={loadingStats}>
+              <button className="btn btn-outline-secondary btn-sm" onClick={() => loadStats(true)} disabled={loadingStats}>
                 <i className="fas fa-rotate me-2"></i>Làm mới
               </button>
             </div>
@@ -7276,7 +7014,7 @@
 
       const loadProducts = async () => {
         try {
-          const data = await window.KTM.api.getJSON(`${API_BASE}/api/products`, 'Lỗi tải sản phẩm');
+          const data = await window.KTM.api.getJSON(`${API_BASE}/api/products?fields=order`, 'Lỗi tải sản phẩm');
           setProducts(Array.isArray(data) ? data : []);
         } catch (e) {
           console.error('Load products error:', e);

@@ -1,5 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 
+const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -13,7 +15,16 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'DATABASE_URL not configured' });
   }
 
-  const sql = neon(process.env.DATABASE_URL);
+  // Cache (public content). Use short CDN cache and allow stale-while-revalidate.
+  if (req.method === 'GET') {
+    const noCache = String(req.query?.nocache ?? req.query?.noCache ?? '').trim() === '1'
+      || String(req.query?.debug ?? '').trim() === '1';
+    if (noCache) {
+      res.setHeader('Cache-Control', 'no-store');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=86400');
+    }
+  }
 
   // Rewrites will pass id via query (?id=...)
   const id = req.query.id || req.body?.id;
@@ -96,23 +107,41 @@ export default async function handler(req, res) {
       let folders;
       if (parent_id === 'root' || parent_id === '') {
         folders = await sql`
-          SELECT id, name, slug, description, cover_image, sort_order, parent_id
-          FROM video_folders
-          WHERE parent_id IS NULL
-          ORDER BY sort_order ASC, created_at DESC
+          SELECT f.id, f.name, f.slug, f.description, f.cover_image, f.sort_order, f.parent_id,
+                 COALESCE(sf.count, 0)::int AS subfolder_count
+          FROM video_folders f
+          LEFT JOIN (
+            SELECT parent_id, COUNT(*)::int AS count
+            FROM video_folders
+            GROUP BY parent_id
+          ) sf ON sf.parent_id = f.id
+          WHERE f.parent_id IS NULL
+          ORDER BY f.sort_order ASC, f.created_at DESC
         `;
       } else if (parent_id) {
         folders = await sql`
-          SELECT id, name, slug, description, cover_image, sort_order, parent_id
-          FROM video_folders
-          WHERE parent_id = ${parent_id}::uuid
-          ORDER BY sort_order ASC, created_at DESC
+          SELECT f.id, f.name, f.slug, f.description, f.cover_image, f.sort_order, f.parent_id,
+                 COALESCE(sf.count, 0)::int AS subfolder_count
+          FROM video_folders f
+          LEFT JOIN (
+            SELECT parent_id, COUNT(*)::int AS count
+            FROM video_folders
+            GROUP BY parent_id
+          ) sf ON sf.parent_id = f.id
+          WHERE f.parent_id = ${parent_id}::uuid
+          ORDER BY f.sort_order ASC, f.created_at DESC
         `;
       } else {
         folders = await sql`
-          SELECT id, name, slug, description, cover_image, sort_order, parent_id
-          FROM video_folders
-          ORDER BY sort_order ASC, created_at DESC
+          SELECT f.id, f.name, f.slug, f.description, f.cover_image, f.sort_order, f.parent_id,
+                 COALESCE(sf.count, 0)::int AS subfolder_count
+          FROM video_folders f
+          LEFT JOIN (
+            SELECT parent_id, COUNT(*)::int AS count
+            FROM video_folders
+            GROUP BY parent_id
+          ) sf ON sf.parent_id = f.id
+          ORDER BY f.sort_order ASC, f.created_at DESC
         `;
       }
 
@@ -155,23 +184,16 @@ export default async function handler(req, res) {
         return res.status(200).json(result);
       }
 
-      const result = await Promise.all(
-        folders.map(async (f) => {
-          const subfolders = await sql`
-            SELECT COUNT(*)::int as count FROM video_folders WHERE parent_id = ${f.id}
-          `;
-          return {
-            id: f.id,
-            name: f.name,
-            slug: f.slug,
-            description: f.description,
-            coverImage: f.cover_image,
-            sortOrder: f.sort_order,
-            parentId: f.parent_id,
-            subfolderCount: subfolders[0]?.count || 0,
-          };
-        }),
-      );
+      const result = folders.map((f) => ({
+        id: f.id,
+        name: f.name,
+        slug: f.slug,
+        description: f.description,
+        coverImage: f.cover_image,
+        sortOrder: f.sort_order,
+        parentId: f.parent_id,
+        subfolderCount: f.subfolder_count || 0,
+      }));
 
       return res.status(200).json(result);
     }
