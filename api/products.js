@@ -259,6 +259,18 @@ export default async function handler(req, res) {
     const withMeta = String(req.query?.meta ?? '') === '1';
     const t0 = debug ? Date.now() : 0;
 
+    // Cache (GET only). Allow bypass via nocache=1 or debug=1.
+    if (req.method === 'GET') {
+      const noCache = String(req.query?.nocache ?? req.query?.noCache ?? '').trim() === '1'
+        || String(req.query?.debug ?? '').trim() === '1'
+        || String(req.query?.__settings ?? '').trim() === '1';
+      if (noCache) {
+        res.setHeader('Cache-Control', 'no-store');
+      } else {
+        res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=86400');
+      }
+    }
+
     const fields = String(req.query?.fields ?? req.query?.select ?? '').trim().toLowerCase();
     const fieldsMode = fields || (String(req.query?.lite ?? '') === '1' ? 'lite' : '');
 
@@ -267,13 +279,17 @@ export default async function handler(req, res) {
       if (mode === 'min') {
         return 'id, name, code, price';
       }
+      if (mode === 'ai') {
+        // Used by AI chat widget: needs basic info + optional image.
+        return 'id, name, code, price, image, category, note';
+      }
       if (mode === 'search') {
         // Used by admin global search: needs image preview.
         return 'id, name, code, price, image, category, note, sort_order';
       }
       if (mode === 'order' || mode === 'lite') {
         // Used by order entry/statistics: needs note/variants/commission.
-        return 'id, name, code, price, category, note, sort_order, commission_percent, variants';
+        return 'id, name, code, price, image, category, note, sort_order, commission_percent, variants';
       }
       return '*';
     };

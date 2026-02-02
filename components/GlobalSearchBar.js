@@ -20,7 +20,8 @@ function GlobalSearchBar() {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const res = await fetch('/api/products');
+        // Use projected payload to reduce bandwidth.
+        const res = await fetch('/api/products?fields=order');
         if (res.ok) {
           const data = await res.json();
           setAllProducts(data.map(p => ({

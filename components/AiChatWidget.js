@@ -8,7 +8,8 @@ let _cachedProducts = null;
 async function loadProductsForAI() {
   if (_cachedProducts) return _cachedProducts;
   try {
-    const res = await fetch('/api/products');
+    // Use projected payload to reduce bandwidth.
+    const res = await fetch('/api/products?fields=ai');
     if (res.ok) {
       const data = await res.json();
       _cachedProducts = data.map(p => ({
