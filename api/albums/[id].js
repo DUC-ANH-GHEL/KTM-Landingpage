@@ -40,7 +40,8 @@ export default async function handler(req, res) {
       // Tìm album theo uuid hoặc slug
       const a0 = debug ? Date.now() : 0;
       const albumRows = await sql`
-        SELECT * FROM albums 
+        SELECT id, slug, title, description, cover_url
+        FROM albums
         WHERE id::text = ${id} OR slug = ${id} 
         LIMIT 1
       `;
@@ -55,7 +56,7 @@ export default async function handler(req, res) {
       // Lấy tất cả ảnh của album
       const i0 = debug ? Date.now() : 0;
       const imageRows = await sql`
-        SELECT id, url, caption, sort_order, metadata 
+        SELECT id, url, caption, sort_order
         FROM images 
         WHERE album_id = ${album.id} 
         ORDER BY sort_order, created_at

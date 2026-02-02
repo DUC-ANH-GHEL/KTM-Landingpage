@@ -1,7 +1,53 @@
 // api/albums.js - Vercel Serverless Function for Albums API
 import { neon } from '@neondatabase/serverless';
+import crypto from 'crypto';
 
 const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
+
+let _indexesEnsured = false;
+let _indexesPromise = null;
+async function ensureAlbumIndexesOnce(debug) {
+  if (_indexesEnsured) return;
+  if (!_indexesPromise) {
+    _indexesPromise = (async () => {
+      try {
+        await sql`CREATE INDEX IF NOT EXISTS albums_parent_created_idx ON albums(parent_id, created_at DESC)`;
+      } catch (e) {
+        if (debug) console.warn('Index create skipped (albums_parent_created_idx):', e?.message || e);
+      }
+      try {
+        await sql`CREATE INDEX IF NOT EXISTS albums_slug_idx ON albums(slug)`;
+      } catch (e) {
+        if (debug) console.warn('Index create skipped (albums_slug_idx):', e?.message || e);
+      }
+      try {
+        await sql`CREATE INDEX IF NOT EXISTS images_album_sort_created_idx ON images(album_id, sort_order ASC, created_at DESC)`;
+      } catch (e) {
+        if (debug) console.warn('Index create skipped (images_album_sort_created_idx):', e?.message || e);
+      }
+      _indexesEnsured = true;
+    })().catch((err) => {
+      _indexesPromise = null;
+      if (debug) console.warn('Index create failed:', err?.message || err);
+    });
+  }
+  return _indexesPromise;
+}
+
+function maybeSetEtag(req, res, payload) {
+  try {
+    const body = JSON.stringify(payload);
+    const etag = `W/"${crypto.createHash('sha1').update(body).digest('base64').slice(0, 16)}"`;
+    res.setHeader('ETag', etag);
+    if (String(req.headers['if-none-match'] || '') === etag) {
+      res.status(304).end();
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+}
 
 export default async function handler(req, res) {
   // CORS headers
@@ -36,6 +82,7 @@ export default async function handler(req, res) {
   // GET /api/albums - Lấy danh sách albums
   if (req.method === 'GET') {
     try {
+      await ensureAlbumIndexesOnce(debug);
       const { parent_id } = req.query;
 
       const q0 = debug ? Date.now() : 0;
@@ -88,15 +135,19 @@ export default async function handler(req, res) {
       }));
 
       if (withMeta) {
-        return res.status(200).json({
+        const wrapped = {
           data: albums,
           meta: {
             count: albums.length,
             ...(debug ? { timingsMs: { query: q1 - q0, total: q1 - t0 } } : {}),
           },
-        });
+        };
+
+        if (maybeSetEtag(req, res, wrapped)) return;
+        return res.status(200).json(wrapped);
       }
 
+      if (maybeSetEtag(req, res, albums)) return;
       return res.status(200).json(albums);
     } catch (err) {
       console.error('GET /api/albums error:', err);

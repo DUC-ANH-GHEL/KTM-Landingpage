@@ -4,6 +4,42 @@
  * Endpoint: POST /api/ai-chat
  * Body: { message, context, audience: 'admin' | 'customer' }
  */
+
+const RATE_WINDOW_MS = 5 * 60 * 1000;
+const RATE_MAX = 20;
+
+let _rateState = null;
+function getRateState() {
+  if (!_rateState) _rateState = new Map();
+  return _rateState;
+}
+
+function getClientIp(req) {
+  const xf = req.headers['x-forwarded-for'];
+  if (typeof xf === 'string' && xf.trim()) return xf.split(',')[0].trim();
+  return String(req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown');
+}
+
+function checkRateLimit(req) {
+  const ip = getClientIp(req);
+  const now = Date.now();
+  const state = getRateState();
+  const cur = state.get(ip);
+  if (!cur || now >= cur.resetAt) {
+    const next = { count: 1, resetAt: now + RATE_WINDOW_MS };
+    state.set(ip, next);
+    return { allowed: true, retryAfterSec: 0 };
+  }
+
+  if (cur.count >= RATE_MAX) {
+    return { allowed: false, retryAfterSec: Math.max(1, Math.ceil((cur.resetAt - now) / 1000)) };
+  }
+
+  cur.count += 1;
+  state.set(ip, cur);
+  return { allowed: true, retryAfterSec: 0 };
+}
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -16,6 +52,12 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const rl = checkRateLimit(req);
+  if (!rl.allowed) {
+    res.setHeader('Retry-After', String(rl.retryAfterSec));
+    return res.status(429).json({ error: 'Rate limit exceeded. Please try again later.' });
   }
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -42,11 +84,16 @@ export default async function handler(req, res) {
         ? { temperature: 0.5, maxOutputTokens: 500 }
         : { temperature: 0.7, maxOutputTokens: 800 };
 
+    const controller = new AbortController();
+    const timeoutMs = 15_000;
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           contents: [{
             parts: [{ text: prompt }]
@@ -55,6 +102,8 @@ export default async function handler(req, res) {
         })
       }
     );
+
+    clearTimeout(t);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -71,6 +120,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ response: aiResponse });
   } catch (err) {
+    if (err?.name === 'AbortError') {
+      return res.status(504).json({ error: 'AI service timeout' });
+    }
     console.error('AI Chat error:', err);
     return res.status(500).json({ error: 'Internal server error', detail: err.message });
   }

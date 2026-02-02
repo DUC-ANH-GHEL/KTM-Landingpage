@@ -137,6 +137,8 @@ async function ensureSchema() {
   await sql`CREATE INDEX IF NOT EXISTS orders_created_at_idx ON orders(created_at)`;
   await sql`CREATE INDEX IF NOT EXISTS orders_status_idx ON orders(status)`;
   await sql`CREATE INDEX IF NOT EXISTS orders_status_created_at_idx ON orders(status, created_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS orders_status_updated_at_idx ON orders(status, status_updated_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS orders_customer_id_idx ON orders(customer_id)`;
 
   // Search indexes (legacy denormalized fields)
   await sql`CREATE INDEX IF NOT EXISTS orders_phone_idx ON orders(phone)`;
@@ -178,6 +180,8 @@ async function ensureSchema() {
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS order_items_order_id_idx ON order_items(order_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS order_items_product_id_idx ON order_items(product_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS order_items_created_at_idx ON order_items(created_at)`;
 
   // Add columns for existing deployments
   await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS unit_price INTEGER`;
@@ -329,7 +333,12 @@ async function upsertCustomerByPhone({ name, phone, address }) {
     throw new Error('Phone is required');
   }
 
-  const existing = await sql`SELECT * FROM customers WHERE phone = ${normalizedPhone} LIMIT 1`;
+  const existing = await sql`
+    SELECT id, name, phone, address, created_at, updated_at
+    FROM customers
+    WHERE phone = ${normalizedPhone}
+    LIMIT 1
+  `;
   if (existing.length) {
     const cur = existing[0];
     const nextName = name ?? cur.name;
@@ -389,7 +398,12 @@ export default async function handler(req, res) {
         }
 
         // 1) Primary: customers table
-        const rows = await sql`SELECT * FROM customers WHERE phone = ${phone} LIMIT 1`;
+        const rows = await sql`
+          SELECT id, name, phone, address, created_at, updated_at
+          FROM customers
+          WHERE phone = ${phone}
+          LIMIT 1
+        `;
         if (rows.length) return res.status(200).json({ exists: true, customer: rows[0] });
 
         // 2) Fallback: legacy orders data (before normalization)
@@ -422,7 +436,12 @@ export default async function handler(req, res) {
           return res.status(200).json({ exists: true, customer: inserted[0] });
         } catch {
           // In case another request inserted concurrently
-          const again = await sql`SELECT * FROM customers WHERE phone = ${phone} LIMIT 1`;
+          const again = await sql`
+            SELECT id, name, phone, address, created_at, updated_at
+            FROM customers
+            WHERE phone = ${phone}
+            LIMIT 1
+          `;
           if (again.length) return res.status(200).json({ exists: true, customer: again[0] });
           return res.status(200).json({ exists: false });
         }

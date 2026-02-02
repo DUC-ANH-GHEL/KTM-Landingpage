@@ -38,7 +38,11 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const q0 = debug ? Date.now() : 0;
-      const rows = await sql`SELECT * FROM videos WHERE id = ${id}`;
+      const rows = await sql`
+        SELECT id, title, youtube_id, thumbnail_url, category, sort_order
+        FROM videos
+        WHERE id = ${id}
+      `;
       const q1 = debug ? Date.now() : 0;
       
       if (rows.length === 0) {
