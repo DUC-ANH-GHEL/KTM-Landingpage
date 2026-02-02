@@ -31,6 +31,22 @@ async function ensureSchema() {
   `;
 
   await sql`CREATE INDEX IF NOT EXISTS customers_phone_idx ON customers(phone)`;
+  // Fuzzy search indexes (ILIKE/LIKE '%...%')
+  try {
+    await sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`;
+  } catch {
+    // ignore if extension is not available
+  }
+  try {
+    await sql`CREATE INDEX IF NOT EXISTS customers_name_trgm_idx ON customers USING gin (name gin_trgm_ops)`;
+  } catch {
+    // ignore
+  }
+  try {
+    await sql`CREATE INDEX IF NOT EXISTS customers_phone_trgm_idx ON customers USING gin (phone gin_trgm_ops)`;
+  } catch {
+    // ignore
+  }
 
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id VARCHAR(36)`;
 
@@ -44,6 +60,20 @@ async function ensureSchema() {
   await sql`CREATE INDEX IF NOT EXISTS orders_created_at_idx ON orders(created_at)`;
   await sql`CREATE INDEX IF NOT EXISTS orders_status_idx ON orders(status)`;
   await sql`CREATE INDEX IF NOT EXISTS orders_status_created_at_idx ON orders(status, created_at)`;
+
+  // Search indexes (legacy denormalized fields)
+  await sql`CREATE INDEX IF NOT EXISTS orders_phone_idx ON orders(phone)`;
+  await sql`CREATE INDEX IF NOT EXISTS orders_customer_name_idx ON orders(customer_name)`;
+  try {
+    await sql`CREATE INDEX IF NOT EXISTS orders_phone_trgm_idx ON orders USING gin (phone gin_trgm_ops)`;
+  } catch {
+    // ignore
+  }
+  try {
+    await sql`CREATE INDEX IF NOT EXISTS orders_customer_name_trgm_idx ON orders USING gin (customer_name gin_trgm_ops)`;
+  } catch {
+    // ignore
+  }
 
   // Order-level adjustment (discount/surcharge)
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS adjustment_amount INTEGER DEFAULT 0`;
@@ -441,17 +471,28 @@ export default async function handler(req, res) {
       const params = [];
       // ==================== SEARCH (all data, ignore other filters) ====================
       if (searchQuery) {
-        // Name search: matches customer name from customers table or legacy order fields.
-        // Phone search: digits-only match against customer phone (customers table or legacy order fields).
+        // IMPORTANT for performance:
+        // - Avoid COALESCE/regexp_replace in WHERE (kills index usage).
+        // - Use OR across columns so Postgres can use indexes per-column.
+        // - Prefer exact phone match when user typed a full phone number.
         query += ' WHERE (';
-        query += ' COALESCE(c.name, o.customer_name, \'\') ILIKE $1';
+
+        // Name search (supports fuzzy ILIKE with pg_trgm indexes if available)
+        query += ' (c.name ILIKE $1 OR o.customer_name ILIKE $1)';
         params.push(`%${searchQuery}%`);
 
-        // Only add phone clause if user typed any digits.
+        // Phone search
         if (searchDigits) {
-          query += ' OR regexp_replace(COALESCE(c.phone, o.phone, \'\'), \'[^0-9]\', \'\', \'g\') ILIKE $2';
+          // Heuristic: if user typed a likely full phone number, do exact match for speed.
+          if (searchDigits.length >= 9) {
+            query += ` OR (c.phone = $${params.length + 1} OR o.phone = $${params.length + 1})`;
+            params.push(searchDigits);
+          }
+          // Also support partial digits search
+          query += ` OR (c.phone LIKE $${params.length + 1} OR o.phone LIKE $${params.length + 1})`;
           params.push(`%${searchDigits}%`);
         }
+
         query += ' )';
       } else if (draftExpiring) {
         // Draft orders that are within <= remainingDays days of auto-deletion.

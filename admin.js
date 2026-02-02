@@ -6538,6 +6538,7 @@
       const phoneLookupRequestIdRef = useRef(0);
       const orderSearchTimerRef = useRef(null);
       const orderSearchRequestIdRef = useRef(0);
+      const orderSearchCacheRef = useRef(new Map());
       const customerLookupCacheRef = useRef(new Map());
       const lastLookupPhoneRef = useRef('');
       const orderModalBodyRef = useRef(null);
@@ -6555,9 +6556,22 @@
       const DRAFT_WARN_REMAINING_DAYS = 1;
       const DAY_MS = 24 * 60 * 60 * 1000;
 
+      // Search performance knobs
+      const ORDER_SEARCH_DEBOUNCE_MS = 120;
+      const ORDER_SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
+      const ORDER_SEARCH_CACHE_MAX_ENTRIES = 80;
+      const ORDER_SEARCH_MIN_CHARS = 2;
+      const ORDER_SEARCH_MIN_DIGITS = 4;
+
       const isSearchActive = React.useMemo(() => {
         return String(orderSearchQuery || '').trim().length > 0;
       }, [orderSearchQuery]);
+
+      const normalizeSearchQuery = (value) => {
+        return String(value || '').replace(/\s+/g, ' ').trim();
+      };
+
+      const getSearchDigits = (value) => String(value || '').replace(/[^0-9]+/g, '');
 
       const getOrderAgeDays = (order) => {
         try {
@@ -7019,12 +7033,34 @@
       };
 
       const runOrderSearch = async (query) => {
-        const q = String(query || '').trim();
+        const q = normalizeSearchQuery(query);
         if (!q) {
           setOrderSearchResults([]);
           setOrderSearchError('');
           setOrderSearchLoading(false);
           return;
+        }
+
+        const digits = getSearchDigits(q);
+        // Guardrails to prevent huge/slow scans on very short queries.
+        if (q.length < ORDER_SEARCH_MIN_CHARS && digits.length < ORDER_SEARCH_MIN_DIGITS) {
+          setOrderSearchResults([]);
+          setOrderSearchError(`Nhập ít nhất ${ORDER_SEARCH_MIN_CHARS} ký tự (hoặc ${ORDER_SEARCH_MIN_DIGITS} số) để search nhanh`);
+          setOrderSearchLoading(false);
+          return;
+        }
+
+        // Cache hit => instant
+        try {
+          const cached = orderSearchCacheRef.current?.get(q);
+          if (cached && Number.isFinite(cached.ts) && (Date.now() - cached.ts) <= ORDER_SEARCH_CACHE_TTL_MS) {
+            setOrderSearchResults(Array.isArray(cached.results) ? cached.results : []);
+            setOrderSearchError('');
+            setOrderSearchLoading(false);
+            return;
+          }
+        } catch {
+          // ignore
         }
 
         const requestId = ++orderSearchRequestIdRef.current;
@@ -7034,7 +7070,24 @@
           const url = `${API_BASE}/api/orders?search=${encodeURIComponent(q)}`;
           const data = await window.KTM.api.getJSON(url, 'Lỗi search đơn hàng');
           if (orderSearchRequestIdRef.current !== requestId) return;
-          setOrderSearchResults(Array.isArray(data) ? data : []);
+          const results = Array.isArray(data) ? data : [];
+          setOrderSearchResults(results);
+
+          // Save to cache (keep it bounded)
+          try {
+            const cache = orderSearchCacheRef.current;
+            if (cache && typeof cache.set === 'function') {
+              cache.set(q, { ts: Date.now(), results });
+              if (cache.size > ORDER_SEARCH_CACHE_MAX_ENTRIES) {
+                // Drop oldest entries
+                const entries = Array.from(cache.entries()).sort((a, b) => (Number(a?.[1]?.ts) || 0) - (Number(b?.[1]?.ts) || 0));
+                const toDrop = Math.max(0, entries.length - ORDER_SEARCH_CACHE_MAX_ENTRIES);
+                for (let i = 0; i < toDrop; i++) cache.delete(entries[i][0]);
+              }
+            }
+          } catch {
+            // ignore
+          }
         } catch (e) {
           if (orderSearchRequestIdRef.current !== requestId) return;
           console.error('Order search error:', e);
@@ -7053,7 +7106,7 @@
           orderSearchTimerRef.current = null;
         }
 
-        const q = String(orderSearchQuery || '').trim();
+        const q = normalizeSearchQuery(orderSearchQuery);
         if (!q) {
           setOrderSearchResults([]);
           setOrderSearchError('');
@@ -7066,7 +7119,7 @@
 
         orderSearchTimerRef.current = setTimeout(() => {
           runOrderSearch(q);
-        }, 200);
+        }, ORDER_SEARCH_DEBOUNCE_MS);
 
         return () => {
           if (orderSearchTimerRef.current) {
@@ -8161,7 +8214,7 @@
 
       return (
         <div className="product-manager">
-          <Loading show={((loading && !showModal && !isSearchActive) || (orderSearchLoading && !showModal)) || saving || !!deletingId || !!updatingId} />
+          <Loading show={(loading && !showModal && !isSearchActive) || saving || !!deletingId || !!updatingId} />
           <div className="product-header">
             <h5>Quản lý đơn hàng</h5>
             <button className="btn btn-dark btn-sm" onClick={openCreateModal} disabled={saving || !!deletingId}>
@@ -8281,6 +8334,11 @@
                     >
                       <i className="fas fa-times"></i>
                     </button>
+                  )}
+                  {orderSearchLoading && (
+                    <span className="input-group-text" title="Đang search..." aria-label="Đang search">
+                      <span className="spinner-border spinner-border-sm text-warning" role="status" aria-hidden="true"></span>
+                    </span>
                   )}
                 </div>
                 <div className="text-muted small mt-1">
