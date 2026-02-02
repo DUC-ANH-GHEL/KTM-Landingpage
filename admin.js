@@ -5746,13 +5746,94 @@
 
         const shipPercent = normalizeShipPercent(settings?.ship_percent);
 
+        const productsById = React.useMemo(() => {
+          const map = new Map();
+          for (const p of (Array.isArray(products) ? products : [])) {
+            const id = String(p?.id ?? '').trim();
+            if (!id) continue;
+            map.set(id, p);
+          }
+          return map;
+        }, [products]);
+
+        const getProductById = (id) => {
+          const key = String(id ?? '').trim();
+          if (!key) return null;
+          return productsById.get(key) || null;
+        };
+
         const {
           parseMoney,
-          parseShipFeeFromNote,
-          getShipFeeForItems,
           formatNumber,
           formatVND
         } = window.KTM.money;
+
+        const normalizeVariantGroups = (variantsRaw) => {
+          const raw = Array.isArray(variantsRaw) ? variantsRaw : [];
+          return raw
+            .map((g) => {
+              const name = String(g?.name || '').trim();
+              if (!name) return null;
+              const options = (Array.isArray(g?.options) ? g.options : [])
+                .map((o) => {
+                  const label = String(o?.label || '').trim();
+                  if (!label) return null;
+
+                  const pRaw = o?.price;
+                  const pNum = (() => {
+                    if (pRaw == null || pRaw === '') return NaN;
+                    if (typeof pRaw === 'number') return pRaw;
+                    if (typeof pRaw === 'string') return parseMoney(pRaw);
+                    return Number(pRaw);
+                  })();
+                  const price = Number.isFinite(pNum) ? Math.trunc(pNum) : null;
+
+                  const dRaw = o?.price_delta ?? o?.priceDelta ?? null;
+                  const dNum = Number(dRaw);
+                  const price_delta = Number.isFinite(dNum) ? Math.trunc(dNum) : 0;
+
+                  return { label, price, price_delta };
+                })
+                .filter(Boolean);
+              return { name, options };
+            })
+            .filter(Boolean);
+        };
+
+        const computeUnitPriceForItem = (it) => {
+          const raw = it?.unit_price ?? it?.unitPrice;
+          const n = raw == null || raw === '' ? NaN : Number(raw);
+          if (Number.isFinite(n)) return Math.max(0, Math.trunc(n));
+
+          const pid = String(it?.product_id || '').trim();
+          const product = getProductById(pid);
+          const base = parseMoney(product?.price);
+
+          const selectionsRaw = it?.variant_json ?? it?.variantJson;
+          const selections = selectionsRaw && typeof selectionsRaw === 'object' ? selectionsRaw : null;
+          if (!selections) return base;
+
+          const groups = normalizeVariantGroups(product?.variants);
+          if (!groups.length) return base;
+
+          let current = base;
+          for (const g of groups) {
+            const groupName = String(g?.name || '').trim();
+            const selectedLabel = String(selections?.[groupName] || '').trim();
+            if (!groupName || !selectedLabel) continue;
+            const opt = (Array.isArray(g.options) ? g.options : []).find((o) => String(o?.label || '').trim() === selectedLabel);
+            if (!opt) continue;
+
+            if (Number.isFinite(Number(opt.price))) {
+              current = Math.max(0, Math.trunc(Number(opt.price)));
+              continue;
+            }
+            const dNum = Number(opt.price_delta);
+            if (Number.isFinite(dNum)) current += Math.trunc(dNum);
+          }
+
+          return current;
+        };
 
         const loadProductsOnce = async () => {
           if (productsLoadedRef.current) return;
@@ -5851,7 +5932,7 @@
 
             for (const it of items) {
               const qty = Number(it?.quantity || 0) || 0;
-              const price = parseMoney(it?.product_price);
+              const price = computeUnitPriceForItem(it);
               const revenue = qty * price;
 
               const pid = String(it?.product_id || '');
@@ -5866,10 +5947,11 @@
 
               if (!isExcludedFromTotals) {
                 const pidForAgg = it?.product_id || 'unknown';
-                const p = revenueByProduct.get(pid) || {
+                const prod = getProductById(pidForAgg);
+                const p = revenueByProduct.get(pidForAgg) || {
                   product_id: pidForAgg,
-                  product_name: it?.product_name || '—',
-                  product_code: it?.product_code || '',
+                  product_name: prod?.name || '—',
+                  product_code: prod?.code || '',
                   orders: 0,
                   quantity: 0,
                   revenue: 0,
@@ -5881,7 +5963,7 @@
               }
             }
 
-            const shipInfo = getShipFeeForItems(items);
+            const shipInfo = window.KTM.orders.getOrderShipInfo(items, getProductById);
             const adj = Number(o?.adjustment_amount ?? 0) || 0;
             const orderRevenue = orderRevenueProducts + (shipInfo.found ? shipInfo.fee : 0) + adj;
             const orderRevenueNoShip = orderRevenueProducts + adj;
@@ -6493,6 +6575,9 @@
     // OrderManager component
     function OrderManager({ autoOpenCreateToken, autoOpenCreateProductId, showToast }) {
       const [orders, setOrders] = useState([]);
+      const [ordersPageOffset, setOrdersPageOffset] = useState(0);
+      const [ordersHasMore, setOrdersHasMore] = useState(false);
+      const [loadingMoreOrders, setLoadingMoreOrders] = useState(false);
       const [allOrders, setAllOrders] = useState([]);
       const [loading, setLoading] = useState(true);
       const [loadingAllOrders, setLoadingAllOrders] = useState(false);
@@ -6517,6 +6602,8 @@
       const [showModal, setShowModal] = useState(false);
       const [customerLookup, setCustomerLookup] = useState(null);
       const [showPhoneHistory, setShowPhoneHistory] = useState(false);
+      const [phoneHistoryOrders, setPhoneHistoryOrders] = useState([]);
+      const [phoneHistoryLoading, setPhoneHistoryLoading] = useState(false);
       const [splitDeliverNow, setSplitDeliverNow] = useState([]);
       const [form, setForm] = useState({
         customer_name: "",
@@ -6538,6 +6625,9 @@
       const lastAutoOpenCreateTokenRef = useRef(null);
       const phoneLookupTimerRef = useRef(null);
       const phoneLookupRequestIdRef = useRef(0);
+      const phoneHistoryTimerRef = useRef(null);
+      const phoneHistoryRequestIdRef = useRef(0);
+      const phoneHistoryCacheRef = useRef(new Map());
       const orderSearchTimerRef = useRef(null);
       const orderSearchRequestIdRef = useRef(0);
       const orderSearchCacheRef = useRef(new Map());
@@ -6548,6 +6638,8 @@
       const lastCreatedOrderRef = useRef(null); // { id, fingerprint, ts }
       const PHONE_LOOKUP_MIN_LEN = 9;
       const PHONE_LOOKUP_DEBOUNCE_MS = 150;
+      const PHONE_HISTORY_DEBOUNCE_MS = 250;
+      const PHONE_HISTORY_CACHE_TTL_MS = 3 * 60 * 1000;
       const CUSTOMER_LOOKUP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
       const CUSTOMER_LOOKUP_CACHE_TTL_NOT_FOUND_MS = 5 * 60 * 1000;
       const CUSTOMER_LOOKUP_CACHE_STORAGE_KEY = 'ktm_customer_lookup_cache_v1';
@@ -6564,6 +6656,9 @@
       const ORDER_SEARCH_CACHE_MAX_ENTRIES = 80;
       const ORDER_SEARCH_MIN_CHARS = 2;
       const ORDER_SEARCH_MIN_DIGITS = 4;
+
+      // Orders list performance knobs
+      const ORDERS_PAGE_SIZE = 60;
 
       const isSearchActive = React.useMemo(() => {
         return String(orderSearchQuery || '').trim().length > 0;
@@ -6713,6 +6808,48 @@
       const isValidPhone = (normalizedDigits) => window.KTM.phone.isValid(normalizedDigits);
 
       const normalizePhone = (value) => window.KTM.phone.normalize(value);
+
+      const fetchOrderById = async (orderId) => {
+        if (!orderId) return null;
+        const data = await window.KTM.api.getJSON(`${API_BASE}/api/orders/${orderId}`, 'Lỗi tải đơn hàng');
+        // Some handlers might wrap in {order: ...}
+        if (data && typeof data === 'object' && data.order && typeof data.order === 'object') return data.order;
+        return data;
+      };
+
+      const mergeOrdersById = (prevList, nextList) => {
+        const prevArr = Array.isArray(prevList) ? prevList : [];
+        const nextArr = Array.isArray(nextList) ? nextList : [];
+        if (!prevArr.length) return nextArr;
+        if (!nextArr.length) return prevArr;
+        const map = new Map(prevArr.map((o) => [String(o?.id ?? ''), o]));
+        for (const o of nextArr) {
+          const id = String(o?.id ?? '');
+          if (!id) continue;
+          map.set(id, o);
+        }
+        return Array.from(map.values());
+      };
+
+      const ensureFullOrder = async (order) => {
+        if (!order?.id) return order;
+        // If we already have any items array with content, assume it's full enough.
+        if (Array.isArray(order.items) && order.items.length) return order;
+        try {
+          const full = await fetchOrderById(order.id);
+          if (full && typeof full === 'object') {
+            setOrders((prev) => (
+              Array.isArray(prev)
+                ? prev.map((o) => (String(o?.id) === String(order.id) ? full : o))
+                : prev
+            ));
+            return full;
+          }
+        } catch (e) {
+          console.error('Fetch order by id error:', e);
+        }
+        return order;
+      };
 
       const loadCustomerLookupCache = () => {
         try {
@@ -6962,8 +7099,78 @@
             clearTimeout(phoneLookupTimerRef.current);
             phoneLookupTimerRef.current = null;
           }
+          if (phoneHistoryTimerRef.current) {
+            clearTimeout(phoneHistoryTimerRef.current);
+            phoneHistoryTimerRef.current = null;
+          }
         };
       }, []);
+
+      useEffect(() => {
+        // Keep phone history accurate without requiring full month orders loaded.
+        if (!showModal) return;
+
+        if (phoneHistoryTimerRef.current) {
+          clearTimeout(phoneHistoryTimerRef.current);
+          phoneHistoryTimerRef.current = null;
+        }
+
+        const phone = normalizePhone(form?.phone || '');
+        if (!isValidPhone(phone)) {
+          setPhoneHistoryOrders([]);
+          setPhoneHistoryLoading(false);
+          return;
+        }
+
+        phoneHistoryTimerRef.current = setTimeout(async () => {
+          const key = String(phone);
+          const cached = phoneHistoryCacheRef.current?.get(key);
+          if (cached && Number.isFinite(cached.ts) && (Date.now() - cached.ts) <= PHONE_HISTORY_CACHE_TTL_MS) {
+            setPhoneHistoryOrders(Array.isArray(cached.orders) ? cached.orders : []);
+            setPhoneHistoryLoading(false);
+            return;
+          }
+
+          const requestId = ++phoneHistoryRequestIdRef.current;
+          setPhoneHistoryLoading(true);
+          try {
+            const url = `${API_BASE}/api/orders?search=${encodeURIComponent(phone)}`;
+            const data = await window.KTM.api.getJSON(url, 'Lỗi tải lịch sử đơn theo SĐT');
+            if (phoneHistoryRequestIdRef.current !== requestId) return;
+
+            const list = Array.isArray(data) ? data : (Array.isArray(data?.orders) ? data.orders : []);
+            setPhoneHistoryOrders(list);
+            try {
+              const cache = phoneHistoryCacheRef.current;
+              if (cache && typeof cache.set === 'function') {
+                cache.set(key, { ts: Date.now(), orders: list });
+                if (cache.size > 100) {
+                  // Drop oldest entries
+                  const entries = Array.from(cache.entries()).sort((a, b) => (Number(a?.[1]?.ts) || 0) - (Number(b?.[1]?.ts) || 0));
+                  const toDrop = Math.max(0, entries.length - 100);
+                  for (let i = 0; i < toDrop; i++) cache.delete(entries[i][0]);
+                }
+              }
+            } catch {
+              // ignore
+            }
+          } catch (e) {
+            if (phoneHistoryRequestIdRef.current !== requestId) return;
+            console.error('Phone history fetch error:', e);
+            setPhoneHistoryOrders([]);
+          } finally {
+            if (phoneHistoryRequestIdRef.current !== requestId) return;
+            setPhoneHistoryLoading(false);
+          }
+        }, PHONE_HISTORY_DEBOUNCE_MS);
+
+        return () => {
+          if (phoneHistoryTimerRef.current) {
+            clearTimeout(phoneHistoryTimerRef.current);
+            phoneHistoryTimerRef.current = null;
+          }
+        };
+      }, [showModal, form?.phone]);
 
       useEffect(() => {
         loadProducts();
@@ -7078,19 +7285,68 @@
       };
 
       const loadOrders = async () => {
-        setLoading(true);
+        const reset = true;
+        setLoading(reset);
+        setLoadingMoreOrders(!reset);
         try {
-          let url = `${API_BASE}/api/orders`;
-          if (filterMonth) url += `?month=${filterMonth}`;
+          const params = new URLSearchParams();
+          if (filterMonth) params.set('month', String(filterMonth));
+          params.set('includeItems', '0');
+          params.set('meta', '1');
+          params.set('limit', String(ORDERS_PAGE_SIZE));
+          params.set('offset', '0');
+
+          const url = `${API_BASE}/api/orders?${params.toString()}`;
           const data = await window.KTM.api.getJSON(url, 'Lỗi tải đơn hàng');
-          setOrders(Array.isArray(data) ? data : []);
+
+          const list = Array.isArray(data)
+            ? data
+            : (Array.isArray(data?.orders) ? data.orders : []);
+          const meta = (!Array.isArray(data) && data && typeof data === 'object') ? (data.meta || null) : null;
+
+          setOrders(Array.isArray(list) ? list : []);
+          setOrdersPageOffset(Array.isArray(list) ? list.length : 0);
+          setOrdersHasMore(!!meta?.hasMore);
           // Keep the global overdue snapshot fresh (non-blocking)
           loadAllOrdersForAlerts();
         } catch (e) {
           console.error('Load orders error:', e);
           setOrders([]);
+          setOrdersPageOffset(0);
+          setOrdersHasMore(false);
         } finally {
           setLoading(false);
+          setLoadingMoreOrders(false);
+        }
+      };
+
+      const loadMoreOrders = async () => {
+        if (loading || loadingMoreOrders || isSearchActive) return;
+        if (!ordersHasMore) return;
+
+        setLoadingMoreOrders(true);
+        try {
+          const params = new URLSearchParams();
+          if (filterMonth) params.set('month', String(filterMonth));
+          params.set('includeItems', '0');
+          params.set('meta', '1');
+          params.set('limit', String(ORDERS_PAGE_SIZE));
+          params.set('offset', String(ordersPageOffset));
+
+          const url = `${API_BASE}/api/orders?${params.toString()}`;
+          const data = await window.KTM.api.getJSON(url, 'Lỗi tải đơn hàng');
+          const list = Array.isArray(data)
+            ? data
+            : (Array.isArray(data?.orders) ? data.orders : []);
+          const meta = (!Array.isArray(data) && data && typeof data === 'object') ? (data.meta || null) : null;
+
+          setOrders((prev) => mergeOrdersById(prev, Array.isArray(list) ? list : []));
+          setOrdersPageOffset((prev) => prev + (Array.isArray(list) ? list.length : 0));
+          setOrdersHasMore(!!meta?.hasMore);
+        } catch (e) {
+          console.error('Load more orders error:', e);
+        } finally {
+          setLoadingMoreOrders(false);
         }
       };
 
@@ -7197,11 +7453,11 @@
         try {
           const [overdueData, draftData] = await Promise.all([
             window.KTM.api.getJSON(
-              `${API_BASE}/api/orders?overdue=1&days=${encodeURIComponent(OVERDUE_PENDING_DAYS)}`,
+              `${API_BASE}/api/orders?overdue=1&days=${encodeURIComponent(OVERDUE_PENDING_DAYS)}&includeItems=0`,
               'Lỗi tải đơn hàng'
             ),
             window.KTM.api.getJSON(
-              `${API_BASE}/api/orders?draftExpiring=1&remainingDays=${encodeURIComponent(DRAFT_WARN_REMAINING_DAYS)}`,
+              `${API_BASE}/api/orders?draftExpiring=1&remainingDays=${encodeURIComponent(DRAFT_WARN_REMAINING_DAYS)}&includeItems=0`,
               'Lỗi tải đơn nháp'
             ),
           ]);
@@ -7218,11 +7474,13 @@
         }
       };
 
-      const editOrder = (order) => {
-        setEditingId(order.id);
+      const editOrder = async (order) => {
+        const fullOrder = await ensureFullOrder(order);
+        if (!fullOrder) return;
+        setEditingId(fullOrder.id);
 
-        const items = Array.isArray(order.items) && order.items.length
-          ? order.items.map((it) => ({
+        const items = Array.isArray(fullOrder.items) && fullOrder.items.length
+          ? fullOrder.items.map((it) => ({
               product_id: it?.product_id || '',
               quantity: Number(it?.quantity ?? 1) || 1,
               unit_price: (() => {
@@ -7234,31 +7492,31 @@
               variant: String(it?.variant ?? '').trim(),
               variant_json: it?.variant_json ?? it?.variantJson ?? null,
             })).filter((it) => it.product_id)
-          : [{ product_id: order.product_id || '', quantity: Number(order.quantity || 1) || 1, unit_price: null, variant: '', variant_json: null }];
+          : [{ product_id: fullOrder.product_id || '', quantity: Number(fullOrder.quantity || 1) || 1, unit_price: null, variant: '', variant_json: null }];
 
-        const adjFormItems = getAdjustmentFormItemsFromOrder(order);
+        const adjFormItems = getAdjustmentFormItemsFromOrder(fullOrder);
         const cleanAdjItems = cleanAdjustmentItemsForPayload(adjFormItems);
         const adjSum = computeAdjustmentSum(cleanAdjItems);
         const adjNoteStored = serializeAdjustmentItems(cleanAdjItems);
 
         setForm({
-          customer_name: order.customer_name || "",
-          phone: normalizePhone(order.phone || ""),
-          address: order.address || "",
-          note: order?.note || "",
+          customer_name: fullOrder.customer_name || "",
+          phone: normalizePhone(fullOrder.phone || ""),
+          address: fullOrder.address || "",
+          note: fullOrder?.note || "",
           items: items.length ? items : [{ product_id: "", quantity: 1, unit_price: null, variant: '', variant_json: null }],
           adjustment_items: adjFormItems,
           adjustment_amount: adjSum,
-          adjustment_note: adjNoteStored || (order?.adjustment_note || ""),
-          status: order.status || "pending",
+          adjustment_note: adjNoteStored || (fullOrder?.adjustment_note || ""),
+          status: fullOrder.status || "pending",
         });
         setItemSearches(new Array(items.length ? items.length : 1).fill(''));
         setSplitDeliverNow(new Array(items.length ? items.length : 1).fill(true));
         setCustomerLookup(null);
         setShowModal(true);
 
-        if (order.phone) {
-          lookupCustomerByPhone(normalizePhone(order.phone));
+        if (fullOrder.phone) {
+          lookupCustomerByPhone(normalizePhone(fullOrder.phone));
         }
       };
 
@@ -7865,7 +8123,8 @@
 
       const handleCopyOrder = async (order) => {
         try {
-          const text = getOrderCopyText(order);
+          const fullOrder = await ensureFullOrder(order);
+          const text = getOrderCopyText(fullOrder);
           await window.KTM.clipboard.writeText(text);
           if (typeof showToast === 'function') showToast('Đã copy thông tin đơn hàng', 'success');
           else alert('Đã copy thông tin đơn hàng');
@@ -7927,7 +8186,8 @@
         if (!phone) return { count: 0, orders: [], monthKey: getActiveMonthKey() };
 
         const monthKey = getActiveMonthKey();
-        const matched = (Array.isArray(orders) ? orders : [])
+        const source = Array.isArray(phoneHistoryOrders) ? phoneHistoryOrders : [];
+        const matched = source
           .filter((o) => {
             if (!o) return false;
             if (editingId && String(o.id) === String(editingId)) return false;
@@ -7942,7 +8202,7 @@
           });
 
         return { count: matched.length, orders: matched, monthKey };
-      }, [orders, form?.phone, filterMonth, editingId]);
+      }, [phoneHistoryOrders, form?.phone, filterMonth, editingId]);
 
       const makeOrderFingerprintFromOrder = (order) => {
         const name = String(order?.customer_name || '').trim().toLowerCase();
@@ -7978,7 +8238,7 @@
         const monthKey = getActiveMonthKey();
         const currentFp = makeOrderFingerprint(form);
 
-        const list = Array.isArray(orders) ? orders : [];
+        const list = Array.isArray(phoneHistoryOrders) ? phoneHistoryOrders : [];
         for (const o of list) {
           if (!o) continue;
           if (editingId && String(o.id) === String(editingId)) continue;
@@ -7992,7 +8252,7 @@
         }
 
         return '';
-      }, [orders, form, filterMonth, editingId]);
+      }, [phoneHistoryOrders, form, filterMonth, editingId]);
 
       const computeOrderValidation = (nextForm) => {
         const errors = [];
@@ -8253,12 +8513,13 @@
       };
 
       const updateOrderStatus = async (order, nextStatus) => {
-        const orderId = order?.id;
+        const fullOrder = await ensureFullOrder(order);
+        const orderId = fullOrder?.id;
         if (!orderId || !nextStatus) return;
 
         setUpdatingId(orderId);
         try {
-          const items = getOrderItems(order);
+          const items = getOrderItems(fullOrder);
           const normalizedItems = (Array.isArray(items) ? items : [])
             .map((it) => ({
               product_id: it?.product_id || '',
@@ -8280,12 +8541,12 @@
           const primary = normalizedItems[0];
           const payload = {
             id: orderId,
-            customer_name: order?.customer_name || '',
-            phone: normalizePhone(order?.phone || ''),
-            address: order?.address || '',
-            note: (order?.note || '').trim(),
-            adjustment_amount: Number(order?.adjustment_amount ?? 0) || 0,
-            adjustment_note: order?.adjustment_note || '',
+            customer_name: fullOrder?.customer_name || '',
+            phone: normalizePhone(fullOrder?.phone || ''),
+            address: fullOrder?.address || '',
+            note: (fullOrder?.note || '').trim(),
+            adjustment_amount: Number(fullOrder?.adjustment_amount ?? 0) || 0,
+            adjustment_note: fullOrder?.adjustment_note || '',
             // Back-compat fields
             product_id: primary.product_id,
             quantity: primary.quantity,
@@ -8467,7 +8728,7 @@
               <span className="text-muted small">
                 {isSearchActive
                   ? `${ordersToRender.length} kết quả`
-                  : (filterStatus ? `${filteredOrders.length}/${orders.length} đơn` : `${orders.length} đơn`)
+                  : (filterStatus ? `${filteredOrders.length}/${orders.length} đơn` : `${orders.length}${ordersHasMore ? '+' : ''} đơn`)
                 }
               </span>
             </div>
@@ -8803,6 +9064,23 @@
                     </table>
                   </div>
                 </div>
+
+                {!isSearchActive && ordersHasMore && !overdueOnly && (
+                  <div className="d-flex justify-content-center mt-3">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={loadMoreOrders}
+                      disabled={loading || loadingMoreOrders}
+                    >
+                      {loadingMoreOrders ? (
+                        <><span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Đang tải thêm...</>
+                      ) : (
+                        <><i className="fas fa-angle-down me-2"></i>Tải thêm đơn</>
+                      )}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

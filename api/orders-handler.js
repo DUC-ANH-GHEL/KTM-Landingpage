@@ -15,6 +15,20 @@ function normalizePhone(value) {
   return String(value).replace(/[^0-9]/g, '');
 }
 
+function parseBool(value, defaultValue = false) {
+  if (value == null) return defaultValue;
+  const s = String(value).trim().toLowerCase();
+  if (s === '1' || s === 'true' || s === 'yes' || s === 'y' || s === 'on') return true;
+  if (s === '0' || s === 'false' || s === 'no' || s === 'n' || s === 'off') return false;
+  return defaultValue;
+}
+
+function parseIntSafe(value, fallback = null) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.trunc(n);
+}
+
 async function ensureSchema() {
   if (_schemaEnsured) return;
 
@@ -380,11 +394,7 @@ export default async function handler(req, res) {
                   'quantity', oi.quantity,
                   'unit_price', oi.unit_price,
                   'variant', oi.variant,
-                  'variant_json', oi.variant_json,
-                  'product_name', p.name,
-                  'product_price', p.price,
-                  'product_code', p.code,
-                  'product_note', p.note
+                  'variant_json', oi.variant_json
                 )
               ) FILTER (WHERE oi.id IS NOT NULL),
               '[]'::json
@@ -394,7 +404,6 @@ export default async function handler(req, res) {
           LEFT JOIN customers c ON c.id = o.customer_id
           LEFT JOIN products p0 ON p0.id = o.product_id
           LEFT JOIN order_items oi ON oi.order_id = (o.id::text)
-          LEFT JOIN products p ON p.id = oi.product_id
           WHERE o.id = $1
           GROUP BY o.id, c.id, p0.id
         `;
@@ -408,6 +417,12 @@ export default async function handler(req, res) {
       const searchRaw = req.query.search ?? req.query.q ?? '';
       const searchQuery = String(searchRaw ?? '').trim();
       const searchDigits = searchQuery.replace(/[^0-9]+/g, '');
+
+      const includeItems = parseBool(req.query.includeItems ?? req.query.items ?? req.query.include_items, true);
+      const withMeta = parseBool(req.query.meta, false);
+      const limit = parseIntSafe(req.query.limit, null);
+      const offset = Math.max(0, parseIntSafe(req.query.offset, 0) ?? 0);
+
       const overdue = String(req.query.overdue || '').trim() === '1' || String(req.query.overdue || '').trim().toLowerCase() === 'true';
       const draftExpiring = String(req.query.draftExpiring || req.query.draft_expiring || '').trim() === '1'
         || String(req.query.draftExpiring || req.query.draft_expiring || '').trim().toLowerCase() === 'true';
@@ -451,11 +466,7 @@ export default async function handler(req, res) {
                 'quantity', oi.quantity,
                 'unit_price', oi.unit_price,
                 'variant', oi.variant,
-                'variant_json', oi.variant_json,
-                'product_name', p.name,
-                'product_price', p.price,
-                'product_code', p.code,
-                'product_note', p.note
+                'variant_json', oi.variant_json
               )
             ) FILTER (WHERE oi.id IS NOT NULL),
             '[]'::json
@@ -465,7 +476,6 @@ export default async function handler(req, res) {
         LEFT JOIN customers c ON c.id = o.customer_id
         LEFT JOIN products p0 ON p0.id = o.product_id
         LEFT JOIN order_items oi ON oi.order_id = (o.id::text)
-        LEFT JOIN products p ON p.id = oi.product_id
       `;
 
       const params = [];
@@ -514,8 +524,132 @@ export default async function handler(req, res) {
 
       query += ' GROUP BY o.id, c.id, p0.id ORDER BY o.created_at DESC';
 
+      // Optional pagination (used by admin UI for faster first paint)
+      if (Number.isFinite(limit) && limit > 0) {
+        const effectiveLimit = withMeta ? (limit + 1) : limit;
+        query += ` LIMIT $${params.length + 1}`;
+        params.push(effectiveLimit);
+        if (offset > 0) {
+          query += ` OFFSET $${params.length + 1}`;
+          params.push(offset);
+        }
+      } else if (offset > 0) {
+        query += ` OFFSET $${params.length + 1}`;
+        params.push(offset);
+      }
+
+      // Optionally allow skipping items aggregation entirely
+      if (!includeItems) {
+        // Keep response stable: return orders without items and without the heavy join.
+        // This is best-effort and primarily for alert banners.
+        let lightQuery = `
+          SELECT
+            o.id,
+            o.parent_order_id,
+            o.split_seq,
+            o.product_id,
+            o.quantity,
+            o.status,
+            o.created_at,
+            o.customer_id,
+            o.adjustment_amount,
+            o.adjustment_note,
+            o.note,
+            p0.name AS product_name,
+            p0.price AS product_price,
+            p0.code AS product_code,
+            p0.note AS product_note,
+            COALESCE(c.name, o.customer_name) AS customer_name,
+            COALESCE(c.phone, o.phone) AS phone,
+            COALESCE(c.address, o.address) AS address,
+            '[]'::json AS items,
+            COALESCE(
+              (SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.order_id = (o.id::text)),
+              o.quantity,
+              0
+            ) AS total_quantity
+          FROM orders o
+          LEFT JOIN customers c ON c.id = o.customer_id
+          LEFT JOIN products p0 ON p0.id = o.product_id
+        `;
+
+        // Rebuild WHERE using same params logic (kept simple; matches the above branches)
+        const p2 = [];
+        if (searchQuery) {
+          lightQuery += ' WHERE (';
+          lightQuery += ' (c.name ILIKE $1 OR o.customer_name ILIKE $1)';
+          p2.push(`%${searchQuery}%`);
+          if (searchDigits) {
+            if (searchDigits.length >= 9) {
+              lightQuery += ` OR (c.phone = $${p2.length + 1} OR o.phone = $${p2.length + 1})`;
+              p2.push(searchDigits);
+            }
+            lightQuery += ` OR (c.phone LIKE $${p2.length + 1} OR o.phone LIKE $${p2.length + 1})`;
+            p2.push(`%${searchDigits}%`);
+          }
+          lightQuery += ' )';
+        } else if (draftExpiring) {
+          lightQuery += " WHERE o.status = 'draft' AND o.created_at IS NOT NULL";
+          lightQuery += " AND o.created_at > (NOW() - ($1::int * INTERVAL '1 day'))";
+          p2.push(DRAFT_AUTO_DELETE_DAYS);
+          if (warnAgeDays > 0) {
+            lightQuery += " AND o.created_at <= (NOW() - ($2::int * INTERVAL '1 day'))";
+            p2.push(warnAgeDays);
+          }
+        } else if (overdue) {
+          lightQuery += " WHERE o.status = 'pending' AND o.created_at <= (NOW() - ($1::int * INTERVAL '1 day'))";
+          p2.push(overdueDays);
+        } else if (month) {
+          lightQuery += " WHERE TO_CHAR(o.created_at, 'YYYY-MM') = $1";
+          p2.push(month);
+        }
+
+        lightQuery += ' ORDER BY o.created_at DESC';
+        if (Number.isFinite(limit) && limit > 0) {
+          const effectiveLimit = withMeta ? (limit + 1) : limit;
+          lightQuery += ` LIMIT $${p2.length + 1}`;
+          p2.push(effectiveLimit);
+          if (offset > 0) {
+            lightQuery += ` OFFSET $${p2.length + 1}`;
+            p2.push(offset);
+          }
+        } else if (offset > 0) {
+          lightQuery += ` OFFSET $${p2.length + 1}`;
+          p2.push(offset);
+        }
+
+        const result = await sql(lightQuery, p2);
+        let rows = Array.isArray(result) ? result : [];
+        let hasMore = false;
+        if (withMeta && Number.isFinite(limit) && limit > 0 && rows.length > limit) {
+          hasMore = true;
+          rows = rows.slice(0, limit);
+        }
+        if (withMeta) {
+          return res.status(200).json({
+            orders: rows,
+            meta: { includeItems: false, limit: Number.isFinite(limit) && limit > 0 ? limit : null, offset, count: rows.length, hasMore },
+          });
+        }
+        return res.status(200).json(rows);
+      }
+
       const result = await sql(query, params);
-      return res.status(200).json(result.map(synthesizeItemsFromLegacy));
+      let rows = (Array.isArray(result) ? result : []).map(synthesizeItemsFromLegacy);
+      let hasMore = false;
+      if (withMeta && Number.isFinite(limit) && limit > 0 && rows.length > limit) {
+        hasMore = true;
+        rows = rows.slice(0, limit);
+      }
+
+      if (withMeta) {
+        return res.status(200).json({
+          orders: rows,
+          meta: { includeItems: true, limit: Number.isFinite(limit) && limit > 0 ? limit : null, offset, count: rows.length, hasMore },
+        });
+      }
+
+      return res.status(200).json(rows);
     }
 
     // POST /api/orders
