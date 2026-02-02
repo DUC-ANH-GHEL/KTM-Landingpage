@@ -375,6 +375,9 @@ export default async function handler(req, res) {
       }
 
       const { month } = req.query;
+      const searchRaw = req.query.search ?? req.query.q ?? '';
+      const searchQuery = String(searchRaw ?? '').trim();
+      const searchDigits = searchQuery.replace(/[^0-9]+/g, '');
       const overdue = String(req.query.overdue || '').trim() === '1' || String(req.query.overdue || '').trim().toLowerCase() === 'true';
       const draftExpiring = String(req.query.draftExpiring || req.query.draft_expiring || '').trim() === '1'
         || String(req.query.draftExpiring || req.query.draft_expiring || '').trim().toLowerCase() === 'true';
@@ -436,7 +439,21 @@ export default async function handler(req, res) {
       `;
 
       const params = [];
-      if (draftExpiring) {
+      // ==================== SEARCH (all data, ignore other filters) ====================
+      if (searchQuery) {
+        // Name search: matches customer name from customers table or legacy order fields.
+        // Phone search: digits-only match against customer phone (customers table or legacy order fields).
+        query += ' WHERE (';
+        query += ' COALESCE(c.name, o.customer_name, \'\') ILIKE $1';
+        params.push(`%${searchQuery}%`);
+
+        // Only add phone clause if user typed any digits.
+        if (searchDigits) {
+          query += ' OR regexp_replace(COALESCE(c.phone, o.phone, \'\'), \'[^0-9]\', \'\', \'g\') ILIKE $2';
+          params.push(`%${searchDigits}%`);
+        }
+        query += ' )';
+      } else if (draftExpiring) {
         // Draft orders that are within <= remainingDays days of auto-deletion.
         // Also limit to drafts created within the last 7 days (older drafts should be cleaned up).
         query += " WHERE o.status = 'draft' AND o.created_at IS NOT NULL";

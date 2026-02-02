@@ -6498,6 +6498,10 @@
       const [loadingAllOrders, setLoadingAllOrders] = useState(false);
       const [draftExpiringOrders, setDraftExpiringOrders] = useState([]);
       const [loadingDraftExpiringOrders, setLoadingDraftExpiringOrders] = useState(false);
+      const [orderSearchQuery, setOrderSearchQuery] = useState('');
+      const [orderSearchResults, setOrderSearchResults] = useState([]);
+      const [orderSearchLoading, setOrderSearchLoading] = useState(false);
+      const [orderSearchError, setOrderSearchError] = useState('');
       const [saving, setSaving] = useState(false);
       const [deletingId, setDeletingId] = useState(null);
       const [updatingId, setUpdatingId] = useState(null);
@@ -6532,6 +6536,8 @@
       const lastAutoOpenCreateTokenRef = useRef(null);
       const phoneLookupTimerRef = useRef(null);
       const phoneLookupRequestIdRef = useRef(0);
+      const orderSearchTimerRef = useRef(null);
+      const orderSearchRequestIdRef = useRef(0);
       const customerLookupCacheRef = useRef(new Map());
       const lastLookupPhoneRef = useRef('');
       const orderModalBodyRef = useRef(null);
@@ -6548,6 +6554,10 @@
       const DRAFT_AUTO_DELETE_DAYS = 3;
       const DRAFT_WARN_REMAINING_DAYS = 1;
       const DAY_MS = 24 * 60 * 60 * 1000;
+
+      const isSearchActive = React.useMemo(() => {
+        return String(orderSearchQuery || '').trim().length > 0;
+      }, [orderSearchQuery]);
 
       const getOrderAgeDays = (order) => {
         try {
@@ -6884,8 +6894,11 @@
       }, []);
 
       useEffect(() => {
+        // Search mode must show ALL data and be independent of filters.
+        // Avoid reloading month-filtered list while searching.
+        if (isSearchActive) return;
         loadOrders();
-      }, [filterMonth]);
+      }, [filterMonth, isSearchActive]);
 
       useEffect(() => {
         // Always compute overdue alerts on ALL orders (independent from month filter)
@@ -6968,6 +6981,14 @@
         return (Array.isArray(displayOrders) ? displayOrders : []).filter((o) => String(o?.status || '').trim() === s);
       }, [displayOrders, filterStatus, overdueOnly]);
 
+      const sortedSearchResults = React.useMemo(() => {
+        return window.KTM.orders.sortOrders(orderSearchResults);
+      }, [orderSearchResults]);
+
+      const ordersToRender = React.useMemo(() => {
+        return isSearchActive ? sortedSearchResults : filteredOrders;
+      }, [filteredOrders, isSearchActive, sortedSearchResults]);
+
       const formatDateTime = (value) => window.KTM.date.formatDateTime(value);
 
       const loadProducts = async () => {
@@ -6996,6 +7017,64 @@
           setLoading(false);
         }
       };
+
+      const runOrderSearch = async (query) => {
+        const q = String(query || '').trim();
+        if (!q) {
+          setOrderSearchResults([]);
+          setOrderSearchError('');
+          setOrderSearchLoading(false);
+          return;
+        }
+
+        const requestId = ++orderSearchRequestIdRef.current;
+        setOrderSearchLoading(true);
+        setOrderSearchError('');
+        try {
+          const url = `${API_BASE}/api/orders?search=${encodeURIComponent(q)}`;
+          const data = await window.KTM.api.getJSON(url, 'Lỗi search đơn hàng');
+          if (orderSearchRequestIdRef.current !== requestId) return;
+          setOrderSearchResults(Array.isArray(data) ? data : []);
+        } catch (e) {
+          if (orderSearchRequestIdRef.current !== requestId) return;
+          console.error('Order search error:', e);
+          setOrderSearchResults([]);
+          setOrderSearchError(e?.message || 'Search lỗi');
+        } finally {
+          if (orderSearchRequestIdRef.current !== requestId) return;
+          setOrderSearchLoading(false);
+        }
+      };
+
+      useEffect(() => {
+        // Search is independent of filters/month; fetch results from server (all data).
+        if (orderSearchTimerRef.current) {
+          clearTimeout(orderSearchTimerRef.current);
+          orderSearchTimerRef.current = null;
+        }
+
+        const q = String(orderSearchQuery || '').trim();
+        if (!q) {
+          setOrderSearchResults([]);
+          setOrderSearchError('');
+          setOrderSearchLoading(false);
+          return;
+        }
+
+        // Ensure filters don't interfere while searching.
+        if (overdueOnly) setOverdueOnly(false);
+
+        orderSearchTimerRef.current = setTimeout(() => {
+          runOrderSearch(q);
+        }, 200);
+
+        return () => {
+          if (orderSearchTimerRef.current) {
+            clearTimeout(orderSearchTimerRef.current);
+            orderSearchTimerRef.current = null;
+          }
+        };
+      }, [orderSearchQuery]);
 
       const loadAllOrdersForAlerts = async () => {
         setLoadingAllOrders(true);
@@ -8082,7 +8161,7 @@
 
       return (
         <div className="product-manager">
-          <Loading show={(loading && !showModal) || saving || !!deletingId || !!updatingId} />
+          <Loading show={((loading && !showModal && !isSearchActive) || (orderSearchLoading && !showModal)) || saving || !!deletingId || !!updatingId} />
           <div className="product-header">
             <h5>Quản lý đơn hàng</h5>
             <button className="btn btn-dark btn-sm" onClick={openCreateModal} disabled={saving || !!deletingId}>
@@ -8092,7 +8171,7 @@
 
           <div className="product-search">
             <div className="row g-2 align-items-end">
-              <div className="col-12 col-md-5">
+              <div className="col-12 col-md-4">
                 <label className="form-label mb-1">Lọc theo tháng</label>
                 <div className="input-group">
                   <span className="input-group-text" aria-hidden="true">
@@ -8104,7 +8183,7 @@
                     value={filterMonth}
                     onChange={e => setFilterMonth(e.target.value)}
                     aria-label="Chọn tháng"
-                    disabled={overdueOnly}
+                    disabled={overdueOnly || isSearchActive}
                   />
                   {filterMonth && (
                     <button
@@ -8115,14 +8194,14 @@
                       }}
                       title="Bỏ lọc"
                       aria-label="Bỏ lọc"
-                      disabled={loading}
+                      disabled={loading || isSearchActive}
                     >
                       <i className="fas fa-times"></i>
                     </button>
                   )}
                 </div>
               </div>
-              <div className="col-12 col-md-4">
+              <div className="col-12 col-md-3">
                 <label className="form-label mb-1">Trạng thái</label>
                 <div className="input-group">
                   <span className="input-group-text" aria-hidden="true">
@@ -8133,7 +8212,7 @@
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
                     aria-label="Lọc theo trạng thái"
-                    disabled={overdueOnly}
+                    disabled={overdueOnly || isSearchActive}
                   >
                     <option value="">Tất cả</option>
                     <option value="draft">Đơn nháp</option>
@@ -8150,7 +8229,7 @@
                       onClick={() => setFilterStatus('')}
                       title="Bỏ lọc trạng thái"
                       aria-label="Bỏ lọc trạng thái"
-                      disabled={loading}
+                      disabled={loading || isSearchActive}
                     >
                       <i className="fas fa-times"></i>
                     </button>
@@ -8163,20 +8242,57 @@
                     id="orders-overdue-only"
                     checked={overdueOnly}
                     onChange={(e) => {
+                      if (isSearchActive) return;
                       const next = !!e.target.checked;
                       setOverdueOnly(next);
                       if (next) {
                         setFilterStatus('pending');
                       }
                     }}
+                    disabled={isSearchActive}
                   />
                   <label className="form-check-label" htmlFor="orders-overdue-only">
                     Chỉ hiện đơn chậm &gt; {OVERDUE_PENDING_DAYS} ngày (Chờ xử lý)
                   </label>
                 </div>
               </div>
-              <div className="col-12 col-md-3 d-flex gap-2 justify-content-md-end">
-                <button className="btn btn-outline-secondary" onClick={loadOrders} disabled={loading}>
+              <div className="col-12 col-md-3">
+                <label className="form-label mb-1">Search (tên / SĐT)</label>
+                <div className="input-group">
+                  <span className="input-group-text" aria-hidden="true">
+                    <i className="fas fa-search"></i>
+                  </span>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={orderSearchQuery}
+                    onChange={(e) => setOrderSearchQuery(e.target.value)}
+                    placeholder="Nhập tên hoặc SĐT..."
+                    aria-label="Search đơn hàng theo tên hoặc SĐT"
+                  />
+                  {String(orderSearchQuery || '').trim() && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={() => setOrderSearchQuery('')}
+                      title="Xóa search"
+                      aria-label="Xóa search"
+                      disabled={orderSearchLoading}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                </div>
+                <div className="text-muted small mt-1">
+                  Search sẽ ra toàn bộ data, bỏ qua filter
+                </div>
+              </div>
+              <div className="col-12 col-md-2 d-flex gap-2 justify-content-md-end">
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={() => (isSearchActive ? runOrderSearch(orderSearchQuery) : loadOrders())}
+                  disabled={loading || orderSearchLoading}
+                >
                   <i className="fas fa-rotate me-2"></i>Làm mới
                 </button>
               </div>
@@ -8187,9 +8303,18 @@
             <div className="d-flex align-items-center justify-content-between">
               <h6 className="mb-0">Danh sách đơn hàng</h6>
               <span className="text-muted small">
-                {filterStatus ? `${filteredOrders.length}/${orders.length} đơn` : `${orders.length} đơn`}
+                {isSearchActive
+                  ? `${ordersToRender.length} kết quả`
+                  : (filterStatus ? `${filteredOrders.length}/${orders.length} đơn` : `${orders.length} đơn`)
+                }
               </span>
             </div>
+
+            {isSearchActive && orderSearchError && (
+              <div className="alert alert-danger mt-3 mb-0" role="alert">
+                {orderSearchError}
+              </div>
+            )}
 
             {overduePendingOrdersAll.length > 0 && (
               <div className="alert alert-warning d-flex align-items-center justify-content-between gap-2 mt-3 mb-0" role="alert">
@@ -8233,19 +8358,19 @@
               </div>
             )}
 
-            {loading ? (
+            {(isSearchActive ? orderSearchLoading : loading) ? (
               <div className="text-center py-4">
                 <div className="spinner-border text-warning"></div>
               </div>
-            ) : orders.length === 0 ? (
-              <div className="text-center py-4 text-muted">Chưa có đơn hàng</div>
-            ) : filteredOrders.length === 0 ? (
+            ) : (isSearchActive ? ordersToRender.length === 0 : orders.length === 0) ? (
+              <div className="text-center py-4 text-muted">{isSearchActive ? 'Không có kết quả' : 'Chưa có đơn hàng'}</div>
+            ) : (!isSearchActive && filteredOrders.length === 0) ? (
               <div className="text-center py-4 text-muted">Không có đơn phù hợp</div>
             ) : (
               <>
                 {/* Mobile cards */}
                 <div className="d-md-none mt-3">
-                  {filteredOrders.map(order => (
+                  {ordersToRender.map(order => (
                     <div key={order.id} className="card mb-2">
                       <div className="card-body p-3">
                         <div className="d-flex justify-content-between align-items-start gap-2">
@@ -8412,7 +8537,7 @@
                       </tr>
                       </thead>
                       <tbody>
-                      {filteredOrders.map(order => (
+                      {ordersToRender.map(order => (
                         <tr key={order.id}>
                           <td>
                             <div className="fw-semibold">{order.customer_name}</div>
