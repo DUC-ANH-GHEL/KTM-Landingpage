@@ -927,13 +927,16 @@
     .orders-table thead th {
       position: sticky;
       top: var(--ktm-admin-sticky-top, 88px);
-      z-index: 2;
-      background: #f8f9fa;
+      z-index: 60;
+      background: #fff;
+      background-color: #fff;
       color: #343a40;
       font-weight: 700;
       border-bottom: 1px solid rgba(0,0,0,0.08);
       padding: 12px 12px;
       white-space: nowrap;
+      background-clip: padding-box;
+      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
     }
 
     .orders-table tbody td {
@@ -1546,7 +1549,7 @@
     .table.orders-table thead th {
       position: sticky;
       top: var(--ktm-admin-sticky-top, 88px);
-      z-index: 50;
+      z-index: 60;
       background: #fff;
       background-color: #fff;
       color: #343a40;
@@ -1554,8 +1557,8 @@
       border-bottom: 1px solid rgba(0,0,0,0.08);
       padding: 12px 12px;
       white-space: nowrap;
-      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
       background-clip: padding-box;
+      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
     }
 
     /* ========== PREMIUM ADMIN SHELL (OVERRIDES) ========== */
