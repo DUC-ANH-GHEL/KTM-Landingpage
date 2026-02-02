@@ -142,11 +142,25 @@
         { id: 'settings', icon: 'fa-cog', label: 'Cài đặt' },
       ];
 
+      const displayName =
+        currentUser?.username || currentUser?.name || currentUser?.email || 'Admin';
+
       return (
         <div className="sidebar d-none d-md-block">
           <div className="logo">
             <i className="fas fa-tractor me-2"></i> KTM Admin
           </div>
+
+          <div className="sidebar-user" aria-label="Tài khoản">
+            <div className="sidebar-user-avatar" aria-hidden="true">
+              <i className="fas fa-user"></i>
+            </div>
+            <div className="sidebar-user-meta">
+              <div className="sidebar-user-name">{displayName}</div>
+              <div className="sidebar-user-sub">Quản trị</div>
+            </div>
+          </div>
+
           <nav className="nav flex-column mt-3">
             {menus.map(menu => (
               <a
@@ -6147,89 +6161,170 @@
           />
           
           <div className="main-content">
-            {activeMenu === 'albums' && !selectedAlbum && (
-              <AlbumList
-                albums={albums}
-                loading={loading}
-                currentFolder={currentAlbumFolder}
-                breadcrumb={albumBreadcrumb}
-                onSelect={handleSelectAlbum}
-                onCreate={handleCreateAlbum}
-                onEdit={handleEditAlbum}
-                onDelete={handleDeleteAlbum}
-                onBack={handleAlbumBack}
-              />
-            )}
+            <header className="admin-topbar" role="banner">
+              {(() => {
+                const menuMeta = {
+                  search: { title: 'Tra cứu', icon: 'fa-search', sub: 'Tìm nhanh sản phẩm/khách/đơn' },
+                  albums: { title: 'Album', icon: 'fa-images', sub: 'Quản lý ảnh & folder' },
+                  videos: { title: 'Video', icon: 'fa-video', sub: 'Quản lý video & folder' },
+                  products: { title: 'Sản phẩm', icon: 'fa-box', sub: 'Danh sách, giá, mô tả' },
+                  orders: { title: 'Đơn hàng', icon: 'fa-receipt', sub: 'Tạo & theo dõi trạng thái' },
+                  stats: { title: 'Thống kê', icon: 'fa-chart-column', sub: 'Doanh thu & hoa hồng' },
+                  settings: { title: 'Cài đặt', icon: 'fa-cog', sub: 'Tuỳ chỉnh hệ thống' },
+                };
 
-            {activeMenu === 'search' && (
-              <SearchCenter 
-                showToast={showToast} 
-                onNavigate={(menu, action, payload) => {
-                  setActiveMenu(menu);
-                  if (menu === 'orders' && action === 'create') {
-                    setOrderAutoOpenCreateToken(Date.now());
-                    setOrderAutoOpenCreateProductId(payload?.productId || '');
+                const meta = menuMeta[activeMenu] || { title: 'KTM Admin', icon: 'fa-tractor', sub: '' };
+                const displayName =
+                  currentUser?.username || currentUser?.name || currentUser?.email || 'Admin';
+
+                const breadcrumbText = (() => {
+                  if (activeMenu !== 'albums') return '';
+                  const items = [];
+                  items.push('Root');
+                  if (Array.isArray(albumBreadcrumb) && albumBreadcrumb.length > 0) {
+                    items.push(...albumBreadcrumb.map(b => b?.title).filter(Boolean));
                   }
-                }}
-              />
-            )}
+                  if (selectedAlbum?.title) items.push(selectedAlbum.title);
+                  return items.length > 0 ? items.join(' / ') : '';
+                })();
 
-            {activeMenu === 'albums' && selectedAlbum && (
-              <AlbumDetail
-                album={selectedAlbum}
-                parentAlbum={albumBreadcrumb.length > 0 ? albumBreadcrumb[albumBreadcrumb.length - 1] : null}
-                onBack={() => {
-                  // Go back to parent folder or album list
-                  if (selectedAlbum.parentId) {
-                    // Find parent in breadcrumb or go to list
-                    const parentIdx = albumBreadcrumb.findIndex(b => b.uuid === selectedAlbum.parentId);
-                    if (parentIdx >= 0) {
-                      setSelectedAlbum(albumBreadcrumb[parentIdx]);
+                return (
+                  <div className="admin-topbar-inner">
+                    <div className="admin-topbar-left">
+                      <div className="admin-page-icon" aria-hidden="true">
+                        <i className={`fas ${meta.icon}`}></i>
+                      </div>
+                      <div className="admin-page-title">
+                        <div className="admin-page-heading">{meta.title}</div>
+                        <div className="admin-page-subtitle">
+                          {breadcrumbText || meta.sub}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="admin-topbar-right">
+                      {activeMenu === 'albums' && (
+                        <button
+                          className="btn btn-warning btn-sm admin-topbar-action"
+                          onClick={handleCreateAlbum}
+                          title="Tạo folder"
+                        >
+                          <i className="fas fa-plus me-2"></i>
+                          <span className="d-none d-sm-inline">Folder</span>
+                        </button>
+                      )}
+
+                      <a
+                        href="/"
+                        className="btn btn-outline-secondary btn-sm d-none d-md-inline-flex"
+                        title="Về trang chủ"
+                      >
+                        <i className="fas fa-home me-2"></i>Trang chủ
+                      </a>
+
+                      <div className="admin-user-chip" title={displayName}>
+                        <i className="fas fa-user-circle"></i>
+                        <span className="admin-user-chip-name">{displayName}</span>
+                      </div>
+
+                      <button
+                        className="btn btn-outline-danger btn-sm d-md-none"
+                        onClick={handleLogout}
+                        title="Đăng xuất"
+                      >
+                        <i className="fas fa-sign-out-alt"></i>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </header>
+
+            <div className="admin-page-body">
+              {activeMenu === 'albums' && !selectedAlbum && (
+                <AlbumList
+                  albums={albums}
+                  loading={loading}
+                  currentFolder={currentAlbumFolder}
+                  breadcrumb={albumBreadcrumb}
+                  onSelect={handleSelectAlbum}
+                  onCreate={handleCreateAlbum}
+                  onEdit={handleEditAlbum}
+                  onDelete={handleDeleteAlbum}
+                  onBack={handleAlbumBack}
+                />
+              )}
+
+              {activeMenu === 'search' && (
+                <SearchCenter 
+                  showToast={showToast} 
+                  onNavigate={(menu, action, payload) => {
+                    setActiveMenu(menu);
+                    if (menu === 'orders' && action === 'create') {
+                      setOrderAutoOpenCreateToken(Date.now());
+                      setOrderAutoOpenCreateProductId(payload?.productId || '');
+                    }
+                  }}
+                />
+              )}
+
+              {activeMenu === 'albums' && selectedAlbum && (
+                <AlbumDetail
+                  album={selectedAlbum}
+                  parentAlbum={albumBreadcrumb.length > 0 ? albumBreadcrumb[albumBreadcrumb.length - 1] : null}
+                  onBack={() => {
+                    // Go back to parent folder or album list
+                    if (selectedAlbum.parentId) {
+                      // Find parent in breadcrumb or go to list
+                      const parentIdx = albumBreadcrumb.findIndex(b => b.uuid === selectedAlbum.parentId);
+                      if (parentIdx >= 0) {
+                        setSelectedAlbum(albumBreadcrumb[parentIdx]);
+                      } else {
+                        setSelectedAlbum(null);
+                      }
                     } else {
                       setSelectedAlbum(null);
                     }
-                  } else {
-                    setSelectedAlbum(null);
-                  }
-                }}
-                onRefresh={() => loadAlbums(currentAlbumFolder?.uuid)}
-                showToast={showToast}
-                onNavigateToFolder={(folder) => {
-                  // Navigate into subfolder - track breadcrumb
-                  setAlbumBreadcrumb(prev => [...prev, selectedAlbum]);
-                  setSelectedAlbum(folder);
-                }}
-                onEditSubfolder={(folder) => {
-                  setEditingAlbum(folder);
-                  setShowAlbumModal(true);
-                }}
-              />
-            )}
+                  }}
+                  onRefresh={() => loadAlbums(currentAlbumFolder?.uuid)}
+                  showToast={showToast}
+                  onNavigateToFolder={(folder) => {
+                    // Navigate into subfolder - track breadcrumb
+                    setAlbumBreadcrumb(prev => [...prev, selectedAlbum]);
+                    setSelectedAlbum(folder);
+                  }}
+                  onEditSubfolder={(folder) => {
+                    setEditingAlbum(folder);
+                    setShowAlbumModal(true);
+                  }}
+                />
+              )}
 
-            {activeMenu === 'videos' && (
-              <VideoList
-                showToast={showToast}
-              />
-            )}
+              {activeMenu === 'videos' && (
+                <VideoList
+                  showToast={showToast}
+                />
+              )}
 
-            {activeMenu === 'products' && (
-              <ProductManager showToast={showToast} settings={settings} />
-            )}
-            {activeMenu === 'orders' && (
-              <OrderManager
-                autoOpenCreateToken={orderAutoOpenCreateToken}
-                autoOpenCreateProductId={orderAutoOpenCreateProductId}
-                showToast={showToast}
-              />
-            )}
+              {activeMenu === 'products' && (
+                <ProductManager showToast={showToast} settings={settings} />
+              )}
+              {activeMenu === 'orders' && (
+                <OrderManager
+                  autoOpenCreateToken={orderAutoOpenCreateToken}
+                  autoOpenCreateProductId={orderAutoOpenCreateProductId}
+                  showToast={showToast}
+                />
+              )}
 
-            {activeMenu === 'stats' && (
-              <StatsManager />
-            )}
+              {activeMenu === 'stats' && (
+                <StatsManager />
+              )}
 
-            {activeMenu === 'settings' && (
-              <SettingsManager />
-            )}
+              {activeMenu === 'settings' && (
+                <SettingsManager />
+              )}
+            </div>
           </div>
 
           {/* ========== MOBILE BOTTOM NAVIGATION ========== */}
