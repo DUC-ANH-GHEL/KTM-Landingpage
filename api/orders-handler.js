@@ -29,6 +29,18 @@ function parseIntSafe(value, fallback = null) {
   return Math.trunc(n);
 }
 
+function parseMonthStartDate(monthKey) {
+  const s = String(monthKey ?? '').trim();
+  const m = s.match(/^([0-9]{4})-([0-9]{2})$/);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return null;
+  if (month < 1 || month > 12) return null;
+  const mm = String(month).padStart(2, '0');
+  return `${year}-${mm}-01`;
+}
+
 async function ensureSchema() {
   if (_schemaEnsured) return;
 
@@ -307,8 +319,14 @@ export default async function handler(req, res) {
   const resource = req.query.resource;
 
   try {
+    const debug = parseBool(req.query?.debug, false);
+    const t0 = debug ? Date.now() : 0;
+
     await ensureSchema();
+    const tSchema = debug ? Date.now() : 0;
+
     await cleanupDraftOrders();
+    const tCleanup = debug ? Date.now() : 0;
 
     // ==================== CUSTOMERS ====================
     // GET /api/customers?phone=... (lookup)
@@ -364,7 +382,14 @@ export default async function handler(req, res) {
 
     // GET /api/orders and GET /api/orders/:id
     if (req.method === 'GET') {
-      await autoAdvanceOrderStatuses();
+      let autoAdvanceMs = null;
+      if (debug) {
+        const t = Date.now();
+        await autoAdvanceOrderStatuses();
+        autoAdvanceMs = Date.now() - t;
+      } else {
+        await autoAdvanceOrderStatuses();
+      }
       if (id) {
         const query = `
           SELECT
@@ -414,6 +439,7 @@ export default async function handler(req, res) {
       }
 
       const { month } = req.query;
+      const monthStartDate = month ? parseMonthStartDate(month) : null;
       const searchRaw = req.query.search ?? req.query.q ?? '';
       const searchQuery = String(searchRaw ?? '').trim();
       const searchDigits = searchQuery.replace(/[^0-9]+/g, '');
@@ -422,6 +448,7 @@ export default async function handler(req, res) {
       const withMeta = parseBool(req.query.meta, false);
       const limit = parseIntSafe(req.query.limit, null);
       const offset = Math.max(0, parseIntSafe(req.query.offset, 0) ?? 0);
+      const wantDebugMeta = debug && withMeta;
 
       const overdue = String(req.query.overdue || '').trim() === '1' || String(req.query.overdue || '').trim().toLowerCase() === 'true';
       const draftExpiring = String(req.query.draftExpiring || req.query.draft_expiring || '').trim() === '1'
@@ -517,7 +544,12 @@ export default async function handler(req, res) {
       } else if (overdue) {
         query += " WHERE o.status = 'pending' AND o.created_at <= (NOW() - ($1::int * INTERVAL '1 day'))";
         params.push(overdueDays);
+      } else if (monthStartDate) {
+        // Index-friendly filter for a specific month.
+        query += " WHERE o.created_at >= $1::date AND o.created_at < ($1::date + INTERVAL '1 month')";
+        params.push(monthStartDate);
       } else if (month) {
+        // Back-compat fallback (should be rare; month param should be YYYY-MM)
         query += " WHERE TO_CHAR(o.created_at, 'YYYY-MM') = $1";
         params.push(month);
       }
@@ -599,6 +631,9 @@ export default async function handler(req, res) {
         } else if (overdue) {
           lightQuery += " WHERE o.status = 'pending' AND o.created_at <= (NOW() - ($1::int * INTERVAL '1 day'))";
           p2.push(overdueDays);
+        } else if (monthStartDate) {
+          lightQuery += " WHERE o.created_at >= $1::date AND o.created_at < ($1::date + INTERVAL '1 month')";
+          p2.push(monthStartDate);
         } else if (month) {
           lightQuery += " WHERE TO_CHAR(o.created_at, 'YYYY-MM') = $1";
           p2.push(month);
@@ -618,7 +653,9 @@ export default async function handler(req, res) {
           p2.push(offset);
         }
 
+        const q0 = debug ? Date.now() : 0;
         const result = await sql(lightQuery, p2);
+        const q1 = debug ? Date.now() : 0;
         let rows = Array.isArray(result) ? result : [];
         let hasMore = false;
         if (withMeta && Number.isFinite(limit) && limit > 0 && rows.length > limit) {
@@ -628,13 +665,22 @@ export default async function handler(req, res) {
         if (withMeta) {
           return res.status(200).json({
             orders: rows,
-            meta: { includeItems: false, limit: Number.isFinite(limit) && limit > 0 ? limit : null, offset, count: rows.length, hasMore },
+            meta: {
+              includeItems: false,
+              limit: Number.isFinite(limit) && limit > 0 ? limit : null,
+              offset,
+              count: rows.length,
+              hasMore,
+              ...(wantDebugMeta ? { timingsMs: { schema: tSchema - t0, cleanup: tCleanup - tSchema, autoAdvance: autoAdvanceMs, query: q1 - q0, total: q1 - t0 } } : {}),
+            },
           });
         }
         return res.status(200).json(rows);
       }
 
+      const q0 = debug ? Date.now() : 0;
       const result = await sql(query, params);
+      const q1 = debug ? Date.now() : 0;
       let rows = (Array.isArray(result) ? result : []).map(synthesizeItemsFromLegacy);
       let hasMore = false;
       if (withMeta && Number.isFinite(limit) && limit > 0 && rows.length > limit) {
@@ -645,7 +691,14 @@ export default async function handler(req, res) {
       if (withMeta) {
         return res.status(200).json({
           orders: rows,
-          meta: { includeItems: true, limit: Number.isFinite(limit) && limit > 0 ? limit : null, offset, count: rows.length, hasMore },
+          meta: {
+            includeItems: true,
+            limit: Number.isFinite(limit) && limit > 0 ? limit : null,
+            offset,
+            count: rows.length,
+            hasMore,
+            ...(wantDebugMeta ? { timingsMs: { schema: tSchema - t0, cleanup: tCleanup - tSchema, autoAdvance: autoAdvanceMs, query: q1 - q0, total: q1 - t0 } } : {}),
+          },
         });
       }
 
