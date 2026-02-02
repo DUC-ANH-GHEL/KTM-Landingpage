@@ -130,6 +130,49 @@
       );
     }
 
+    function AdminDrawer({ open, title, subtitle, onClose, footer, children }) {
+      useEffect(() => {
+        if (!open) return;
+        const onKeyDown = (e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            if (typeof onClose === 'function') onClose();
+          }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+      }, [open, onClose]);
+
+      if (!open) return null;
+
+      return (
+        <div className={`admin-drawer-root ${open ? 'open' : ''}`} role="dialog" aria-modal="true">
+          <div className="admin-drawer-backdrop" onClick={onClose} aria-hidden="true"></div>
+          <aside className="admin-drawer-panel">
+            <div className="admin-drawer-header">
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div className="admin-drawer-title">{title}</div>
+                {subtitle ? <div className="admin-drawer-subtitle">{subtitle}</div> : null}
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-light"
+                onClick={onClose}
+                title="Đóng"
+                aria-label="Đóng"
+              >
+                <i className="fas fa-xmark"></i>
+              </button>
+            </div>
+
+            <div className="admin-drawer-body">{children}</div>
+
+            {footer ? <div className="admin-drawer-footer">{footer}</div> : null}
+          </aside>
+        </div>
+      );
+    }
+
     // Sidebar
     function Sidebar({ activeMenu, onMenuChange, onLogout, currentUser }) {
       const menus = [
@@ -4225,6 +4268,10 @@
       const [searchTerm, setSearchTerm] = useState('');
       const [filterCategory, setFilterCategory] = useState('');
 
+      // Ops inspector drawer
+      const [inspectorOpen, setInspectorOpen] = useState(false);
+      const [inspectorProduct, setInspectorProduct] = useState(null);
+
       const shipPercent = normalizeShipPercent(settings?.ship_percent);
 
       const { parseMoney, formatVND } = window.KTM.money;
@@ -4248,6 +4295,16 @@
       const handleCreate = () => { setEditingProduct(null); setShowModal(true); };
 
       const handleEdit = (product) => { setEditingProduct(product); setShowModal(true); };
+
+      const openProductInspector = (product) => {
+        if (!product) return;
+        setInspectorProduct(product);
+        setInspectorOpen(true);
+      };
+
+      const closeProductInspector = () => {
+        setInspectorOpen(false);
+      };
       
       // Hàm xóa ảnh trên Cloudinary (dùng chung)
       const deleteCloudinaryImageGlobal = async (imageUrl) => {
@@ -4504,7 +4561,20 @@
           ) : (
             <div className="product-list">
               {filteredProducts.map(product => (
-                <div key={product.id} className="product-item d-flex align-items-center gap-3">
+                <div
+                  key={product.id}
+                  className="product-item d-flex align-items-center gap-3"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openProductInspector(product)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openProductInspector(product);
+                    }
+                  }}
+                  title="Xem chi tiết"
+                >
                   {/* Image */}
                   {product.image ? (
                     <img src={product.image} alt="" className="product-img" />
@@ -4549,10 +4619,10 @@
                   
                   {/* Actions */}
                   <div className="product-actions">
-                    <button className="btn btn-edit" onClick={() => handleEdit(product)} title="Sửa">
+                    <button className="btn btn-edit" onClick={(e) => { e.stopPropagation(); handleEdit(product); }} title="Sửa">
                       <i className="fas fa-pen"></i>
                     </button>
-                    <button className="btn btn-delete" onClick={() => handleDelete(product)} title="Xóa">
+                    <button className="btn btn-delete" onClick={(e) => { e.stopPropagation(); handleDelete(product); }} title="Xóa">
                       <i className="fas fa-trash"></i>
                     </button>
                   </div>
@@ -4560,6 +4630,119 @@
               ))}
             </div>
           )}
+
+          <AdminDrawer
+            open={inspectorOpen}
+            title={String(inspectorProduct?.name || 'Sản phẩm')}
+            subtitle={[String(inspectorProduct?.code || '').trim() || null, String(inspectorProduct?.category || '').trim() || null].filter(Boolean).join(' • ')}
+            onClose={closeProductInspector}
+            footer={(
+              <div className="d-flex flex-wrap gap-2 justify-content-between">
+                <div className="d-flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => {
+                      const code = String(inspectorProduct?.code || '').trim();
+                      if (!code) return;
+                      window.KTM.clipboard.writeText(code).then(() => showToast('Đã copy mã sản phẩm', 'success'));
+                    }}
+                    disabled={!String(inspectorProduct?.code || '').trim()}
+                    title="Copy mã"
+                  >
+                    <i className="fas fa-barcode me-2"></i>Copy mã
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => {
+                      const price = String(inspectorProduct?.price || '').trim();
+                      if (!price) return;
+                      window.KTM.clipboard.writeText(price).then(() => showToast('Đã copy giá', 'success'));
+                    }}
+                    disabled={!String(inspectorProduct?.price || '').trim()}
+                    title="Copy giá"
+                  >
+                    <i className="fas fa-copy me-2"></i>Copy giá
+                  </button>
+                </div>
+                <div className="d-flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    onClick={() => inspectorProduct && handleEdit(inspectorProduct)}
+                    disabled={!inspectorProduct}
+                  >
+                    <i className="fas fa-pen me-2"></i>Sửa
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-danger"
+                    onClick={() => inspectorProduct && handleDelete(inspectorProduct)}
+                    disabled={!inspectorProduct}
+                  >
+                    <i className="fas fa-trash me-2"></i>Xóa
+                  </button>
+                </div>
+              </div>
+            )}
+          >
+            {!inspectorProduct ? (
+              <div className="text-muted">Chưa có dữ liệu</div>
+            ) : (
+              <>
+                <div className="admin-drawer-section">
+                  <h6><i className="fas fa-circle-info me-2 text-warning"></i>Tổng quan</h6>
+                  <div className="admin-kv">
+                    <div className="k">Giá</div>
+                    <div className="v">{(() => {
+                      const raw = String(inspectorProduct?.price || '').trim();
+                      const n = parseMoney(raw);
+                      if (Number.isFinite(n) && n > 0) return formatVND(Math.trunc(n));
+                      return raw || 'Liên hệ';
+                    })()}</div>
+                    <div className="k">Hoa hồng</div>
+                    <div className="v">{formatCommissionWithAmount(inspectorProduct)}</div>
+                    <div className="k">Danh mục</div>
+                    <div className="v">{inspectorProduct.category || '—'}</div>
+                    <div className="k">Mã</div>
+                    <div className="v"><span className="font-monospace">{inspectorProduct.code || '—'}</span></div>
+                  </div>
+                </div>
+
+                <div className="admin-drawer-section">
+                  <h6><i className="fas fa-image me-2 text-info"></i>Hình ảnh</h6>
+                  {inspectorProduct.image ? (
+                    <img
+                      src={inspectorProduct.image}
+                      alt=""
+                      className="rounded"
+                      style={{ width: '100%', maxHeight: 260, objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div className="text-muted">Chưa có ảnh</div>
+                  )}
+                </div>
+
+                {(String(inspectorProduct.note || '').trim() || inspectorProduct.attributes || inspectorProduct.variants) && (
+                  <div className="admin-drawer-section">
+                    <h6><i className="fas fa-sliders-h me-2 text-primary"></i>Chi tiết</h6>
+                    {(String(inspectorProduct.note || '').trim()) && (
+                      <div className="text-muted" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                        <span className="fw-semibold">Ghi chú:</span> {String(inspectorProduct.note || '').trim()}
+                      </div>
+                    )}
+                    {renderAttributesPreview(inspectorProduct.attributes) ? (
+                      <div className="mt-2">{renderAttributesPreview(inspectorProduct.attributes)}</div>
+                    ) : null}
+                    {renderVariantsPreview(inspectorProduct.variants, { maxGroups: 99, maxOptionsPerGroup: 8 }) ? (
+                      <div className="mt-2">{renderVariantsPreview(inspectorProduct.variants, { maxGroups: 99, maxOptionsPerGroup: 8 })}</div>
+                    ) : null}
+                  </div>
+                )}
+              </>
+            )}
+          </AdminDrawer>
 
           <ProductModal
             show={showModal}
@@ -6433,6 +6616,13 @@
       const [filterStatus, setFilterStatus] = useState('');
       const [overdueOnly, setOverdueOnly] = useState(false);
       const [showModal, setShowModal] = useState(false);
+
+      // Ops inspector drawer
+      const [inspectorOpen, setInspectorOpen] = useState(false);
+      const [inspectorOrder, setInspectorOrder] = useState(null);
+      const [inspectorLoading, setInspectorLoading] = useState(false);
+      const [inspectorError, setInspectorError] = useState('');
+      const inspectorRequestIdRef = useRef(0);
       const [customerLookup, setCustomerLookup] = useState(null);
       const [showPhoneHistory, setShowPhoneHistory] = useState(false);
       const [phoneHistoryOrders, setPhoneHistoryOrders] = useState([]);
@@ -7351,6 +7541,33 @@
         if (fullOrder.phone) {
           lookupCustomerByPhone(normalizePhone(fullOrder.phone));
         }
+      };
+
+      const openOrderInspector = async (order) => {
+        if (!order) return;
+        setInspectorOpen(true);
+        setInspectorError('');
+        setInspectorLoading(true);
+        setInspectorOrder(order);
+
+        const requestId = ++inspectorRequestIdRef.current;
+        try {
+          const full = await ensureFullOrder(order);
+          if (inspectorRequestIdRef.current !== requestId) return;
+          setInspectorOrder(full || order);
+        } catch (e) {
+          if (inspectorRequestIdRef.current !== requestId) return;
+          setInspectorError(e?.message || 'Không tải được chi tiết đơn');
+        } finally {
+          if (inspectorRequestIdRef.current !== requestId) return;
+          setInspectorLoading(false);
+        }
+      };
+
+      const closeOrderInspector = () => {
+        setInspectorOpen(false);
+        setInspectorLoading(false);
+        setInspectorError('');
       };
 
       function openCreateModal(presetProductId) {
@@ -8627,7 +8844,20 @@
                 {/* Mobile cards */}
                 <div className="d-md-none mt-3">
                   {ordersToRender.map(order => (
-                    <div key={order.id} className="card mb-2">
+                    <div
+                      key={order.id}
+                      className="card mb-2"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openOrderInspector(order)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          openOrderInspector(order);
+                        }
+                      }}
+                      title="Xem chi tiết"
+                    >
                       <div className="card-body p-3">
                         <div className="d-flex justify-content-between align-items-start gap-2">
                           <div className="flex-grow-1" style={{ minWidth: 0 }}>
@@ -8708,13 +8938,13 @@
                         </div>
 
                         <div className="mt-3 d-flex gap-2">
-                          <button type="button" className="btn btn-sm btn-primary flex-fill" onClick={() => editOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>
+                          <button type="button" className="btn btn-sm btn-primary flex-fill" onClick={(e) => { e.stopPropagation(); editOrder(order); }} disabled={saving || !!deletingId || updatingId === order.id}>
                             Sửa
                           </button>
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-secondary flex-fill"
-                            onClick={() => handleCopyOrder(order)}
+                            onClick={(e) => { e.stopPropagation(); handleCopyOrder(order); }}
                             disabled={saving || !!deletingId || updatingId === order.id}
                           >
                             <i className="fas fa-copy me-1"></i>Copy
@@ -8722,7 +8952,7 @@
                           <button
                             type="button"
                             className="btn btn-sm btn-danger flex-fill"
-                            onClick={() => deleteOrder(order.id)}
+                            onClick={(e) => { e.stopPropagation(); deleteOrder(order.id); }}
                             disabled={saving || deletingId === order.id || updatingId === order.id}
                           >
                             {deletingId === order.id ? (
@@ -8737,7 +8967,7 @@
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-warning flex-fill"
-                            onClick={() => updateOrderStatus(order, 'processing')}
+                            onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'processing'); }}
                             disabled={saving || !!deletingId || updatingId === order.id || order.status === 'processing'}
                             title="Đang vận chuyển"
                           >
@@ -8746,7 +8976,7 @@
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-success flex-fill"
-                            onClick={() => updateOrderStatus(order, 'done')}
+                            onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'done'); }}
                             disabled={saving || !!deletingId || updatingId === order.id || order.status === 'done'}
                             title="Hoàn thành"
                           >
@@ -8755,7 +8985,7 @@
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-primary flex-fill"
-                            onClick={() => updateOrderStatus(order, 'paid')}
+                            onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'paid'); }}
                             disabled={saving || !!deletingId || updatingId === order.id || order.status === 'paid'}
                             title="Đã nhận tiền"
                           >
@@ -8764,7 +8994,7 @@
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-danger flex-fill"
-                            onClick={() => updateOrderStatus(order, 'canceled')}
+                            onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'canceled'); }}
                             disabled={saving || !!deletingId || updatingId === order.id || order.status === 'canceled'}
                             title="Hủy đơn"
                           >
@@ -8794,7 +9024,12 @@
                       </thead>
                       <tbody>
                       {ordersToRender.map(order => (
-                        <tr key={order.id}>
+                        <tr
+                          key={order.id}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => openOrderInspector(order)}
+                          title="Xem chi tiết"
+                        >
                           <td>
                             <div className="fw-semibold">{order.customer_name}</div>
                             {(order?.note || '').trim() && (
@@ -8843,14 +9078,14 @@
                           </td>
                           <td>{formatDateTime(order.created_at)}</td>
                           <td>
-                            <button type="button" className="btn btn-sm btn-primary me-1" onClick={() => editOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>Sửa</button>
-                            <button type="button" className="btn btn-sm btn-outline-secondary me-1" onClick={() => handleCopyOrder(order)} disabled={saving || !!deletingId || updatingId === order.id}>
+                            <button type="button" className="btn btn-sm btn-primary me-1" onClick={(e) => { e.stopPropagation(); editOrder(order); }} disabled={saving || !!deletingId || updatingId === order.id}>Sửa</button>
+                            <button type="button" className="btn btn-sm btn-outline-secondary me-1" onClick={(e) => { e.stopPropagation(); handleCopyOrder(order); }} disabled={saving || !!deletingId || updatingId === order.id}>
                               <i className="fas fa-copy"></i>
                             </button>
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-warning me-1"
-                              onClick={() => updateOrderStatus(order, 'processing')}
+                              onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'processing'); }}
                               disabled={saving || !!deletingId || updatingId === order.id || order.status === 'processing'}
                               title="Đang vận chuyển"
                             >
@@ -8859,7 +9094,7 @@
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-success me-1"
-                              onClick={() => updateOrderStatus(order, 'done')}
+                              onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'done'); }}
                               disabled={saving || !!deletingId || updatingId === order.id || order.status === 'done'}
                               title="Hoàn thành"
                             >
@@ -8868,7 +9103,7 @@
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-primary me-1"
-                              onClick={() => updateOrderStatus(order, 'paid')}
+                              onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'paid'); }}
                               disabled={saving || !!deletingId || updatingId === order.id || order.status === 'paid'}
                               title="Đã nhận tiền"
                             >
@@ -8877,13 +9112,13 @@
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-danger me-1"
-                              onClick={() => updateOrderStatus(order, 'canceled')}
+                              onClick={(e) => { e.stopPropagation(); updateOrderStatus(order, 'canceled'); }}
                               disabled={saving || !!deletingId || updatingId === order.id || order.status === 'canceled'}
                               title="Hủy đơn"
                             >
                               Hủy
                             </button>
-                            <button type="button" className="btn btn-sm btn-danger" onClick={() => deleteOrder(order.id)} disabled={saving || deletingId === order.id}>
+                            <button type="button" className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); deleteOrder(order.id); }} disabled={saving || deletingId === order.id}>
                               {deletingId === order.id ? (
                                 <><span className="spinner-border spinner-border-sm me-2"></span>Đang xóa</>
                               ) : (
@@ -8917,6 +9152,195 @@
               </>
             )}
           </div>
+
+          <AdminDrawer
+            open={inspectorOpen}
+            title={(() => {
+              const o = inspectorOrder;
+              const id = o?.id ? `#${o.id}` : '';
+              const st = o?.status ? `• ${getStatusLabel(o.status)}` : '';
+              return `Đơn hàng ${id} ${st}`.trim();
+            })()}
+            subtitle={(() => {
+              const o = inspectorOrder;
+              const who = String(o?.customer_name || '').trim();
+              const phone = String(o?.phone || '').trim();
+              const when = o?.created_at ? formatDateTime(o.created_at) : '';
+              return [who || phone || null, when || null].filter(Boolean).join(' • ');
+            })()}
+            onClose={closeOrderInspector}
+            footer={(
+              <div className="d-flex flex-wrap gap-2 justify-content-between">
+                <div className="d-flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => inspectorOrder && handleCopyOrder(inspectorOrder)}
+                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId}
+                  >
+                    <i className="fas fa-copy me-2"></i>Copy
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    onClick={() => inspectorOrder && editOrder(inspectorOrder)}
+                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId}
+                  >
+                    <i className="fas fa-pen me-2"></i>Sửa
+                  </button>
+                </div>
+                <div className="d-flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-warning"
+                    onClick={() => inspectorOrder && updateOrderStatus(inspectorOrder, 'processing')}
+                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId || updatingId === inspectorOrder?.id || inspectorOrder?.status === 'processing'}
+                    title="Đang vận chuyển"
+                  >
+                    Processing
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-success"
+                    onClick={() => inspectorOrder && updateOrderStatus(inspectorOrder, 'done')}
+                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId || updatingId === inspectorOrder?.id || inspectorOrder?.status === 'done'}
+                    title="Hoàn thành"
+                  >
+                    Done
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-primary"
+                    onClick={() => inspectorOrder && updateOrderStatus(inspectorOrder, 'paid')}
+                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId || updatingId === inspectorOrder?.id || inspectorOrder?.status === 'paid'}
+                    title="Đã nhận tiền"
+                  >
+                    Paid
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => inspectorOrder && updateOrderStatus(inspectorOrder, 'canceled')}
+                    disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId || updatingId === inspectorOrder?.id || inspectorOrder?.status === 'canceled'}
+                    title="Hủy đơn"
+                  >
+                    Hủy
+                  </button>
+                </div>
+              </div>
+            )}
+          >
+            {inspectorLoading ? (
+              <div className="admin-drawer-section">
+                <div className="text-muted small mb-2">Đang tải chi tiết…</div>
+                <div className="d-flex align-items-center gap-2">
+                  <span className="spinner-border spinner-border-sm text-warning" aria-hidden="true"></span>
+                  <span className="text-muted">Vui lòng chờ</span>
+                </div>
+              </div>
+            ) : inspectorError ? (
+              <div className="alert alert-danger" role="alert">{inspectorError}</div>
+            ) : !inspectorOrder ? (
+              <div className="text-muted">Chưa có dữ liệu</div>
+            ) : (
+              <>
+                <div className="admin-drawer-section">
+                  <h6><i className="fas fa-circle-info me-2 text-warning"></i>Tổng quan</h6>
+                  <div className="d-flex flex-wrap gap-2 mb-2">
+                    <span className={`badge ${getStatusBadgeClass(inspectorOrder.status)}`}>{getStatusLabel(inspectorOrder.status)}</span>
+                    {isOverduePending(inspectorOrder) && (
+                      <span className="badge bg-danger" title={`Chờ xử lý quá ${OVERDUE_PENDING_DAYS} ngày`}>
+                        ⚠ Chậm {getOrderAgeDays(inspectorOrder)}d
+                      </span>
+                    )}
+                    {isDraftExpiringSoon(inspectorOrder) && (
+                      <span className="badge bg-warning text-dark" title={`Đơn nháp sẽ tự xóa sau ${DRAFT_AUTO_DELETE_DAYS} ngày`}>
+                        ⏳ Còn {getDraftRemainingDays(inspectorOrder)}d
+                      </span>
+                    )}
+                  </div>
+                  <div className="admin-kv">
+                    <div className="k">Tổng tiền</div>
+                    <div className="v">{formatVND(getOrderTotalMoney(inspectorOrder))}</div>
+                    <div className="k">Số lượng</div>
+                    <div className="v">{getOrderTotalQty(inspectorOrder)}</div>
+                    <div className="k">Thời gian</div>
+                    <div className="v">{formatDateTime(inspectorOrder.created_at)}</div>
+                  </div>
+                </div>
+
+                <div className="admin-drawer-section">
+                  <h6><i className="fas fa-user me-2 text-info"></i>Khách hàng</h6>
+                  <div className="admin-kv">
+                    <div className="k">Tên</div>
+                    <div className="v">{inspectorOrder.customer_name || '—'}</div>
+                    <div className="k">SĐT</div>
+                    <div className="v" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span className="font-monospace">{inspectorOrder.phone || '—'}</span>
+                      {!!String(inspectorOrder.phone || '').trim() && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => window.KTM.clipboard.writeText(String(inspectorOrder.phone || '').trim())}
+                          title="Copy SĐT"
+                        >
+                          <i className="fas fa-copy"></i>
+                        </button>
+                      )}
+                    </div>
+                    <div className="k">Địa chỉ</div>
+                    <div className="v">{inspectorOrder.address || '—'}</div>
+                  </div>
+                  {(inspectorOrder?.note || '').trim() && (
+                    <div className="mt-2 text-muted" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                      <span className="fw-semibold">Ghi chú:</span> {(inspectorOrder.note || '').trim()}
+                    </div>
+                  )}
+                </div>
+
+                <div className="admin-drawer-section">
+                  <h6><i className="fas fa-boxes-stacked me-2 text-primary"></i>Sản phẩm</h6>
+                  {(() => {
+                    const rows = getOrderItemRows(inspectorOrder);
+                    if (!rows.length) {
+                      return (
+                        <div className="fw-semibold" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                          {getOrderProductSummary(inspectorOrder) || '—'}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="d-grid gap-2">
+                        {rows.map((r, idx) => (
+                          <div key={idx} className="d-flex justify-content-between gap-2">
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div className="fw-semibold" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                <span className="text-muted me-1">{idx + 1}.</span>{r.name}
+                              </div>
+                              {r.variant ? <div className="text-muted small">{r.variant}</div> : null}
+                            </div>
+                            <div className="text-muted small text-end text-nowrap" style={{ flexShrink: 0 }}>
+                              x{r.qty}{Number(r.unitPrice) > 0 ? ` • ${formatVND(r.unitPrice)}` : ''}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  {(getOrderAdjustmentMoney(inspectorOrder) !== 0 || getOrderAdjustmentSummaryText(inspectorOrder)) && (
+                    <div className="mt-2" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                      <span className="text-muted">Điều chỉnh:</span>{' '}
+                      <span className="fw-semibold">{formatVND(getOrderAdjustmentMoney(inspectorOrder))}</span>
+                      {getOrderAdjustmentSummaryText(inspectorOrder) ? (
+                        <span className="text-muted">{' '}({getOrderAdjustmentSummaryText(inspectorOrder)})</span>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </AdminDrawer>
 
           {/* Order create/edit modal */}
           {showModal && (
