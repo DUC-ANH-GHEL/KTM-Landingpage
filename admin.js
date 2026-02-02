@@ -3740,6 +3740,16 @@
       const [showVideoModal, setShowVideoModal] = useState(false);
       const [editingVideo, setEditingVideo] = useState(null);
       
+      // Video inspector drawer states
+      const [videoInspectorOpen, setVideoInspectorOpen] = useState(false);
+      const [videoInspectorItem, setVideoInspectorItem] = useState(null);
+      const [videoInspectorEditMode, setVideoInspectorEditMode] = useState(false);
+      
+      // Video folder inspector drawer states
+      const [folderInspectorOpen, setFolderInspectorOpen] = useState(false);
+      const [folderInspectorItem, setFolderInspectorItem] = useState(null);
+      const [folderInspectorEditMode, setFolderInspectorEditMode] = useState(false);
+      
       // Nested folder navigation
       const [currentParentFolder, setCurrentParentFolder] = useState(null);
       const [folderBreadcrumb, setFolderBreadcrumb] = useState([]);
@@ -3852,11 +3862,12 @@
       };
 
       const handleEditFolder = (folder) => {
-        setEditingFolder(folder);
-        setShowFolderModal(true);
+        setFolderInspectorItem(folder);
+        setFolderInspectorOpen(true);
+        setFolderInspectorEditMode(true);
       };
 
-      const handleSaveFolder = async (formData) => {
+      const handleSaveFolder = async (formData, origin = 'modal') => {
         try {
           // Add parent_id if we're in a subfolder
           if (!editingFolder && currentParentFolder) {
@@ -3873,8 +3884,21 @@
           }
 
           showToast(editingFolder ? 'Đã cập nhật folder!' : 'Đã tạo folder mới!', 'success');
-          setShowFolderModal(false);
-          loadFolders(currentParentFolder?.id);
+          
+          if (origin === 'drawer') {
+            // Keep drawer open, exit edit mode
+            setFolderInspectorEditMode(false);
+            setEditingFolder(null);
+            loadFolders(currentParentFolder?.id);
+            if (editingFolder && folderInspectorItem) {
+              setFolderInspectorItem({...folderInspectorItem, ...formData});
+            }
+          } else {
+            // Modal: close modal
+            setShowFolderModal(false);
+            setEditingFolder(null);
+            loadFolders(currentParentFolder?.id);
+          }
         } catch (err) {
           showToast(err.message, 'danger');
         }
@@ -3934,6 +3958,20 @@
         }
       };
 
+      // Folder inspector drawer functions
+      const closeFolderInspector = () => {
+        setFolderInspectorOpen(false);
+        setFolderInspectorEditMode(false);
+        setFolderInspectorItem(null);
+      };
+
+      // Video inspector drawer functions
+      const closeVideoInspector = () => {
+        setVideoInspectorOpen(false);
+        setVideoInspectorEditMode(false);
+        setVideoInspectorItem(null);
+      };
+
       // Video handlers
       const handleCreateVideo = () => {
         setEditingVideo(null);
@@ -3941,11 +3979,12 @@
       };
 
       const handleEditVideo = (video) => {
-        setEditingVideo(video);
-        setShowVideoModal(true);
+        setVideoInspectorItem(video);
+        setVideoInspectorOpen(true);
+        setVideoInspectorEditMode(true);
       };
 
-      const handleSaveVideo = async (formData) => {
+      const handleSaveVideo = async (formData, origin = 'modal') => {
         try {
           // Add folder_id
           formData.folder_id = selectedFolder?.id;
@@ -3961,10 +4000,26 @@
           }
 
           showToast(editingVideo ? 'Cập nhật thành công!' : 'Thêm video thành công!', 'success');
-          setShowVideoModal(false);
-          loadFolders();
-          if (selectedFolder) {
-            loadVideosInFolder(selectedFolder.id);
+          
+          if (origin === 'drawer') {
+            // Keep drawer open, exit edit mode
+            setVideoInspectorEditMode(false);
+            setEditingVideo(null);
+            loadFolders();
+            if (selectedFolder) {
+              loadVideosInFolder(selectedFolder.id);
+            }
+            if (editingVideo && videoInspectorItem) {
+              setVideoInspectorItem({...videoInspectorItem, ...formData});
+            }
+          } else {
+            // Modal: close modal
+            setShowVideoModal(false);
+            setEditingVideo(null);
+            loadFolders();
+            if (selectedFolder) {
+              loadVideosInFolder(selectedFolder.id);
+            }
           }
         } catch (err) {
           showToast(err.message, 'danger');
@@ -4221,6 +4276,284 @@
             onClose={() => setShowVideoModal(false)}
             onSave={handleSaveVideo}
           />
+
+          <AdminDrawer
+            open={folderInspectorOpen}
+            title={folderInspectorItem ? folderInspectorItem.name : 'Folder'}
+            subtitle={folderInspectorItem ? `${folderInspectorItem.subfolderCount || 0} subfolder • ${folderInspectorItem.videoCount || 0} videos` : ''}
+            onClose={closeFolderInspector}
+            footer={
+              folderInspectorEditMode ? (
+                <div className="d-flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={closeFolderInspector}
+                  >
+                    <i className="fas fa-xmark me-2"></i>
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-warning fw-semibold"
+                    onClick={() => {
+                      if (folderInspectorItem) {
+                        handleSaveFolder({
+                          name: folderInspectorItem.name || '',
+                          description: folderInspectorItem.description || '',
+                          sortOrder: folderInspectorItem.sortOrder || 0
+                        }, 'drawer');
+                      }
+                    }}
+                  >
+                    <i className="fas fa-check me-2"></i>
+                    Lưu
+                  </button>
+                </div>
+              ) : folderInspectorItem ? (
+                <div className="d-flex flex-wrap gap-2 justify-content-between">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => {
+                      window.KTM.clipboard.writeText(folderInspectorItem.name);
+                      showToast('Đã copy tên folder', 'success');
+                    }}
+                  >
+                    <i className="fas fa-copy me-2"></i>
+                    Copy
+                  </button>
+                  <div className="d-flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      onClick={() => {
+                        setFolderInspectorEditMode(true);
+                      }}
+                    >
+                      <i className="fas fa-pen me-2"></i>
+                      Sửa
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-danger"
+                      onClick={() => {
+                        if (confirm(`Xóa folder "${folderInspectorItem.name}"?`)) {
+                          handleDeleteFolder(folderInspectorItem);
+                          closeFolderInspector();
+                        }
+                      }}
+                    >
+                      <i className="fas fa-trash me-2"></i>
+                      Xóa
+                    </button>
+                  </div>
+                </div>
+              ) : null
+            }
+          >
+            {folderInspectorEditMode && folderInspectorItem ? (
+              <div className="admin-drawer-section">
+                <h6>
+                  <i className="fas fa-pen me-2 text-warning"></i>
+                  Chỉnh sửa
+                </h6>
+                <div className="mb-3">
+                  <label className="form-label">Tên Folder *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={folderInspectorItem.name || ''}
+                    onChange={(e) => setFolderInspectorItem({ ...folderInspectorItem, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Mô tả</label>
+                  <textarea
+                    className="form-control"
+                    rows="2"
+                    value={folderInspectorItem.description || ''}
+                    onChange={(e) => setFolderInspectorItem({ ...folderInspectorItem, description: e.target.value })}
+                  />
+                </div>
+              </div>
+            ) : folderInspectorItem ? (
+              <>
+                <div className="admin-drawer-section">
+                  <h6>
+                    <i className="fas fa-circle-info me-2 text-warning"></i>
+                    Thông tin
+                  </h6>
+                  <div className="admin-kv">
+                    <div className="k">Tên</div>
+                    <div className="v">{folderInspectorItem.name}</div>
+                    <div className="k">Slug</div>
+                    <div className="v font-monospace">{folderInspectorItem.id}</div>
+                    <div className="k">Subfolder</div>
+                    <div className="v">{folderInspectorItem.subfolderCount || 0}</div>
+                    <div className="k">Video</div>
+                    <div className="v">{folderInspectorItem.videoCount || 0}</div>
+                  </div>
+                </div>
+                {folderInspectorItem.description && (
+                  <div className="admin-drawer-section">
+                    <h6>
+                      <i className="fas fa-note-sticky me-2 text-secondary"></i>
+                      Mô tả
+                    </h6>
+                    <p>{folderInspectorItem.description}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-muted">Không có dữ liệu</div>
+            )}
+          </AdminDrawer>
+
+          <AdminDrawer
+            open={videoInspectorOpen}
+            title={videoInspectorItem ? videoInspectorItem.title : 'Video'}
+            subtitle={videoInspectorItem ? `${videoInspectorItem.youtubeId}` : ''}
+            onClose={closeVideoInspector}
+            footer={
+              videoInspectorEditMode ? (
+                <div className="d-flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={closeVideoInspector}
+                  >
+                    <i className="fas fa-xmark me-2"></i>
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-warning fw-semibold"
+                    onClick={() => {
+                      if (videoInspectorItem) {
+                        handleSaveVideo({
+                          youtube_url: `https://www.youtube.com/watch?v=${videoInspectorItem.youtubeId}`,
+                          title: videoInspectorItem.title || '',
+                          thumbnail_url: videoInspectorItem.thumb || '',
+                          sort_order: videoInspectorItem.sortOrder || 0
+                        }, 'drawer');
+                      }
+                    }}
+                  >
+                    <i className="fas fa-check me-2"></i>
+                    Lưu
+                  </button>
+                </div>
+              ) : videoInspectorItem ? (
+                <div className="d-flex flex-wrap gap-2 justify-content-between">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => {
+                      const link = `https://www.youtube.com/watch?v=${videoInspectorItem.youtubeId}`;
+                      window.KTM.clipboard.writeText(link).then(() => {
+                        showToast('Đã copy link!', 'success');
+                      });
+                    }}
+                  >
+                    <i className="fas fa-link me-2"></i>
+                    Copy
+                  </button>
+                  <div className="d-flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      onClick={() => {
+                        setVideoInspectorEditMode(true);
+                      }}
+                    >
+                      <i className="fas fa-pen me-2"></i>
+                      Sửa
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-danger"
+                      onClick={() => {
+                        if (confirm(`Xóa video "${videoInspectorItem.title}"?`)) {
+                          handleDeleteVideo(videoInspectorItem);
+                          closeVideoInspector();
+                        }
+                      }}
+                    >
+                      <i className="fas fa-trash me-2"></i>
+                      Xóa
+                    </button>
+                  </div>
+                </div>
+              ) : null
+            }
+          >
+            {videoInspectorEditMode && videoInspectorItem ? (
+              <div className="admin-drawer-section">
+                <h6>
+                  <i className="fas fa-pen me-2 text-warning"></i>
+                  Chỉnh sửa
+                </h6>
+                <div className="mb-3">
+                  <label className="form-label">Tiêu đề *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={videoInspectorItem.title || ''}
+                    onChange={(e) => setVideoInspectorItem({ ...videoInspectorItem, title: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">YouTube ID</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={videoInspectorItem.youtubeId || ''}
+                    onChange={(e) => setVideoInspectorItem({ ...videoInspectorItem, youtubeId: e.target.value })}
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Thứ tự</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={videoInspectorItem.sortOrder || 0}
+                    onChange={(e) => setVideoInspectorItem({ ...videoInspectorItem, sortOrder: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+            ) : videoInspectorItem ? (
+              <>
+                <div className="admin-drawer-section">
+                  <h6>
+                    <i className="fas fa-circle-info me-2 text-warning"></i>
+                    Thông tin
+                  </h6>
+                  <div className="admin-kv">
+                    <div className="k">Tiêu đề</div>
+                    <div className="v">{videoInspectorItem.title}</div>
+                    <div className="k">YouTube ID</div>
+                    <div className="v font-monospace">{videoInspectorItem.youtubeId}</div>
+                    <div className="k">Thứ tự</div>
+                    <div className="v">{videoInspectorItem.sortOrder || 0}</div>
+                  </div>
+                </div>
+                {videoInspectorItem.thumb && (
+                  <div className="admin-drawer-section">
+                    <h6>
+                      <i className="fas fa-image me-2 text-info"></i>
+                      Thumbnail
+                    </h6>
+                    <img src={videoInspectorItem.thumb} alt={videoInspectorItem.title} className="rounded w-100" style={{ maxHeight: 200, objectFit: 'cover' }} />
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-muted">Không có dữ liệu</div>
+            )}
+          </AdminDrawer>
         </div>
       );
     }
