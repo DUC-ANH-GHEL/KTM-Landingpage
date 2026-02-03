@@ -481,6 +481,7 @@
         const statsRootRef = useRef(null);
         const [swipeDx, setSwipeDx] = useState(0);
         const [swipeAnimating, setSwipeAnimating] = useState(false);
+        const swipeLimitToastAtRef = useRef(0);
         const createEmptyStats = () => ({
           statusCounts: { draft: 0, pending: 0, processing: 0, done: 0, paid: 0, canceled: 0, other: 0 },
           activeOrders: 0,
@@ -549,6 +550,29 @@
           const y = d.getFullYear();
           const mm = String(d.getMonth() + 1).padStart(2, '0');
           return `${y}-${mm}`;
+        };
+
+        // Month bounds: block future, allow past up to 5 months
+        const maxMonthKey = getCurrentMonth();
+        const minMonthKey = shiftMonthKey(maxMonthKey, -5);
+        const isMonthInRange = (k) => {
+          const key = String(k || '').trim();
+          if (!key) return false;
+          return key >= minMonthKey && key <= maxMonthKey;
+        };
+        const clampMonthInRange = (k) => {
+          const key = String(k || '').trim();
+          if (!key) return key;
+          if (key < minMonthKey) return minMonthKey;
+          if (key > maxMonthKey) return maxMonthKey;
+          return key;
+        };
+        const maybeToastMonthLimit = (type) => {
+          const now = Date.now();
+          if (now - Number(swipeLimitToastAtRef.current || 0) < 1200) return;
+          swipeLimitToastAtRef.current = now;
+          if (type === 'future') showToast('Không xem được tháng tương lai', 'warning');
+          else showToast('Chỉ xem tối đa 5 tháng gần nhất', 'warning');
         };
 
         const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -643,10 +667,22 @@
             return;
           }
 
+          const delta = sign > 0 ? -1 : 1;
+          const candidate = shiftMonthKey(month, delta);
+          if (!isMonthInRange(candidate)) {
+            setSwipeAnimating(true);
+            setSwipeDx(sign * Math.floor(getSwipeMax() * 0.55));
+            setTimeout(() => {
+              setSwipeDx(0);
+              setTimeout(() => setSwipeAnimating(false), 200);
+            }, 140);
+            maybeToastMonthLimit(candidate > maxMonthKey ? 'future' : 'past');
+            return;
+          }
+
           setSwipeAnimating(true);
           setSwipeDx(sign * getSwipeMax());
           setTimeout(() => {
-            const delta = sign > 0 ? -1 : 1;
             setMonth((prev) => shiftMonthKey(prev, delta));
             // create a simple slide-through effect
             setSwipeDx(-sign * getSwipeMax());
@@ -754,10 +790,22 @@
               return;
             }
 
+            const delta = sign > 0 ? -1 : 1;
+            const candidate = shiftMonthKey(month, delta);
+            if (!isMonthInRange(candidate)) {
+              setSwipeAnimating(true);
+              setSwipeDx(sign * Math.floor(getSwipeMax() * 0.55));
+              setTimeout(() => {
+                setSwipeDx(0);
+                setTimeout(() => setSwipeAnimating(false), 200);
+              }, 140);
+              maybeToastMonthLimit(candidate > maxMonthKey ? 'future' : 'past');
+              return;
+            }
+
             setSwipeAnimating(true);
             setSwipeDx(sign * getSwipeMax());
             setTimeout(() => {
-              const delta = sign > 0 ? -1 : 1;
               setMonth((prev) => shiftMonthKey(prev, delta));
               setSwipeDx(-sign * getSwipeMax());
               requestAnimationFrame(() => {
@@ -778,7 +826,8 @@
         };
 
         const swipeHint = swipeDx > 0 ? 'Tháng trước' : (swipeDx < 0 ? 'Tháng sau' : '');
-        const swipeTargetMonth = swipeDx > 0 ? shiftMonthKey(month, -1) : (swipeDx < 0 ? shiftMonthKey(month, 1) : '');
+        const rawTargetMonth = swipeDx > 0 ? shiftMonthKey(month, -1) : (swipeDx < 0 ? shiftMonthKey(month, 1) : '');
+        const swipeTargetMonth = rawTargetMonth && isMonthInRange(rawTargetMonth) ? rawTargetMonth : '';
         const swipeHintOpacity = Math.min(1, Math.abs(swipeDx) / Math.max(1, getNavThreshold()));
 
         return (
