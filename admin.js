@@ -10403,7 +10403,7 @@
                       <div className="card-body p-3 order-card-mobile">
                         <div className="d-flex justify-content-between align-items-start gap-2">
                           <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                            <div className="fw-semibold text-truncate">{order.customer_name}</div>
+                            <div className="fw-semibold order-customer-name">{order.customer_name}</div>
                             <div className="fw-bold font-monospace order-phone" onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText?.(String(order.phone || '')); }} title="Chạm để copy SĐT">
                               {order.phone}
                             </div>
@@ -10533,7 +10533,7 @@
                       <div className="admin-sheet-handle" />
                       <div className="admin-sheet-header">
                         <div style={{ minWidth: 0 }}>
-                          <div className="fw-semibold text-truncate">{mobileSheetOrder.customer_name || 'Đơn hàng'}</div>
+                          <div className="fw-semibold admin-sheet-title">{mobileSheetOrder.customer_name || 'Đơn hàng'}</div>
                           <div className="text-muted small d-flex align-items-center gap-2" style={{ flexWrap: 'wrap' }}>
                             <span className="font-monospace">{mobileSheetOrder.phone || ''}</span>
                             <span className={`badge ${getStatusBadgeClass(mobileSheetOrder.status)}`}>{getStatusLabel(mobileSheetOrder.status)}</span>

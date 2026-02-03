@@ -1131,6 +1131,20 @@
       line-height: 1.2;
     }
 
+    .order-card-mobile .order-customer-name {
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.2;
+    }
+
+    .admin-sheet-title {
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.2;
+    }
+
     @media (max-width: 380px) {
       .order-card-mobile .order-phone {
         padding: 2px 6px;
