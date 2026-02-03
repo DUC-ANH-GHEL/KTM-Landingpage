@@ -1126,9 +1126,17 @@
       border: 1px solid rgba(15, 23, 42, 0.08);
       user-select: none;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
       max-width: 100%;
+      font-size: clamp(12px, 4.6vw, 16px);
+      line-height: 1.2;
+    }
+
+    @media (max-width: 380px) {
+      .order-card-mobile .order-phone {
+        padding: 2px 6px;
+        border-radius: 9px;
+        font-size: clamp(11px, 4.4vw, 15px);
+      }
     }
 
     .order-card-mobile .order-address,
