@@ -10410,16 +10410,30 @@
                             {Number(order?.split_seq ?? 0) > 0 && (
                               <div className="text-muted small">Đợt {order.split_seq}</div>
                             )}
-                            {order.address && (
-                              <div className="text-muted small" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                                {order.address}
-                              </div>
-                            )}
-                            {(order?.note || '').trim() && (
-                              <div className="text-muted small" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                                <span className="fw-semibold">Ghi chú:</span> {(order.note || '').trim()}
-                              </div>
-                            )}
+                            {(() => {
+                              const addr = String(order?.address || '')
+                                .replace(/\s*\n+\s*/g, ', ')
+                                .replace(/\s+/g, ' ')
+                                .trim();
+                              if (!addr) return null;
+                              return (
+                                <div className="text-muted small order-address">
+                                  {addr}
+                                </div>
+                              );
+                            })()}
+                            {(() => {
+                              const note = String(order?.note || '')
+                                .replace(/\s*\n+\s*/g, ' — ')
+                                .replace(/\s+/g, ' ')
+                                .trim();
+                              if (!note) return null;
+                              return (
+                                <div className="text-muted small order-note">
+                                  <span className="fw-semibold">Ghi chú:</span> {note}
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div className="d-flex align-items-start gap-1 flex-shrink-0">
                             <button

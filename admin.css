@@ -1125,6 +1125,17 @@
       background: rgba(15, 23, 42, 0.04);
       border: 1px solid rgba(15, 23, 42, 0.08);
       user-select: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .order-card-mobile .order-address,
+    .order-card-mobile .order-note {
+      white-space: normal;
+      word-break: normal;
+      overflow-wrap: anywhere;
     }
 
     .order-card-mobile .order-status-badge-btn {
