@@ -8346,6 +8346,42 @@
         return s;
       };
 
+      const ORDER_STATUS_FLOW = React.useMemo(() => ([
+        'draft',
+        'pending',
+        'processing',
+        'done',
+        'paid',
+      ]), []);
+
+      const getSwipeTargetStatus = (currentStatus, dir) => {
+        const current = normalizeOrderStatus(currentStatus);
+        if (!current || current === 'canceled') return null;
+        const idx = ORDER_STATUS_FLOW.indexOf(current);
+        if (idx < 0) return null;
+        if (dir === 'left') return ORDER_STATUS_FLOW[idx + 1] || null;
+        if (dir === 'right') return ORDER_STATUS_FLOW[idx - 1] || null;
+        return null;
+      };
+
+      const getSwipeLabelMeta = (targetStatus) => {
+        const s = normalizeOrderStatus(targetStatus);
+        if (!s) return { label: '', icon: 'fa-circle' };
+        const label = ORDER_STATUS_OPTIONS.find((o) => normalizeOrderStatus(o?.value) === s)?.label || '';
+        const icon = (() => {
+          switch (s) {
+            case 'draft': return 'fa-file-lines';
+            case 'pending': return 'fa-hourglass-half';
+            case 'processing': return 'fa-truck';
+            case 'done': return 'fa-check';
+            case 'paid': return 'fa-money-bill-wave';
+            case 'canceled': return 'fa-ban';
+            default: return 'fa-circle';
+          }
+        })();
+        return { label, icon };
+      };
+
       const getDraftRemainingDays = (order) => {
         const status = normalizeOrderStatus(order?.status);
         if (status !== 'draft') return null;
@@ -11573,21 +11609,27 @@
                           return;
                         }
 
+                        const canRight = !!getSwipeTargetStatus(order?.status, 'right');
+                        const canLeft = !!getSwipeTargetStatus(order?.status, 'left');
+
                         // Lock X: visualize swipe (card follows finger + labels reveal)
                         const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-                        const clampedDx = clamp(dx, -140, 140);
+                        const rawClampedDx = clamp(dx, -140, 140);
+                        const clampedDx = (rawClampedDx > 0 && !canRight)
+                          ? rawClampedDx * 0.35
+                          : ((rawClampedDx < 0 && !canLeft) ? rawClampedDx * 0.35 : rawClampedDx);
                         const progress = clamp(Math.abs(clampedDx) / 88, 0, 1);
                         try {
                           e.currentTarget.classList.add('swiping');
                           e.currentTarget.style.setProperty('--swipe-x', `${clampedDx}px`);
                           e.currentTarget.style.setProperty('--swipe-p', String(progress));
-                          e.currentTarget.style.setProperty('--swipe-l', clampedDx < 0 ? String(progress) : '0');
-                          e.currentTarget.style.setProperty('--swipe-r', clampedDx > 0 ? String(progress) : '0');
+                          e.currentTarget.style.setProperty('--swipe-l', (clampedDx < 0 && canLeft) ? String(progress) : '0');
+                          e.currentTarget.style.setProperty('--swipe-r', (clampedDx > 0 && canRight) ? String(progress) : '0');
                         } catch {}
                         if (Math.abs(clampedDx) > 12) swipeConsumeClickRef.current = true;
 
-                        if (dx > 72) setSwipePreview({ id: s.id, dir: 'right' });
-                        else if (dx < -72) setSwipePreview({ id: s.id, dir: 'left' });
+                        if (dx > 72 && canRight) setSwipePreview({ id: s.id, dir: 'right' });
+                        else if (dx < -72 && canLeft) setSwipePreview({ id: s.id, dir: 'left' });
                         else setSwipePreview({ id: s.id, dir: null });
                       }}
                       onPointerCancel={(e) => {
@@ -11653,8 +11695,11 @@
                         e.preventDefault();
                         e.stopPropagation();
 
-                        const next = dx > 0 ? 'done' : 'processing';
-                        if (normalizeOrderStatus(next) === status) return;
+                        const target = dx > 0
+                          ? getSwipeTargetStatus(order?.status, 'right')
+                          : getSwipeTargetStatus(order?.status, 'left');
+                        const next = normalizeOrderStatus(target);
+                        if (!next || next === status) return;
                         updateOrderStatus(order, next);
                       }}
                       onKeyDown={(e) => {
@@ -11668,14 +11713,30 @@
                       <div className="orders-mobile-swipe-bg" aria-hidden="true">
                         <div className="orders-mobile-swipe-bg-left">
                           <div className="orders-mobile-swipe-label">
-                            <i className="fas fa-spinner"></i>
-                            Đang xử lý
+                            {(() => {
+                              const meta = getSwipeLabelMeta(getSwipeTargetStatus(order?.status, 'right'));
+                              if (!meta?.label) return null;
+                              return (
+                                <>
+                                  <i className={`fas ${meta.icon || 'fa-circle'}`}></i>
+                                  {meta.label}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                         <div className="orders-mobile-swipe-bg-right">
                           <div className="orders-mobile-swipe-label">
-                            <i className="fas fa-check"></i>
-                            Hoàn tất
+                            {(() => {
+                              const meta = getSwipeLabelMeta(getSwipeTargetStatus(order?.status, 'left'));
+                              if (!meta?.label) return null;
+                              return (
+                                <>
+                                  <i className={`fas ${meta.icon || 'fa-circle'}`}></i>
+                                  {meta.label}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
