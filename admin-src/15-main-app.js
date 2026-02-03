@@ -477,6 +477,7 @@
       function StatsManager() {
         const [month, setMonth] = useState(getCurrentMonth());
         const [loadingStats, setLoadingStats] = useState(true);
+        const swipeStartRef = useRef(null);
         const createEmptyStats = () => ({
           statusCounts: { draft: 0, pending: 0, processing: 0, done: 0, paid: 0, canceled: 0, other: 0 },
           activeOrders: 0,
@@ -534,8 +535,133 @@
           loadStats();
         }, [month, shipPercent]);
 
+        const shiftMonthKey = (key, delta) => {
+          const s = String(key || '').trim();
+          const m = s.match(/^(\d{4})-(\d{2})$/);
+          if (!m) return s;
+          const year = Number(m[1]);
+          const monthIndex = Number(m[2]) - 1;
+          const d = new Date(year, monthIndex, 1);
+          d.setMonth(d.getMonth() + Number(delta || 0));
+          const y = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          return `${y}-${mm}`;
+        };
+
+        const handleStatsTouchStart = (e) => {
+          try {
+            if (!e?.touches || e.touches.length !== 1) return;
+            const target = e.target;
+            if (target && typeof target.closest === 'function') {
+              // Avoid hijacking gestures on interactive controls
+              const interactive = target.closest('input, textarea, select, button, a, [role="button"], [contenteditable="true"], .dropdown-menu, .modal');
+              if (interactive) {
+                swipeStartRef.current = null;
+                return;
+              }
+            }
+            const t = e.touches[0];
+            swipeStartRef.current = { x: t.clientX, y: t.clientY, at: Date.now() };
+          } catch {
+            swipeStartRef.current = null;
+          }
+        };
+
+        const handleStatsTouchEnd = (e) => {
+          const start = swipeStartRef.current;
+          swipeStartRef.current = null;
+          if (!start) return;
+
+          const t = e?.changedTouches && e.changedTouches[0];
+          if (!t) return;
+
+          const dx = t.clientX - start.x;
+          const dy = t.clientY - start.y;
+          const dt = Date.now() - start.at;
+
+          const adx = Math.abs(dx);
+          const ady = Math.abs(dy);
+
+          // Only handle clear horizontal swipes; keep vertical scroll natural
+          if (dt > 1000) return;
+          if (adx < 45) return;
+          if (adx < ady * 1.5) return;
+
+          if (dx > 0) {
+            setMonth((prev) => shiftMonthKey(prev, -1));
+          } else {
+            setMonth((prev) => shiftMonthKey(prev, 1));
+          }
+        };
+
+        const handleStatsTouchCancel = () => {
+          swipeStartRef.current = null;
+        };
+
+        // Desktop/DevTools support: drag mouse to simulate swipe
+        const handleStatsPointerDown = (e) => {
+          try {
+            if (!e) return;
+            if (e.pointerType === 'touch') return; // handled by touch events
+            if (typeof e.button === 'number' && e.button !== 0) return;
+            const target = e.target;
+            if (target && typeof target.closest === 'function') {
+              const interactive = target.closest('input, textarea, select, button, a, [role="button"], [contenteditable="true"], .dropdown-menu, .modal');
+              if (interactive) {
+                swipeStartRef.current = null;
+                return;
+              }
+            }
+            swipeStartRef.current = { x: e.clientX, y: e.clientY, at: Date.now() };
+          } catch {
+            swipeStartRef.current = null;
+          }
+        };
+
+        const handleStatsPointerUp = (e) => {
+          try {
+            if (!e) return;
+            if (e.pointerType === 'touch') return;
+            const start = swipeStartRef.current;
+            swipeStartRef.current = null;
+            if (!start) return;
+
+            const dx = e.clientX - start.x;
+            const dy = e.clientY - start.y;
+            const dt = Date.now() - start.at;
+
+            const adx = Math.abs(dx);
+            const ady = Math.abs(dy);
+
+            if (dt > 1000) return;
+            if (adx < 45) return;
+            if (adx < ady * 1.5) return;
+
+            if (dx > 0) {
+              setMonth((prev) => shiftMonthKey(prev, -1));
+            } else {
+              setMonth((prev) => shiftMonthKey(prev, 1));
+            }
+          } catch {
+            swipeStartRef.current = null;
+          }
+        };
+
+        const handleStatsPointerCancel = () => {
+          swipeStartRef.current = null;
+        };
+
         return (
-          <div className="product-manager pb-5 mb-4 stats-manager">
+          <div
+            className="product-manager pb-5 mb-4 stats-manager"
+            style={{ touchAction: 'pan-y' }}
+            onTouchStartCapture={handleStatsTouchStart}
+            onTouchEndCapture={handleStatsTouchEnd}
+            onTouchCancelCapture={handleStatsTouchCancel}
+            onPointerDown={handleStatsPointerDown}
+            onPointerUp={handleStatsPointerUp}
+            onPointerCancel={handleStatsPointerCancel}
+          >
             <Loading show={loadingStats} />
             <div className="product-header">
               <h5 className="mb-0"><i className="fas fa-chart-column me-2 text-warning"></i>Thống kê</h5>
