@@ -258,6 +258,16 @@
               // ignore
             }
           }, 0);
+        } else {
+          suppressFilterOnNextFocusRef.current = false;
+          setTimeout(() => {
+            try {
+              searchInputRef.current?.blur?.();
+              document.activeElement?.blur?.();
+            } catch {
+              // ignore
+            }
+          }, 0);
         }
       };
       
@@ -559,6 +569,9 @@
         const haystackAll = `${name} ${code} ${category} ${note} ${folder}`.trim();
         if (!haystackAll) return 0;
 
+        const nameCompact = name.replace(/\s+/g, '');
+        const phraseCompact = phrase.replace(/\s+/g, '');
+
         let score = 0;
 
         // Phrase-level boosts (best match first)
@@ -566,6 +579,11 @@
           if (name === phrase) score += 220;
           if (name.includes(phrase)) score += 140;
           if (name.startsWith(phrase)) score += 160;
+          if (phraseCompact) {
+            if (nameCompact === phraseCompact) score += 280;
+            else if (nameCompact.startsWith(phraseCompact)) score += 180;
+            else if (nameCompact.includes(phraseCompact)) score += 110;
+          }
           if (code && code === phrase) score += 180;
           if (code && code.includes(phrase)) score += 90;
         }
@@ -574,9 +592,16 @@
         for (const t of tokens) {
           if (!t) continue;
           const reWordStart = new RegExp(`(?:^|\\s)${t.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}`);
+          const tCompact = String(t).replace(/\s+/g, '');
 
           if (name.includes(t)) score += 35;
           if (reWordStart.test(name)) score += 25;
+
+          if (tCompact) {
+            if (nameCompact === tCompact) score += 90;
+            else if (nameCompact.startsWith(tCompact)) score += 50;
+            else if (nameCompact.includes(tCompact)) score += 28;
+          }
 
           if (code && code.includes(t)) score += 20;
           if (code && reWordStart.test(code)) score += 10;
@@ -680,7 +705,9 @@
         }
 
         // Check cache first (C: LRU Cache)
-        const cacheKey = `${query}|${selectedCategory}`;
+        // Canonicalize query to avoid inconsistent cache hits for e.g. "xylanh" vs "xy lanh"
+        const cacheQueryKey = normalizeText(query).trim().replace(/\s+/g, '');
+        const cacheKey = `v2|${cacheQueryKey}|${selectedCategory}`;
         if (searchCacheRef.current.has(cacheKey)) {
           setSearchResults(searchCacheRef.current.get(cacheKey));
           return;
@@ -696,28 +723,28 @@
             if (contentTokens.length === 0) return true;
 
             // Enhanced search: normalize + phone parsing
-            const searchableText = normalizeForSearch(
+            const searchableTextRaw = normalizeForSearch(
               Object.entries(item)
                 .filter(([key]) => !key.startsWith('_'))
                 .map(([, value]) => String(value || ''))
                 .join(' ')
             );
-            
-            // Also check normalized phone
-            if (item.phone) {
-              const normalizedPhone = normalizePhone(item.phone);
-              if (normalizedPhone && contentTokens.some(word => normalizedPhone.includes(word))) {
-                return true;
-              }
-            }
 
-            return contentTokens.some(word => searchableText.includes(word));
+            const normalizedPhone = item.phone ? normalizePhone(item.phone) : '';
+            const searchableText = `${searchableTextRaw} ${normalizedPhone}`.trim();
+            const searchableCompact = searchableText.replace(/\s+/g, '');
+
+            return contentTokens.every((word) => {
+              const w = String(word || '').trim();
+              if (!w) return true;
+              return searchableText.includes(w) || searchableCompact.includes(w.replace(/\s+/g, ''));
+            });
           });
 
           let finalResults = results;
           if (selectedCategory !== 'all') {
             finalResults = results.filter(item => 
-              (item.category || item._type) === selectedCategory
+              item?._type === selectedCategory
             );
           }
           
@@ -754,20 +781,28 @@
         let filtered = allData.filter(item => allowedTypes.has(item?._type));
         if (cat !== 'all') {
           filtered = filtered.filter(item => 
-            (item.category || item._type) === cat
+            item?._type === cat
           );
         }
 
         if (searchQuery.trim()) {
           if (contentTokens.length > 0) {
             filtered = filtered.filter(item => {
-              const searchableText = normalizeText(
+              const searchableRaw = normalizeText(
                 Object.entries(item)
                   .filter(([key]) => !key.startsWith('_'))
                   .map(([, value]) => String(value || ''))
                   .join(' ')
               );
-              return contentTokens.every(word => searchableText.includes(word));
+              const normalizedPhone = item.phone ? normalizePhone(item.phone) : '';
+              const searchableText = `${searchableRaw} ${normalizedPhone}`.trim();
+              const searchableCompact = searchableText.replace(/\s+/g, '');
+
+              return contentTokens.every((word) => {
+                const w = String(word || '').trim();
+                if (!w) return true;
+                return searchableText.includes(w) || searchableCompact.includes(w.replace(/\s+/g, ''));
+              });
             });
           }
         }
@@ -2027,7 +2062,7 @@
                     key={c.label}
                     type="button"
                     className="suggestion-chip"
-                    onClick={() => applySuggestion(c.query, { caret: c.caret, addToHistory: c.addToHistory })}
+                    onClick={() => applySuggestion(c.query, { caret: c.caret, addToHistory: c.addToHistory, focus: false })}
                   >
                     {c.label}
                   </button>
@@ -2051,7 +2086,7 @@
                         className="suggestion-chip suggestion-chip-popular"
                         onClick={() => {
                           if (r.item) trackProductUsage(r.item, 'suggestion');
-                          applySuggestion(q, { caret: 'end' });
+                          applySuggestion(q, { caret: 'end', focus: false });
                         }}
                         title={code ? `#${code}` : label}
                       >
@@ -2072,7 +2107,7 @@
                       key={r.q}
                       type="button"
                       className="suggestion-chip suggestion-chip-query"
-                      onClick={() => applySuggestion(r.q, { caret: 'end' })}
+                      onClick={() => applySuggestion(r.q, { caret: 'end', focus: false })}
                       title={`${r.q} (${r.count})`}
                     >
                       {r.q}
@@ -2218,13 +2253,6 @@
                 placeholder="🔍 Tìm: van 3 tay, xylanh... (/ để focus, Ctrl+K palette)"
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
-                onFocus={() => {
-                  if (suppressFilterOnNextFocusRef.current) {
-                    suppressFilterOnNextFocusRef.current = false;
-                    return;
-                  }
-                  if (searchQuery.trim()) setShowFilter(true);
-                }}
               />
               <button 
                 className={`filter-btn ${showFilter || selectedCategory !== 'all' ? 'active' : ''}`}
