@@ -11623,8 +11623,9 @@
                           e.currentTarget.classList.add('swiping');
                           e.currentTarget.style.setProperty('--swipe-x', `${clampedDx}px`);
                           e.currentTarget.style.setProperty('--swipe-p', String(progress));
-                          e.currentTarget.style.setProperty('--swipe-l', (clampedDx < 0 && canLeft) ? String(progress) : '0');
-                          e.currentTarget.style.setProperty('--swipe-r', (clampedDx > 0 && canRight) ? String(progress) : '0');
+                          // dx>0 reveals LEFT side; dx<0 reveals RIGHT side
+                          e.currentTarget.style.setProperty('--swipe-l', (clampedDx > 0 && canRight) ? String(progress) : '0');
+                          e.currentTarget.style.setProperty('--swipe-r', (clampedDx < 0 && canLeft) ? String(progress) : '0');
                         } catch {}
                         if (Math.abs(clampedDx) > 12) swipeConsumeClickRef.current = true;
 
