@@ -478,6 +478,9 @@
         const [month, setMonth] = useState(getCurrentMonth());
         const [loadingStats, setLoadingStats] = useState(true);
         const swipeStartRef = useRef(null);
+        const statsRootRef = useRef(null);
+        const [swipeDx, setSwipeDx] = useState(0);
+        const [swipeAnimating, setSwipeAnimating] = useState(false);
         const createEmptyStats = () => ({
           statusCounts: { draft: 0, pending: 0, processing: 0, done: 0, paid: 0, canceled: 0, other: 0 },
           activeOrders: 0,
@@ -548,9 +551,21 @@
           return `${y}-${mm}`;
         };
 
+        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+        const getSwipeWidth = () => Math.max(320, Number(statsRootRef.current?.clientWidth) || 360);
+        const getSwipeMax = () => {
+          const w = getSwipeWidth();
+          return clamp(Math.floor(w * 0.35), 110, 180);
+        };
+        const getNavThreshold = () => {
+          const w = getSwipeWidth();
+          return clamp(Math.floor(w * 0.22), 70, 140);
+        };
+
         const handleStatsTouchStart = (e) => {
           try {
             if (!e?.touches || e.touches.length !== 1) return;
+            if (swipeAnimating) return;
             const target = e.target;
             if (target && typeof target.closest === 'function') {
               // Avoid hijacking gestures on interactive controls
@@ -561,16 +576,43 @@
               }
             }
             const t = e.touches[0];
-            swipeStartRef.current = { x: t.clientX, y: t.clientY, at: Date.now() };
+            swipeStartRef.current = { x: t.clientX, y: t.clientY, at: Date.now(), swiping: false };
           } catch {
             swipeStartRef.current = null;
           }
         };
 
+        const handleStatsTouchMove = (e) => {
+          const start = swipeStartRef.current;
+          if (!start || swipeAnimating) return;
+          const t = e?.touches && e.touches[0];
+          if (!t) return;
+
+          const dx = t.clientX - start.x;
+          const dy = t.clientY - start.y;
+          const adx = Math.abs(dx);
+          const ady = Math.abs(dy);
+
+          if (!start.swiping) {
+            if (adx > 12 && adx > ady * 1.2) {
+              start.swiping = true;
+              setSwipeAnimating(false);
+            } else {
+              return;
+            }
+          }
+
+          const maxDx = getSwipeMax();
+          setSwipeDx(clamp(dx, -maxDx, maxDx));
+        };
+
         const handleStatsTouchEnd = (e) => {
           const start = swipeStartRef.current;
           swipeStartRef.current = null;
-          if (!start) return;
+          if (!start || swipeAnimating || !start.swiping) {
+            setSwipeDx(0);
+            return;
+          }
 
           const t = e?.changedTouches && e.changedTouches[0];
           if (!t) return;
@@ -584,18 +626,42 @@
 
           // Only handle clear horizontal swipes; keep vertical scroll natural
           if (dt > 1000) return;
-          if (adx < 45) return;
+          if (adx < 30) {
+            setSwipeDx(0);
+            return;
+          }
           if (adx < ady * 1.5) return;
 
-          if (dx > 0) {
-            setMonth((prev) => shiftMonthKey(prev, -1));
-          } else {
-            setMonth((prev) => shiftMonthKey(prev, 1));
+          const threshold = getNavThreshold();
+          const shouldNav = adx >= threshold;
+          const sign = dx > 0 ? 1 : -1;
+
+          if (!shouldNav) {
+            setSwipeAnimating(true);
+            setSwipeDx(0);
+            setTimeout(() => setSwipeAnimating(false), 220);
+            return;
           }
+
+          setSwipeAnimating(true);
+          setSwipeDx(sign * getSwipeMax());
+          setTimeout(() => {
+            const delta = sign > 0 ? -1 : 1;
+            setMonth((prev) => shiftMonthKey(prev, delta));
+            // create a simple slide-through effect
+            setSwipeDx(-sign * getSwipeMax());
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                setSwipeDx(0);
+                setTimeout(() => setSwipeAnimating(false), 220);
+              });
+            });
+          }, 140);
         };
 
         const handleStatsTouchCancel = () => {
           swipeStartRef.current = null;
+          setSwipeDx(0);
         };
 
         // Desktop/DevTools support: drag mouse to simulate swipe
@@ -604,6 +670,7 @@
             if (!e) return;
             if (e.pointerType === 'touch') return; // handled by touch events
             if (typeof e.button === 'number' && e.button !== 0) return;
+            if (swipeAnimating) return;
             const target = e.target;
             if (target && typeof target.closest === 'function') {
               const interactive = target.closest('input, textarea, select, button, a, [role="button"], [contenteditable="true"], .dropdown-menu, .modal');
@@ -612,9 +679,42 @@
                 return;
               }
             }
-            swipeStartRef.current = { x: e.clientX, y: e.clientY, at: Date.now() };
+            swipeStartRef.current = { x: e.clientX, y: e.clientY, at: Date.now(), swiping: false };
+            try {
+              e.currentTarget?.setPointerCapture?.(e.pointerId);
+            } catch {
+              // ignore
+            }
           } catch {
             swipeStartRef.current = null;
+          }
+        };
+
+        const handleStatsPointerMove = (e) => {
+          try {
+            if (!e) return;
+            if (e.pointerType === 'touch') return;
+            const start = swipeStartRef.current;
+            if (!start || swipeAnimating) return;
+
+            const dx = e.clientX - start.x;
+            const dy = e.clientY - start.y;
+            const adx = Math.abs(dx);
+            const ady = Math.abs(dy);
+
+            if (!start.swiping) {
+              if (adx > 12 && adx > ady * 1.2) {
+                start.swiping = true;
+                setSwipeAnimating(false);
+              } else {
+                return;
+              }
+            }
+
+            const maxDx = getSwipeMax();
+            setSwipeDx(clamp(dx, -maxDx, maxDx));
+          } catch {
+            // ignore
           }
         };
 
@@ -624,7 +724,10 @@
             if (e.pointerType === 'touch') return;
             const start = swipeStartRef.current;
             swipeStartRef.current = null;
-            if (!start) return;
+            if (!start || swipeAnimating || !start.swiping) {
+              setSwipeDx(0);
+              return;
+            }
 
             const dx = e.clientX - start.x;
             const dy = e.clientY - start.y;
@@ -634,14 +737,36 @@
             const ady = Math.abs(dy);
 
             if (dt > 1000) return;
-            if (adx < 45) return;
+            if (adx < 30) {
+              setSwipeDx(0);
+              return;
+            }
             if (adx < ady * 1.5) return;
 
-            if (dx > 0) {
-              setMonth((prev) => shiftMonthKey(prev, -1));
-            } else {
-              setMonth((prev) => shiftMonthKey(prev, 1));
+            const threshold = getNavThreshold();
+            const shouldNav = adx >= threshold;
+            const sign = dx > 0 ? 1 : -1;
+
+            if (!shouldNav) {
+              setSwipeAnimating(true);
+              setSwipeDx(0);
+              setTimeout(() => setSwipeAnimating(false), 220);
+              return;
             }
+
+            setSwipeAnimating(true);
+            setSwipeDx(sign * getSwipeMax());
+            setTimeout(() => {
+              const delta = sign > 0 ? -1 : 1;
+              setMonth((prev) => shiftMonthKey(prev, delta));
+              setSwipeDx(-sign * getSwipeMax());
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  setSwipeDx(0);
+                  setTimeout(() => setSwipeAnimating(false), 220);
+                });
+              });
+            }, 140);
           } catch {
             swipeStartRef.current = null;
           }
@@ -649,19 +774,53 @@
 
         const handleStatsPointerCancel = () => {
           swipeStartRef.current = null;
+          setSwipeDx(0);
         };
+
+        const swipeHint = swipeDx > 0 ? 'Tháng trước' : (swipeDx < 0 ? 'Tháng sau' : '');
+        const swipeTargetMonth = swipeDx > 0 ? shiftMonthKey(month, -1) : (swipeDx < 0 ? shiftMonthKey(month, 1) : '');
+        const swipeHintOpacity = Math.min(1, Math.abs(swipeDx) / Math.max(1, getNavThreshold()));
 
         return (
           <div
             className="product-manager pb-5 mb-4 stats-manager"
-            style={{ touchAction: 'pan-y' }}
+            ref={statsRootRef}
+            style={{
+              touchAction: 'pan-y',
+              transform: `translateX(${swipeDx}px)`,
+              transition: swipeAnimating ? 'transform 220ms ease' : 'none',
+              willChange: 'transform',
+            }}
             onTouchStartCapture={handleStatsTouchStart}
+            onTouchMoveCapture={handleStatsTouchMove}
             onTouchEndCapture={handleStatsTouchEnd}
             onTouchCancelCapture={handleStatsTouchCancel}
             onPointerDown={handleStatsPointerDown}
+            onPointerMove={handleStatsPointerMove}
             onPointerUp={handleStatsPointerUp}
             onPointerCancel={handleStatsPointerCancel}
           >
+            {!!swipeHint && (
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'fixed',
+                  left: 0,
+                  right: 0,
+                  top: 84,
+                  zIndex: 1060,
+                  pointerEvents: 'none',
+                  opacity: 0.15 + 0.55 * swipeHintOpacity,
+                  transform: 'translateZ(0)',
+                }}
+              >
+                <div className="d-flex justify-content-center">
+                  <div className="px-3 py-2 rounded-pill bg-dark text-white shadow-sm" style={{ fontSize: 13 }}>
+                    {swipeDx > 0 ? '←' : '→'} {swipeHint} · {swipeTargetMonth}
+                  </div>
+                </div>
+              </div>
+            )}
             <Loading show={loadingStats} />
             <div className="product-header">
               <h5 className="mb-0"><i className="fas fa-chart-column me-2 text-warning"></i>Thống kê</h5>
