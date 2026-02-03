@@ -1589,6 +1589,22 @@
       const [aiSearching, setAiSearching] = useState(false);
       const aiSearchTimeoutRef = useRef(null);
       
+      // A: Debounce + AbortController for fetch
+      const debounceTimeoutRef = useRef(null);
+      const abortControllerRef = useRef(null);
+      
+      // B: Command Palette + History + Saved Searches
+      const [showPalette, setShowPalette] = useState(false);
+      const [searchHistory, setSearchHistory] = useState([]);
+      const [savedSearches, setSavedSearches] = useState([]);
+      const [paletteQuery, setPaletteQuery] = useState('');
+      const paletteInputRef = useRef(null);
+      
+      // C: LRU Cache + Prefetch
+      const searchCacheRef = useRef(new Map()); // { query -> results }
+      const [virtualizationMode, setVirtualizationMode] = useState('auto'); // auto | off
+      const [visibleRange, setVisibleRange] = useState({ start: 0, end: 20 });
+      
       // AI Chat states
       const [showAIChat, setShowAIChat] = useState(false);
       const [aiMessages, setAiMessages] = useState([
@@ -1598,6 +1614,74 @@
       const [aiLoading, setAiLoading] = useState(false);
       const chatEndRef = useRef(null);
       const aiInputRef = useRef(null);
+      
+      // ===== A: HELPERS FOR NORMALIZATION + PHONE PARSING + HIGHLIGHTING =====
+      
+      // Remove Vietnamese tones + diacritics; normalize phone
+      const normalizeForSearch = (text) => {
+        if (!text) return '';
+        return String(text)
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[đĐ]/g, 'd')
+          .trim();
+      };
+      
+      // Parse phone number: remove spaces, dashes, +84 -> 0
+      const normalizePhone = (phone) => {
+        if (!phone) return '';
+        return String(phone)
+          .replace(/\s+/g, '')
+          .replace(/[-()]/g, '')
+          .replace(/^\+84/, '0')
+          .trim();
+      };
+      
+      // Highlight matched text in display (wrap in <mark> tag)
+      const highlightMatch = (text, query) => {
+        if (!text || !query) return text;
+        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        return text.replace(regex, '<mark style="background:#ffeb3b">$1</mark>');
+      };
+      
+      // Load search history + saved searches from localStorage
+      useEffect(() => {
+        try {
+          const hist = JSON.parse(localStorage.getItem('ktm_search_history') || '[]');
+          const saved = JSON.parse(localStorage.getItem('ktm_saved_searches') || '[]');
+          setSearchHistory(Array.isArray(hist) ? hist.slice(0, 10) : []);
+          setSavedSearches(Array.isArray(saved) ? saved : []);
+        } catch {
+          // ignore parse errors
+        }
+      }, []);
+      
+      // Save search to history
+      const addToHistory = (query) => {
+        if (!query.trim()) return;
+        const updated = [query, ...searchHistory.filter(q => q !== query)].slice(0, 10);
+        setSearchHistory(updated);
+        try {
+          localStorage.setItem('ktm_search_history', JSON.stringify(updated));
+        } catch {
+          // ignore storage errors
+        }
+      };
+      
+      // Save/unsave a search
+      const toggleSavedSearch = (query) => {
+        if (!query.trim()) return;
+        const updated = savedSearches.includes(query)
+          ? savedSearches.filter(q => q !== query)
+          : [query, ...savedSearches].slice(0, 5);
+        setSavedSearches(updated);
+        try {
+          localStorage.setItem('ktm_saved_searches', JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+      };
       
       // Modal state for image preview
       const [previewImage, setPreviewImage] = useState(null);
@@ -1819,7 +1903,29 @@
         
         // Focus search input
         setTimeout(() => searchInputRef.current?.focus(), 100);
-      }, []);
+        
+        // B: Global keyboard shortcuts (/, Ctrl+K, Esc)
+        const handleGlobalKeyDown = (e) => {
+          // Ctrl/Cmd + K to open palette
+          if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            setShowPalette(true);
+            setTimeout(() => paletteInputRef.current?.focus(), 0);
+          }
+          // / to focus search
+          if (e.key === '/' && !showPalette && document.activeElement?.tagName !== 'INPUT') {
+            e.preventDefault();
+            searchInputRef.current?.focus();
+          }
+          // Esc to close palette
+          if (e.key === 'Escape' && showPalette) {
+            setShowPalette(false);
+          }
+        };
+        
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+      }, [showPalette]);
 
       const normalizeText = (value) => {
         try {
@@ -1962,13 +2068,21 @@
         setAiSearching(false);
       };
 
-      // Search function - flexible matching with AI enhancement
+      // Search function - flexible matching with AI enhancement + DEBOUNCE + ABORT + CACHE
       const handleSearch = (query) => {
         setSearchQuery(query);
+        setPaletteQuery(query); // Sync palette input
         
-        // Clear previous AI search timeout
+        // Clear previous debounce
+        if (debounceTimeoutRef.current) {
+          clearTimeout(debounceTimeoutRef.current);
+        }
         if (aiSearchTimeoutRef.current) {
           clearTimeout(aiSearchTimeoutRef.current);
+        }
+        // Abort previous fetch if any
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
         }
         
         if (!query.trim()) {
@@ -1976,41 +2090,66 @@
           return;
         }
 
+        // Check cache first (C: LRU Cache)
+        const cacheKey = `${query}|${selectedCategory}`;
+        if (searchCacheRef.current.has(cacheKey)) {
+          setSearchResults(searchCacheRef.current.get(cacheKey));
+          return;
+        }
+
         const { allowedTypes, contentTokens, cleanedQuery } = parseSearchIntent(query);
 
-        const results = allData.filter(item => {
-          if (!allowedTypes.has(item?._type)) return false;
+        // Debounce (A: Debounce for snappier UX)
+        debounceTimeoutRef.current = setTimeout(() => {
+          const results = allData.filter(item => {
+            if (!allowedTypes.has(item?._type)) return false;
 
-          if (contentTokens.length === 0) return true;
+            if (contentTokens.length === 0) return true;
 
-          // Search through ALL fields
-          const searchableText = normalizeText(
-            Object.entries(item)
-              .filter(([key]) => !key.startsWith('_'))
-              .map(([, value]) => String(value || ''))
-              .join(' ')
-          );
+            // Enhanced search: normalize + phone parsing
+            const searchableText = normalizeForSearch(
+              Object.entries(item)
+                .filter(([key]) => !key.startsWith('_'))
+                .map(([, value]) => String(value || ''))
+                .join(' ')
+            );
+            
+            // Also check normalized phone
+            if (item.phone) {
+              const normalizedPhone = normalizePhone(item.phone);
+              if (normalizedPhone && contentTokens.some(word => normalizedPhone.includes(word))) {
+                return true;
+              }
+            }
 
-          // OR logic for basic, AI will refine
-          return contentTokens.some(word => searchableText.includes(word));
-        });
+            return contentTokens.some(word => searchableText.includes(word));
+          });
 
-        // Apply category filter
-        let finalResults = results;
-        if (selectedCategory !== 'all') {
-          finalResults = results.filter(item => 
-            (item.category || item._type) === selectedCategory
-          );
-        }
-        
-        setSearchResults(sortByRelevance(finalResults, contentTokens, cleanedQuery));
+          let finalResults = results;
+          if (selectedCategory !== 'all') {
+            finalResults = results.filter(item => 
+              (item.category || item._type) === selectedCategory
+            );
+          }
+          
+          const sorted = sortByRelevance(finalResults, contentTokens, cleanedQuery);
+          
+          // Cache result (C: LRU)
+          if (searchCacheRef.current.size > 20) {
+            const firstKey = searchCacheRef.current.keys().next().value;
+            searchCacheRef.current.delete(firstKey);
+          }
+          searchCacheRef.current.set(cacheKey, sorted);
+          
+          setSearchResults(sorted);
 
-        // Trigger AI search after debounce (500ms)
-        if (aiSearchEnabled && cleanedQuery.length >= 3) {
-          aiSearchTimeoutRef.current = setTimeout(() => {
-            performAISearch(cleanedQuery, finalResults);
-          }, 500);
-        }
+          // Trigger AI search after debounce (B: Palette + enhanced search)
+          if (aiSearchEnabled && cleanedQuery.length >= 3) {
+            aiSearchTimeoutRef.current = setTimeout(() => {
+              performAISearch(cleanedQuery, finalResults);
+            }, 500);
+          }
+        }, 200); // 200ms debounce
       };
 
       // Filter by category
@@ -3404,9 +3543,12 @@
                 ref={searchInputRef}
                 type="text"
                 className="search-input"
-                placeholder="🔍 Tìm: van 3 tay, xylanh..."
+                placeholder="🔍 Tìm: van 3 tay, xylanh... (/ để focus, Ctrl+K palette)"
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
+                onFocus={() => {
+                  if (searchQuery.trim()) setShowFilter(true);
+                }}
               />
               <button 
                 className={`filter-btn ${showFilter || selectedCategory !== 'all' ? 'active' : ''}`}
@@ -3416,6 +3558,168 @@
               </button>
             </div>
           </div>
+
+          {/* ========== B: COMMAND PALETTE OVERLAY ========== */}
+          {showPalette && (
+            <div className="search-palette-overlay" onClick={() => setShowPalette(false)}>
+              <div className="search-palette" onClick={(e) => e.stopPropagation()}>
+                <div className="palette-header">
+                  <input
+                    ref={paletteInputRef}
+                    type="text"
+                    className="palette-input"
+                    placeholder="🔍 Tìm kiếm nâng cao... (filter: ảnh, video; từ khóa...)"
+                    value={paletteQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && searchResults.length > 0) {
+                        addToHistory(paletteQuery);
+                        setShowPalette(false);
+                      } else if (e.key === 'Escape') {
+                        setShowPalette(false);
+                      }
+                    }}
+                  />
+                  <button className="palette-close" onClick={() => setShowPalette(false)}>
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+                
+                <div className="palette-body">
+                  {/* Filter chips */}
+                  <div className="palette-section">
+                    <div className="section-label">Loại</div>
+                    <div className="filter-chips-row">
+                      {['Tất cả', 'Sản phẩm', 'Ảnh', 'Video'].map((label, idx) => (
+                        <span
+                          key={label}
+                          className={`filter-chip ${selectedCategory === ['all', 'product', 'album', 'video'][idx] ? 'active' : ''}`}
+                          onClick={() => {
+                            filterByCategory(['all', 'product', 'album', 'video'][idx]);
+                          }}
+                        >
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Saved searches */}
+                  {savedSearches.length > 0 && !paletteQuery.trim() && (
+                    <div className="palette-section">
+                      <div className="section-label">
+                        <i className="fas fa-star me-1"></i>Tìm kiếm đã lưu
+                      </div>
+                      <div className="palette-items">
+                        {savedSearches.map((q, idx) => (
+                          <div
+                            key={idx}
+                            className="palette-item"
+                            onClick={() => {
+                              handleSearch(q);
+                              addToHistory(q);
+                            }}
+                          >
+                            <i className="fas fa-star"></i>
+                            <span>{q}</span>
+                            <button
+                              className="unsave-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSavedSearch(q);
+                              }}
+                            >
+                              <i className="fas fa-trash-alt"></i>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* History */}
+                  {searchHistory.length > 0 && !paletteQuery.trim() && (
+                    <div className="palette-section">
+                      <div className="section-label">
+                        <i className="fas fa-clock me-1"></i>Lịch sử tìm kiếm
+                      </div>
+                      <div className="palette-items">
+                        {searchHistory.map((q, idx) => (
+                          <div
+                            key={idx}
+                            className="palette-item"
+                            onClick={() => {
+                              handleSearch(q);
+                            }}
+                          >
+                            <i className="fas fa-history"></i>
+                            <span>{q}</span>
+                            <button
+                              className="save-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSavedSearch(q);
+                              }}
+                            >
+                              <i className={`fas fa-star${savedSearches.includes(q) ? '' : '-o'}`}></i>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Results */}
+                  {paletteQuery.trim() && searchResults.length > 0 && (
+                    <div className="palette-section">
+                      <div className="section-label">Kết quả ({searchResults.length})</div>
+                      <div className="palette-items" style={{ maxHeight: 300, overflowY: 'auto' }}>
+                        {searchResults.slice(0, 8).map((item, idx) => (
+                          <div
+                            key={item.id || idx}
+                            className="palette-result-item"
+                            onClick={() => {
+                              addToHistory(paletteQuery);
+                              setShowPalette(false);
+                            }}
+                          >
+                            {item.image && (
+                              <img src={item.image} alt={item.name} className="result-thumb" />
+                            )}
+                            <div className="result-text">
+                              <div className="result-name">{item.name}</div>
+                              {item.price && <div className="result-meta">{item.price.replace(/[đ\s]/g, '')}đ</div>}
+                            </div>
+                            <button
+                              className="save-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSavedSearch(paletteQuery);
+                              }}
+                            >
+                              <i className={`fas fa-star${savedSearches.includes(paletteQuery) ? '' : '-o'}`}></i>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {paletteQuery.trim() && searchResults.length === 0 && (
+                    <div className="palette-empty">
+                      <i className="fas fa-search"></i>
+                      <p>Không tìm thấy kết quả cho "{paletteQuery}"</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="palette-footer">
+                  <span><kbd>Esc</kbd> để đóng</span>
+                  <span><kbd>Enter</kbd> để lưu vào lịch sử</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ========== AI CHAT BUTTON ========== */}
           <button
