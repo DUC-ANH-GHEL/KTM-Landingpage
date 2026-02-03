@@ -7732,8 +7732,9 @@
       const statusPopoverLongPressTimerRef = useRef(null);
       const statusPopoverLongPressFiredRef = useRef(false);
 
-      const swipeRef = useRef({ active: false, id: null, startX: 0, startY: 0, dx: 0, dy: 0, lock: null });
+      const swipeRef = useRef({ active: false, id: null, startX: 0, startY: 0, dx: 0, dy: 0, lock: null, pointerId: null, captured: false });
       const [swipePreview, setSwipePreview] = useState(() => ({ id: null, dir: null }));
+      const swipeConsumeClickRef = useRef(false);
 
       const orderDetailCacheRef = useRef(new Map());
       const prefetchTimerRef = useRef(null);
@@ -11484,16 +11485,32 @@
                   {mobileOrdersToRender.map(order => (
                     <div
                       key={order.id}
-                      className={`card mb-2 orders-mobile-card ${recentlyUpdatedIds?.[String(order.id)] ? 'order-recent-updated' : ''} ${swipePreview?.id === String(order.id) ? `swipe-preview swipe-${swipePreview?.dir || ''}` : ''}`}
+                      className={`orders-mobile-swipe-shell mb-2 ${swipePreview?.id === String(order.id) ? `swipe-preview swipe-${swipePreview?.dir || ''}` : ''}`}
                       role="button"
                       tabIndex={0}
-                      onClick={() => openOrderInspector(order)}
+                      onClick={() => {
+                        if (swipeConsumeClickRef.current) {
+                          swipeConsumeClickRef.current = false;
+                          return;
+                        }
+                        openOrderInspector(order);
+                      }}
                       onPointerDown={(e) => {
                         if (mobileSheetOpen || mobileFilterSheetOpen || statusPopoverOpen) return;
                         if (e.button != null && e.button !== 0) return;
                         const id = String(order.id);
-                        swipeRef.current = { active: true, id, startX: e.clientX, startY: e.clientY, dx: 0, dy: 0, lock: null };
+                        swipeConsumeClickRef.current = false;
+                        swipeRef.current = { active: true, id, startX: e.clientX, startY: e.clientY, dx: 0, dy: 0, lock: null, pointerId: e.pointerId, captured: false };
                         setSwipePreview((p) => (p?.id === id ? p : { id, dir: null }));
+
+                        // Reset swipe visuals
+                        try {
+                          e.currentTarget.classList.remove('swiping');
+                          e.currentTarget.style.setProperty('--swipe-x', '0px');
+                          e.currentTarget.style.setProperty('--swipe-p', '0');
+                          e.currentTarget.style.setProperty('--swipe-l', '0');
+                          e.currentTarget.style.setProperty('--swipe-r', '0');
+                        } catch {}
 
                         // Prefetch detail if user pauses on the card (makes drawer open instantly)
                         try {
@@ -11534,27 +11551,66 @@
                           const ady = Math.abs(dy);
                           if (adx > 10 || ady > 10) {
                             s.lock = (adx > ady * 1.2) ? 'x' : 'y';
+                            if (s.lock === 'x' && !s.captured) {
+                              try {
+                                e.currentTarget.setPointerCapture(e.pointerId);
+                                s.captured = true;
+                              } catch {}
+                            }
                           }
                         }
                         if (s.lock !== 'x') {
+                          try {
+                            e.currentTarget.classList.remove('swiping');
+                            e.currentTarget.style.setProperty('--swipe-x', '0px');
+                            e.currentTarget.style.setProperty('--swipe-p', '0');
+                            e.currentTarget.style.setProperty('--swipe-l', '0');
+                            e.currentTarget.style.setProperty('--swipe-r', '0');
+                          } catch {}
                           if (Math.abs(dy) > 24) {
                             setSwipePreview((p) => (p?.id === s.id ? { id: s.id, dir: null } : p));
                           }
                           return;
                         }
 
+                        // Lock X: visualize swipe (card follows finger + labels reveal)
+                        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+                        const clampedDx = clamp(dx, -140, 140);
+                        const progress = clamp(Math.abs(clampedDx) / 88, 0, 1);
+                        try {
+                          e.currentTarget.classList.add('swiping');
+                          e.currentTarget.style.setProperty('--swipe-x', `${clampedDx}px`);
+                          e.currentTarget.style.setProperty('--swipe-p', String(progress));
+                          e.currentTarget.style.setProperty('--swipe-l', clampedDx < 0 ? String(progress) : '0');
+                          e.currentTarget.style.setProperty('--swipe-r', clampedDx > 0 ? String(progress) : '0');
+                        } catch {}
+                        if (Math.abs(clampedDx) > 12) swipeConsumeClickRef.current = true;
+
                         if (dx > 72) setSwipePreview({ id: s.id, dir: 'right' });
                         else if (dx < -72) setSwipePreview({ id: s.id, dir: 'left' });
                         else setSwipePreview({ id: s.id, dir: null });
                       }}
-                      onPointerCancel={() => {
+                      onPointerCancel={(e) => {
                         try {
                           if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
                         } catch {}
                         prefetchTimerRef.current = null;
                         prefetchOrderIdRef.current = null;
-                        swipeRef.current = { active: false, id: null, startX: 0, startY: 0, dx: 0, dy: 0, lock: null };
+                        const s = swipeRef.current;
+                        try {
+                          if (s?.captured && s?.pointerId != null) e.currentTarget.releasePointerCapture(s.pointerId);
+                        } catch {}
+                        swipeRef.current = { active: false, id: null, startX: 0, startY: 0, dx: 0, dy: 0, lock: null, pointerId: null, captured: false };
                         setSwipePreview({ id: null, dir: null });
+
+                        // Reset swipe visuals
+                        try {
+                          e.currentTarget.classList.remove('swiping');
+                          e.currentTarget.style.setProperty('--swipe-x', '0px');
+                          e.currentTarget.style.setProperty('--swipe-p', '0');
+                          e.currentTarget.style.setProperty('--swipe-l', '0');
+                          e.currentTarget.style.setProperty('--swipe-r', '0');
+                        } catch {}
                       }}
                       onPointerUp={(e) => {
                         try {
@@ -11567,13 +11623,31 @@
                           setSwipePreview({ id: null, dir: null });
                           return;
                         }
-                        swipeRef.current = { active: false, id: null, startX: 0, startY: 0, dx: 0, dy: 0, lock: null };
+                        try {
+                          if (s?.captured && s?.pointerId != null) {
+                            e.currentTarget.releasePointerCapture(s.pointerId);
+                          }
+                        } catch {}
+                        swipeRef.current = { active: false, id: null, startX: 0, startY: 0, dx: 0, dy: 0, lock: null, pointerId: null, captured: false };
 
                         const dx = Number(s.dx) || 0;
                         const adx = Math.abs(dx);
                         const lockedX = s.lock === 'x';
                         const status = normalizeOrderStatus(order?.status);
                         setSwipePreview({ id: null, dir: null });
+
+                        // Snap visuals back
+                        try {
+                          e.currentTarget.classList.remove('swiping');
+                          e.currentTarget.style.setProperty('--swipe-x', '0px');
+                          e.currentTarget.style.setProperty('--swipe-p', '0');
+                          e.currentTarget.style.setProperty('--swipe-l', '0');
+                          e.currentTarget.style.setProperty('--swipe-r', '0');
+                        } catch {}
+
+                        if (lockedX && adx > 12) {
+                          swipeConsumeClickRef.current = true;
+                        }
 
                         if (!lockedX || adx < 88) return;
                         e.preventDefault();
@@ -11591,7 +11665,23 @@
                       }}
                       title="Xem chi tiết"
                     >
-                      <div className="card-body p-3 order-card-mobile">
+                      <div className="orders-mobile-swipe-bg" aria-hidden="true">
+                        <div className="orders-mobile-swipe-bg-left">
+                          <div className="orders-mobile-swipe-label">
+                            <i className="fas fa-spinner"></i>
+                            Đang xử lý
+                          </div>
+                        </div>
+                        <div className="orders-mobile-swipe-bg-right">
+                          <div className="orders-mobile-swipe-label">
+                            <i className="fas fa-check"></i>
+                            Hoàn tất
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`card orders-mobile-card ${recentlyUpdatedIds?.[String(order.id)] ? 'order-recent-updated' : ''}`}>
+                        <div className="card-body p-3 order-card-mobile">
                         <div className="d-flex justify-content-between align-items-start gap-2">
                           <div className="flex-grow-1" style={{ minWidth: 0 }}>
                             <div className="fw-semibold order-customer-name">{order.customer_name}</div>
@@ -11806,8 +11896,9 @@
                             <i className="fas fa-bolt me-1"></i>Thao tác
                           </button>
                         </div>
+                        </div>
                       </div>
-                    </div>
+                      </div>
                   ))}
 
                   <div ref={mobileListSentinelRef} className="orders-mobile-sentinel" aria-hidden="true" />

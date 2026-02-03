@@ -1190,26 +1190,106 @@
       height: 1px;
     }
 
-    .orders-mobile-card {
+    .orders-mobile-swipe-shell {
       position: relative;
       overflow: hidden;
+      border-radius: var(--bs-border-radius-lg, 0.75rem);
+      touch-action: pan-y;
+      --swipe-x: 0px;
+      --swipe-p: 0;
+      --swipe-l: 0;
+      --swipe-r: 0;
     }
 
-    .orders-mobile-card.swipe-preview::before {
+    .orders-mobile-swipe-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: flex;
+      pointer-events: none;
+    }
+
+    .orders-mobile-swipe-bg-left,
+    .orders-mobile-swipe-bg-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .orders-mobile-swipe-bg-left {
+      justify-content: flex-start;
+      padding-left: 14px;
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.22), rgba(245, 158, 11, 0.0));
+      opacity: var(--swipe-l);
+    }
+
+    .orders-mobile-swipe-bg-right {
+      justify-content: flex-end;
+      padding-right: 14px;
+      background: linear-gradient(270deg, rgba(34, 197, 94, 0.22), rgba(34, 197, 94, 0.0));
+      opacity: var(--swipe-r);
+    }
+
+    .orders-mobile-swipe-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(15, 23, 42, 0.10);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 10px 24px rgba(2, 6, 23, 0.12);
+      transform: translate3d(0, 0, 0) scale(0.96);
+      opacity: 0;
+      transition: opacity 120ms ease, transform 120ms ease;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      white-space: nowrap;
+    }
+
+    .orders-mobile-swipe-bg-left .orders-mobile-swipe-label {
+      color: rgba(180, 83, 9, 1);
+      opacity: var(--swipe-l);
+      transform: translate3d(calc((1 - var(--swipe-l)) * -8px), 0, 0) scale(calc(0.96 + var(--swipe-l) * 0.04));
+    }
+
+    .orders-mobile-swipe-bg-right .orders-mobile-swipe-label {
+      color: rgba(21, 128, 61, 1);
+      opacity: var(--swipe-r);
+      transform: translate3d(calc((1 - var(--swipe-r)) * 8px), 0, 0) scale(calc(0.96 + var(--swipe-r) * 0.04));
+    }
+
+    .orders-mobile-card {
+      position: relative;
+      z-index: 2;
+      transform: translate3d(var(--swipe-x), 0, 0);
+      transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      will-change: transform;
+      touch-action: pan-y;
+    }
+
+    .orders-mobile-swipe-shell.swiping .orders-mobile-card {
+      transition: none;
+    }
+
+    .orders-mobile-swipe-shell.swipe-preview::before {
       content: '';
       position: absolute;
       inset: 0;
       pointer-events: none;
       opacity: 0;
       transition: opacity 120ms ease;
+      z-index: 1;
     }
 
-    .orders-mobile-card.swipe-preview.swipe-left::before {
+    .orders-mobile-swipe-shell.swipe-preview.swipe-left::before {
       opacity: 1;
       background: linear-gradient(90deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.02));
     }
 
-    .orders-mobile-card.swipe-preview.swipe-right::before {
+    .orders-mobile-swipe-shell.swipe-preview.swipe-right::before {
       opacity: 1;
       background: linear-gradient(270deg, rgba(34, 197, 94, 0.18), rgba(34, 197, 94, 0.02));
     }
