@@ -7421,11 +7421,47 @@
       const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
       const [mobileSheetOrder, setMobileSheetOrder] = useState(null);
 
+      // Mobile: inline status popover (no sheet)
+      const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
+      const [statusPopoverOrder, setStatusPopoverOrder] = useState(null);
+      const [statusPopoverPos, setStatusPopoverPos] = useState(() => ({ left: 12, top: 12, placement: 'bottom' }));
+      const statusPopoverLongPressTimerRef = useRef(null);
+      const statusPopoverLongPressFiredRef = useRef(false);
+
+      const swipeRef = useRef({ active: false, id: null, startX: 0, startY: 0, dx: 0, dy: 0, lock: null });
+      const [swipePreview, setSwipePreview] = useState(() => ({ id: null, dir: null }));
+
+      const orderDetailCacheRef = useRef(new Map());
+      const prefetchTimerRef = useRef(null);
+      const prefetchOrderIdRef = useRef(null);
+
+      // Offline-friendly: status sync queue
+      const STATUS_SYNC_QUEUE_KEY = 'ktm_orders_status_sync_queue_v1';
+      const statusSyncQueueRef = useRef([]);
+      const syncFlushInProgressRef = useRef(false);
+      const [syncingIds, setSyncingIds] = useState(() => ({}));
+
       // Mobile: filter sheet + sticky mini-toolbar + card UX
       const [mobileFilterSheetOpen, setMobileFilterSheetOpen] = useState(false);
       const [mobileMiniToolbarVisible, setMobileMiniToolbarVisible] = useState(false);
+      const [mobileContextHeaderVisible, setMobileContextHeaderVisible] = useState(false);
       const [expandedOrderIds, setExpandedOrderIds] = useState(() => new Set());
       const [recentlyUpdatedIds, setRecentlyUpdatedIds] = useState(() => ({}));
+
+      // Mobile: pin/star + "today" quick filter
+      const PINNED_STORAGE_KEY = 'ktm_orders_pinned_v1';
+      const [pinnedOrderIds, setPinnedOrderIds] = useState(() => new Set());
+      const [pinnedOnly, setPinnedOnly] = useState(false);
+      const [todayOnly, setTodayOnly] = useState(false);
+
+      // Mobile: search palette overlay
+      const [searchPaletteOpen, setSearchPaletteOpen] = useState(false);
+      const [searchPaletteQuery, setSearchPaletteQuery] = useState('');
+      const [searchHistory, setSearchHistory] = useState(() => []);
+      const searchPaletteInputRef = useRef(null);
+      const searchBtnLongPressTimerRef = useRef(null);
+      const searchBtnLongPressFiredRef = useRef(false);
+      const pullToSearchRef = useRef({ active: false, startY: 0, startX: 0, fired: false });
 
       const [isMobileViewport, setIsMobileViewport] = useState(() => {
         try {
@@ -7447,6 +7483,7 @@
       const scrollRafRef = useRef(null);
 
       const PHONE_TIP_STORAGE_KEY = 'ktm_orders_phone_tip_v1';
+      const ORDER_SEARCH_HISTORY_KEY = 'ktm_orders_search_history_v1';
       const [customerLookup, setCustomerLookup] = useState(null);
       const [showPhoneHistory, setShowPhoneHistory] = useState(false);
       const [phoneHistoryOrders, setPhoneHistoryOrders] = useState([]);
@@ -7526,6 +7563,42 @@
         setMobileSheetOpen(true);
       };
 
+      const openStatusPopover = (order, anchorEl) => {
+        try {
+          const rect = anchorEl?.getBoundingClientRect?.();
+          const vw = window.innerWidth || 360;
+          const vh = window.innerHeight || 640;
+          const popW = 230;
+          const popH = 280;
+          const left = Math.min(Math.max(10, Math.round(rect?.left ?? 10)), Math.max(10, vw - popW - 10));
+          let top = Math.round((rect?.bottom ?? 10) + 8);
+          let placement = 'bottom';
+          if (top + popH > vh - 10) {
+            top = Math.max(10, Math.round((rect?.top ?? 10) - 8 - popH));
+            placement = 'top';
+          }
+          setStatusPopoverPos({ left, top, placement });
+        } catch {
+          setStatusPopoverPos({ left: 12, top: 12, placement: 'bottom' });
+        }
+        setStatusPopoverOrder(order);
+        setStatusPopoverOpen(true);
+      };
+
+      const closeStatusPopover = () => {
+        setStatusPopoverOpen(false);
+        setTimeout(() => setStatusPopoverOrder(null), 120);
+      };
+
+      useEffect(() => {
+        if (!statusPopoverOpen) return;
+        const onKeyDown = (e) => {
+          if (e.key === 'Escape') closeStatusPopover();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+      }, [statusPopoverOpen]);
+
       const closeMobileSheet = () => {
         setMobileSheetOpen(false);
         // Let the close animation finish before clearing the content
@@ -7549,6 +7622,142 @@
           else next.add(id);
           return next;
         });
+      };
+
+      useEffect(() => {
+        try {
+          const raw = localStorage.getItem(PINNED_STORAGE_KEY);
+          if (!raw) return;
+          const arr = JSON.parse(raw);
+          if (!Array.isArray(arr)) return;
+          setPinnedOrderIds(new Set(arr.map((x) => String(x || '').trim()).filter(Boolean)));
+        } catch {
+          // ignore
+        }
+      }, []);
+
+      useEffect(() => {
+        try {
+          const arr = Array.from(pinnedOrderIds || []).map((x) => String(x || '').trim()).filter(Boolean);
+          localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(arr));
+        } catch {
+          // ignore
+        }
+      }, [pinnedOrderIds]);
+
+      const togglePinnedOrder = (orderId) => {
+        const id = String(orderId || '').trim();
+        if (!id) return;
+        setPinnedOrderIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+      };
+
+      useEffect(() => {
+        try {
+          const raw = localStorage.getItem(ORDER_SEARCH_HISTORY_KEY);
+          if (!raw) return;
+          const arr = JSON.parse(raw);
+          if (!Array.isArray(arr)) return;
+          setSearchHistory(arr.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 10));
+        } catch {
+          // ignore
+        }
+      }, []);
+
+      const persistSearchHistory = (next) => {
+        try {
+          localStorage.setItem(ORDER_SEARCH_HISTORY_KEY, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+      };
+
+      const addSearchHistory = (query) => {
+        const q = String(query || '').trim();
+        if (!q) return;
+        setSearchHistory((prev) => {
+          const list = Array.isArray(prev) ? prev : [];
+          const next = [q, ...list.filter((x) => String(x || '').trim().toLowerCase() !== q.toLowerCase())].slice(0, 10);
+          persistSearchHistory(next);
+          return next;
+        });
+      };
+
+      const openSearchPalette = (prefill) => {
+        const q = String(prefill ?? orderSearchQuery ?? '').trim();
+        setSearchPaletteQuery(q);
+        setSearchPaletteOpen(true);
+        setTimeout(() => {
+          try { searchPaletteInputRef.current?.focus?.(); } catch {}
+        }, 0);
+      };
+
+      const closeSearchPalette = () => {
+        setSearchPaletteOpen(false);
+      };
+
+      useEffect(() => {
+        if (!searchPaletteOpen) return;
+        const onKeyDown = (e) => {
+          if (e.key === 'Escape') closeSearchPalette();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+      }, [searchPaletteOpen]);
+
+      useEffect(() => {
+        if (!isMobileViewport) return;
+        const onTouchStart = (e) => {
+          if (searchPaletteOpen) return;
+          if ((window.scrollY || 0) > 6) return;
+          const t = e.touches && e.touches[0];
+          if (!t) return;
+          pullToSearchRef.current = { active: true, startY: t.clientY, startX: t.clientX, fired: false };
+        };
+        const onTouchMove = (e) => {
+          const s = pullToSearchRef.current;
+          if (!s?.active || s.fired) return;
+          if ((window.scrollY || 0) > 6) return;
+          const t = e.touches && e.touches[0];
+          if (!t) return;
+          const dy = t.clientY - s.startY;
+          const dx = t.clientX - s.startX;
+          if (Math.abs(dx) > 24) return;
+          if (dy > 92) {
+            s.fired = true;
+            openSearchPalette(orderSearchQuery);
+          }
+        };
+        const onTouchEnd = () => {
+          pullToSearchRef.current = { active: false, startY: 0, startX: 0, fired: false };
+        };
+        window.addEventListener('touchstart', onTouchStart, { passive: true });
+        window.addEventListener('touchmove', onTouchMove, { passive: true });
+        window.addEventListener('touchend', onTouchEnd, { passive: true });
+        window.addEventListener('touchcancel', onTouchEnd, { passive: true });
+        return () => {
+          window.removeEventListener('touchstart', onTouchStart);
+          window.removeEventListener('touchmove', onTouchMove);
+          window.removeEventListener('touchend', onTouchEnd);
+          window.removeEventListener('touchcancel', onTouchEnd);
+        };
+      }, [isMobileViewport, searchPaletteOpen, orderSearchQuery]);
+
+      const isOrderTodayNeedsAttention = (order) => {
+        try {
+          const status = normalizeOrderStatus(order?.status);
+          if (!(status === 'pending' || status === 'processing')) return false;
+          const t = new Date(order?.created_at);
+          if (!Number.isFinite(t.getTime())) return false;
+          const now = new Date();
+          return t.getFullYear() === now.getFullYear() && t.getMonth() === now.getMonth() && t.getDate() === now.getDate();
+        } catch {
+          return false;
+        }
       };
 
       useEffect(() => {
@@ -7586,22 +7795,23 @@
 
       useEffect(() => {
         const cls = 'admin-sheet-open';
-        if (mobileSheetOpen || mobileFilterSheetOpen) document.body.classList.add(cls);
+        if (mobileSheetOpen || mobileFilterSheetOpen || statusPopoverOpen) document.body.classList.add(cls);
         else document.body.classList.remove(cls);
         return () => document.body.classList.remove(cls);
-      }, [mobileSheetOpen, mobileFilterSheetOpen]);
+      }, [mobileSheetOpen, mobileFilterSheetOpen, statusPopoverOpen]);
 
       useEffect(() => {
-        if (!mobileSheetOpen && !mobileFilterSheetOpen) return;
+        if (!mobileSheetOpen && !mobileFilterSheetOpen && !statusPopoverOpen) return;
         const onKeyDown = (e) => {
           if (e.key === 'Escape') {
             if (mobileSheetOpen) closeMobileSheet();
             if (mobileFilterSheetOpen) closeMobileFilterSheet();
+            if (statusPopoverOpen) closeStatusPopover();
           }
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-      }, [mobileSheetOpen, mobileFilterSheetOpen]);
+      }, [mobileSheetOpen, mobileFilterSheetOpen, statusPopoverOpen]);
 
       const maybeShowPhoneTip = () => {
         try {
@@ -7649,6 +7859,109 @@
           if (typeof showToast === 'function') showToast('Không copy được SĐT', 'danger');
         }
       };
+
+      const loadStatusSyncQueue = () => {
+        try {
+          const raw = localStorage.getItem(STATUS_SYNC_QUEUE_KEY);
+          const arr = raw ? JSON.parse(raw) : [];
+          return Array.isArray(arr) ? arr : [];
+        } catch {
+          return [];
+        }
+      };
+
+      const persistStatusSyncQueue = (queue) => {
+        try {
+          localStorage.setItem(STATUS_SYNC_QUEUE_KEY, JSON.stringify(Array.isArray(queue) ? queue : []));
+        } catch {
+          // ignore
+        }
+      };
+
+      const setSyncingFor = (orderId, value) => {
+        const id = String(orderId || '').trim();
+        if (!id) return;
+        setSyncingIds((prev) => {
+          const next = { ...(prev || {}) };
+          if (value) next[id] = true;
+          else delete next[id];
+          return next;
+        });
+      };
+
+      const enqueueStatusSync = (orderId, nextStatus, prevStatus) => {
+        const id = String(orderId || '').trim();
+        const next = normalizeOrderStatus(nextStatus);
+        const prev = normalizeOrderStatus(prevStatus);
+        if (!id || !next) return;
+
+        const curr = Array.isArray(statusSyncQueueRef.current) ? statusSyncQueueRef.current : [];
+        const map = new Map(curr.map((x) => [String(x?.orderId || ''), x]));
+        map.set(id, { orderId: id, nextStatus: next, prevStatus: prev, ts: Date.now() });
+        const merged = Array.from(map.values()).sort((a, b) => (Number(a.ts) || 0) - (Number(b.ts) || 0));
+        statusSyncQueueRef.current = merged;
+        persistStatusSyncQueue(merged);
+        setSyncingFor(id, true);
+      };
+
+      const flushStatusSyncQueue = async () => {
+        if (syncFlushInProgressRef.current) return;
+        if (!navigator.onLine) return;
+
+        const queue = Array.isArray(statusSyncQueueRef.current) ? statusSyncQueueRef.current.slice() : [];
+        if (!queue.length) return;
+
+        syncFlushInProgressRef.current = true;
+        try {
+          for (const ev of queue) {
+            const id = String(ev?.orderId || '').trim();
+            const next = normalizeOrderStatus(ev?.nextStatus);
+            if (!id || !next) continue;
+            setSyncingFor(id, true);
+            try {
+              await updateOrderStatus({ id, status: ev?.prevStatus || '' }, next, { silentToast: true, skipToastBatch: true, fromSync: true });
+              // remove from queue on success
+              const nextQueue = (Array.isArray(statusSyncQueueRef.current) ? statusSyncQueueRef.current : []).filter((x) => String(x?.orderId || '') !== id);
+              statusSyncQueueRef.current = nextQueue;
+              persistStatusSyncQueue(nextQueue);
+              setSyncingFor(id, false);
+            } catch {
+              // keep it for later
+              if (!navigator.onLine) break;
+            }
+          }
+        } finally {
+          syncFlushInProgressRef.current = false;
+        }
+      };
+
+      useEffect(() => {
+        // Load persisted queue (e.g., after refresh) and mark syncing badges.
+        const q = loadStatusSyncQueue();
+        statusSyncQueueRef.current = q;
+        try {
+          const ids = {};
+          for (const ev of q) {
+            const id = String(ev?.orderId || '').trim();
+            if (id) ids[id] = true;
+          }
+          setSyncingIds(ids);
+        } catch {
+          // ignore
+        }
+        // Try flushing soon after mount.
+        setTimeout(() => flushStatusSyncQueue(), 600);
+      }, []);
+
+      useEffect(() => {
+        const onOnline = () => flushStatusSyncQueue();
+        window.addEventListener('online', onOnline);
+        const t = setInterval(() => flushStatusSyncQueue(), 8000);
+        return () => {
+          clearInterval(t);
+          window.removeEventListener('online', onOnline);
+        };
+      }, []);
 
       const startPhoneLongPress = (e, phoneRaw) => {
         e?.stopPropagation?.();
@@ -7870,8 +8183,19 @@
         // If we already have any items array with content, assume it's full enough.
         if (Array.isArray(order.items) && order.items.length) return order;
         try {
+          const cached = orderDetailCacheRef.current?.get?.(String(order.id));
+          if (cached && typeof cached === 'object' && Array.isArray(cached.items) && cached.items.length) return cached;
+        } catch {
+          // ignore
+        }
+        try {
           const full = await fetchOrderById(order.id);
           if (full && typeof full === 'object') {
+            try {
+              orderDetailCacheRef.current?.set?.(String(order.id), full);
+            } catch {
+              // ignore
+            }
             setOrders((prev) => (
               Array.isArray(prev)
                 ? prev.map((o) => (String(o?.id) === String(order.id) ? full : o))
@@ -8252,8 +8576,18 @@
       };
 
       const sortedOrders = React.useMemo(() => {
-        return window.KTM.orders.sortOrders(orders);
-      }, [orders]);
+        const list = window.KTM.orders.sortOrders(orders);
+        const pins = pinnedOrderIds;
+        if (!pins || !(pins instanceof Set) || pins.size === 0) return list;
+        const arr = Array.isArray(list) ? list.slice() : [];
+        // keep existing sort order; just lift pinned to top
+        arr.sort((a, b) => {
+          const ap = pins.has(String(a?.id ?? '')) ? 1 : 0;
+          const bp = pins.has(String(b?.id ?? '')) ? 1 : 0;
+          return bp - ap;
+        });
+        return arr;
+      }, [orders, pinnedOrderIds]);
 
       const sortedAllOrders = React.useMemo(() => {
         return window.KTM.orders.sortOrders(allOrders);
@@ -8287,8 +8621,16 @@
 
       const displayOrders = React.useMemo(() => {
         if (overdueOnly) return overduePendingOrdersAll;
-        return sortedOrders;
-      }, [overdueOnly, overduePendingOrdersAll, sortedOrders]);
+        let list = sortedOrders;
+        if (pinnedOnly) {
+          const pins = pinnedOrderIds;
+          list = (Array.isArray(list) ? list : []).filter((o) => pins?.has?.(String(o?.id ?? '')));
+        }
+        if (todayOnly) {
+          list = (Array.isArray(list) ? list : []).filter((o) => isOrderTodayNeedsAttention(o));
+        }
+        return list;
+      }, [overdueOnly, overduePendingOrdersAll, sortedOrders, pinnedOnly, pinnedOrderIds, todayOnly]);
 
       const filteredOrders = React.useMemo(() => {
         // When overdueOnly is enabled, we show the overdue-pending list regardless of other filters.
@@ -8342,6 +8684,7 @@
       useEffect(() => {
         if (!isMobileViewport) {
           setMobileMiniToolbarVisible(false);
+          setMobileContextHeaderVisible(false);
           return;
         }
         const onScroll = () => {
@@ -8350,6 +8693,7 @@
             scrollRafRef.current = null;
             const y = window.scrollY || document.documentElement.scrollTop || 0;
             setMobileMiniToolbarVisible(y > 140);
+            setMobileContextHeaderVisible(y > 60);
           });
         };
         window.addEventListener('scroll', onScroll, { passive: true });
@@ -8403,6 +8747,16 @@
         }
         return counts;
       }, [ordersToRender]);
+
+      const pinnedCount = React.useMemo(() => {
+        const pins = pinnedOrderIds;
+        if (!pins || pins.size === 0) return 0;
+        return (Array.isArray(sortedOrders) ? sortedOrders : []).reduce((sum, o) => sum + (pins.has(String(o?.id ?? '')) ? 1 : 0), 0);
+      }, [pinnedOrderIds, sortedOrders]);
+
+      const todayCount = React.useMemo(() => {
+        return (Array.isArray(sortedOrders) ? sortedOrders : []).filter((o) => isOrderTodayNeedsAttention(o)).length;
+      }, [sortedOrders]);
 
       const currentMonthKey = React.useMemo(() => {
         const d = new Date();
@@ -9885,6 +10239,9 @@
               ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
               : prev
           ));
+
+          // If this order was in the offline sync queue, clear its syncing badge.
+          setSyncingFor(orderId, false);
           markOrderRecentlyUpdated(orderId);
 
           if (options?.silentToast) return;
@@ -9899,6 +10256,24 @@
           });
         } catch (err) {
           console.error(err);
+          const isNetErr = !navigator.onLine || err?.name === 'TypeError' || String(err?.message || '').toLowerCase().includes('failed to fetch');
+          if (isNetErr && !options?.fromSync) {
+            // Optimistic UI + queue for retry
+            setOrders((prev) => (
+              Array.isArray(prev)
+                ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
+                : prev
+            ));
+            setAllOrders((prev) => (
+              Array.isArray(prev)
+                ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
+                : prev
+            ));
+            enqueueStatusSync(orderId, nextStatus, prevStatus);
+            if (typeof showToast === 'function') showToast('Mất mạng/timeout • Đã xếp hàng đồng bộ', 'info', { durationMs: 6500 });
+            return;
+          }
+
           if (typeof showToast === 'function') showToast(err.message, 'danger');
           else alert(err.message);
         } finally {
@@ -10552,6 +10927,25 @@
             <div className="orders-chip-row mt-3">
               <button
                 type="button"
+                className={`orders-chip d-md-none ${pinnedOnly && !overdueOnly && !isSearchActive ? 'active' : ''}`}
+                onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setTodayOnly(false); setPinnedOnly((v) => !v); }}
+                title="Đơn ưu tiên (đã ghim)"
+              >
+                <i className="fas fa-star me-1"></i>Ưu tiên{' '}
+                <span className="ms-1 badge rounded-pill bg-dark bg-opacity-10 text-dark">{pinnedCount}</span>
+              </button>
+              <button
+                type="button"
+                className={`orders-chip d-md-none ${todayOnly && !overdueOnly && !isSearchActive ? 'active' : ''}`}
+                onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setPinnedOnly(false); setTodayOnly((v) => !v); }}
+                title="Đơn cần xử lý hôm nay"
+              >
+                <i className="fas fa-calendar me-1"></i>Hôm nay{' '}
+                <span className="ms-1 badge rounded-pill bg-dark bg-opacity-10 text-dark">{todayCount}</span>
+              </button>
+
+              <button
+                type="button"
                 className={`orders-chip ${!filterStatus && !overdueOnly && !isSearchActive ? 'active' : ''}`}
                 onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setFilterStatus(''); }}
               >
@@ -10638,6 +11032,36 @@
                 {isSearchActive ? 'Search bỏ qua filter' : (overdueOnly ? 'Đang xem đơn chậm' : (filterStatus ? `Lọc: ${getStatusLabel(filterStatus)}` : ''))}
               </div>
             </div>
+          </div>
+
+          {/* Mobile sticky context header */}
+          <div className={`orders-context-header d-md-none ${mobileContextHeaderVisible ? 'visible' : ''}`}>
+            <div className="orders-context-text">
+              {(() => {
+                if (isSearchActive) {
+                  const q = String(orderSearchQuery || '').trim();
+                  return `Search: ${q ? `"${q}"` : ''} • ${ordersToRender.length} kết quả`;
+                }
+                if (overdueOnly) return `Đơn chậm • ${ordersToRender.length} đơn`;
+                if (pinnedOnly) return `Ưu tiên • ${ordersToRender.length} đơn`;
+                if (todayOnly) return `Hôm nay • ${ordersToRender.length} đơn`;
+                if (filterStatus) return `Lọc: ${getStatusLabel(filterStatus)} • ${ordersToRender.length} đơn`;
+                return `Tất cả • ${ordersToRender.length} đơn`;
+              })()}
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary"
+              onClick={() => {
+                setOrderSearchQuery('');
+                setPinnedOnly(false);
+                setTodayOnly(false);
+                applyOrdersPreset('all');
+              }}
+              aria-label="Clear"
+            >
+              Clear
+            </button>
           </div>
 
           <div className="card p-3">
@@ -10756,10 +11180,105 @@
                   {mobileOrdersToRender.map(order => (
                     <div
                       key={order.id}
-                      className={`card mb-2 ${recentlyUpdatedIds?.[String(order.id)] ? 'order-recent-updated' : ''}`}
+                      className={`card mb-2 orders-mobile-card ${recentlyUpdatedIds?.[String(order.id)] ? 'order-recent-updated' : ''} ${swipePreview?.id === String(order.id) ? `swipe-preview swipe-${swipePreview?.dir || ''}` : ''}`}
                       role="button"
                       tabIndex={0}
                       onClick={() => openOrderInspector(order)}
+                      onPointerDown={(e) => {
+                        if (mobileSheetOpen || mobileFilterSheetOpen || statusPopoverOpen) return;
+                        if (e.button != null && e.button !== 0) return;
+                        const id = String(order.id);
+                        swipeRef.current = { active: true, id, startX: e.clientX, startY: e.clientY, dx: 0, dy: 0, lock: null };
+                        setSwipePreview((p) => (p?.id === id ? p : { id, dir: null }));
+
+                        // Prefetch detail if user pauses on the card (makes drawer open instantly)
+                        try {
+                          if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
+                        } catch {}
+                        prefetchOrderIdRef.current = id;
+                        prefetchTimerRef.current = setTimeout(async () => {
+                          const targetId = prefetchOrderIdRef.current;
+                          if (!targetId) return;
+                          try {
+                            if (orderDetailCacheRef.current?.has?.(targetId)) return;
+                            const full = await fetchOrderById(targetId);
+                            if (full && typeof full === 'object') {
+                              orderDetailCacheRef.current?.set?.(targetId, full);
+                            }
+                          } catch {
+                            // ignore
+                          }
+                        }, 150);
+                      }}
+                      onPointerMove={(e) => {
+                        const s = swipeRef.current;
+                        if (!s?.active || String(s.id) !== String(order.id)) return;
+                        const dx = (e.clientX - s.startX);
+                        const dy = (e.clientY - s.startY);
+                        s.dx = dx;
+                        s.dy = dy;
+
+                        if (Math.abs(dx) > 14 || Math.abs(dy) > 14) {
+                          try {
+                            if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
+                          } catch {}
+                          prefetchTimerRef.current = null;
+                          prefetchOrderIdRef.current = null;
+                        }
+                        if (!s.lock) {
+                          const adx = Math.abs(dx);
+                          const ady = Math.abs(dy);
+                          if (adx > 10 || ady > 10) {
+                            s.lock = (adx > ady * 1.2) ? 'x' : 'y';
+                          }
+                        }
+                        if (s.lock !== 'x') {
+                          if (Math.abs(dy) > 24) {
+                            setSwipePreview((p) => (p?.id === s.id ? { id: s.id, dir: null } : p));
+                          }
+                          return;
+                        }
+
+                        if (dx > 72) setSwipePreview({ id: s.id, dir: 'right' });
+                        else if (dx < -72) setSwipePreview({ id: s.id, dir: 'left' });
+                        else setSwipePreview({ id: s.id, dir: null });
+                      }}
+                      onPointerCancel={() => {
+                        try {
+                          if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
+                        } catch {}
+                        prefetchTimerRef.current = null;
+                        prefetchOrderIdRef.current = null;
+                        swipeRef.current = { active: false, id: null, startX: 0, startY: 0, dx: 0, dy: 0, lock: null };
+                        setSwipePreview({ id: null, dir: null });
+                      }}
+                      onPointerUp={(e) => {
+                        try {
+                          if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
+                        } catch {}
+                        prefetchTimerRef.current = null;
+                        prefetchOrderIdRef.current = null;
+                        const s = swipeRef.current;
+                        if (!s?.active || String(s.id) !== String(order.id)) {
+                          setSwipePreview({ id: null, dir: null });
+                          return;
+                        }
+                        swipeRef.current = { active: false, id: null, startX: 0, startY: 0, dx: 0, dy: 0, lock: null };
+
+                        const dx = Number(s.dx) || 0;
+                        const adx = Math.abs(dx);
+                        const lockedX = s.lock === 'x';
+                        const status = normalizeOrderStatus(order?.status);
+                        setSwipePreview({ id: null, dir: null });
+
+                        if (!lockedX || adx < 88) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const next = dx > 0 ? 'done' : 'processing';
+                        if (normalizeOrderStatus(next) === status) return;
+                        updateOrderStatus(order, next);
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
@@ -10852,8 +11371,56 @@
                           <div className="d-flex align-items-start gap-1 flex-shrink-0">
                             <button
                               type="button"
+                              className={`btn btn-sm btn-link order-pin-btn ${pinnedOrderIds.has(String(order.id)) ? 'active' : ''}`}
+                              onClick={(e) => { e.stopPropagation(); togglePinnedOrder(order.id); }}
+                              title={pinnedOrderIds.has(String(order.id)) ? 'Bỏ ghim' : 'Ghim'}
+                              aria-label={pinnedOrderIds.has(String(order.id)) ? 'Bỏ ghim' : 'Ghim'}
+                            >
+                              <i className={pinnedOrderIds.has(String(order.id)) ? 'fas fa-star' : 'far fa-star'}></i>
+                            </button>
+                            {!!syncingIds?.[String(order.id)] && (
+                              <span className="badge bg-info text-dark orders-sync-badge" title="Đang đồng bộ" aria-label="Đang đồng bộ">
+                                <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Sync
+                              </span>
+                            )}
+                            <button
+                              type="button"
                               className={`badge ${getStatusBadgeClass(order.status)} order-status-badge-btn`}
-                              onClick={(e) => { e.stopPropagation(); openMobileSheet(order); }}
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                                statusPopoverLongPressFiredRef.current = false;
+                                try {
+                                  if (statusPopoverLongPressTimerRef.current) clearTimeout(statusPopoverLongPressTimerRef.current);
+                                } catch {}
+                                statusPopoverLongPressTimerRef.current = setTimeout(() => {
+                                  statusPopoverLongPressFiredRef.current = true;
+                                  openStatusPopover(order, e.currentTarget);
+                                }, 420);
+                              }}
+                              onPointerUp={(e) => {
+                                e.stopPropagation();
+                                try {
+                                  if (statusPopoverLongPressTimerRef.current) clearTimeout(statusPopoverLongPressTimerRef.current);
+                                } catch {}
+                                statusPopoverLongPressTimerRef.current = null;
+                              }}
+                              onPointerCancel={(e) => {
+                                e.stopPropagation();
+                                try {
+                                  if (statusPopoverLongPressTimerRef.current) clearTimeout(statusPopoverLongPressTimerRef.current);
+                                } catch {}
+                                statusPopoverLongPressTimerRef.current = null;
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (statusPopoverLongPressFiredRef.current) {
+                                  statusPopoverLongPressFiredRef.current = false;
+                                  return;
+                                }
+                                if (statusPopoverOpen && String(statusPopoverOrder?.id) === String(order.id)) closeStatusPopover();
+                                else openStatusPopover(order, e.currentTarget);
+                              }}
                               title="Đổi trạng thái nhanh"
                             >
                               {getStatusLabel(order.status)}
@@ -10944,6 +11511,52 @@
                     <div className="text-center text-muted small py-2">Đang tải thêm…</div>
                   )}
                 </div>
+
+                {/* Inline status popover */}
+                {statusPopoverOpen && statusPopoverOrder && (
+                  <div className="orders-status-popover-root" role="dialog" aria-modal="true" onClick={() => closeStatusPopover()}>
+                    <div
+                      className={`orders-status-popover ${statusPopoverPos?.placement || ''}`}
+                      style={{ left: statusPopoverPos.left, top: statusPopoverPos.top }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="orders-status-popover-title">
+                        <div className="fw-semibold" style={{ minWidth: 0 }}>
+                          {statusPopoverOrder.customer_name || 'Đơn hàng'}
+                        </div>
+                        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => closeStatusPopover()} aria-label="Đóng">
+                          <i className="fas fa-xmark"></i>
+                        </button>
+                      </div>
+                      <div className="orders-status-popover-grid">
+                        {ORDER_STATUS_OPTIONS.map((opt) => {
+                          const active = normalizeOrderStatus(statusPopoverOrder.status) === normalizeOrderStatus(opt.value);
+                          const busy = saving || !!deletingId || updatingId === statusPopoverOrder.id;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className={`orders-status-chip ${active ? 'active' : ''}`}
+                              onClick={() => {
+                                if (active) return;
+                                updateOrderStatus(statusPopoverOrder, opt.value);
+                                closeStatusPopover();
+                              }}
+                              disabled={busy}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="orders-status-popover-footer">
+                        <button type="button" className="btn btn-sm btn-dark" onClick={() => { openMobileSheet(statusPopoverOrder); closeStatusPopover(); }}>
+                          <i className="fas fa-bolt me-2"></i>Thao tác
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Mobile quick action sheet */}
                 {mobileSheetOpen && mobileSheetOrder && (
@@ -11125,7 +11738,34 @@
                   <button
                     type="button"
                     className="btn btn-outline-secondary"
+                    onPointerDown={(e) => {
+                      if (e.button != null && e.button !== 0) return;
+                      searchBtnLongPressFiredRef.current = false;
+                      try {
+                        if (searchBtnLongPressTimerRef.current) clearTimeout(searchBtnLongPressTimerRef.current);
+                      } catch {}
+                      searchBtnLongPressTimerRef.current = setTimeout(() => {
+                        searchBtnLongPressFiredRef.current = true;
+                        openSearchPalette(orderSearchQuery);
+                      }, 460);
+                    }}
+                    onPointerUp={() => {
+                      try {
+                        if (searchBtnLongPressTimerRef.current) clearTimeout(searchBtnLongPressTimerRef.current);
+                      } catch {}
+                      searchBtnLongPressTimerRef.current = null;
+                    }}
+                    onPointerCancel={() => {
+                      try {
+                        if (searchBtnLongPressTimerRef.current) clearTimeout(searchBtnLongPressTimerRef.current);
+                      } catch {}
+                      searchBtnLongPressTimerRef.current = null;
+                    }}
                     onClick={() => {
+                      if (searchBtnLongPressFiredRef.current) {
+                        searchBtnLongPressFiredRef.current = false;
+                        return;
+                      }
                       try {
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       } catch {
@@ -11155,6 +11795,132 @@
                     <i className="fas fa-sliders me-2"></i>Lọc
                   </button>
                 </div>
+
+                {/* Search palette overlay */}
+                {searchPaletteOpen && (
+                  <div
+                    className="orders-search-palette-root"
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={() => {
+                      addSearchHistory(searchPaletteQuery);
+                      closeSearchPalette();
+                    }}
+                  >
+                    <div
+                      className="orders-search-palette"
+                      onClick={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => {
+                        const t = e.touches && e.touches[0];
+                        if (!t) return;
+                        pullToSearchRef.current = { active: true, startY: t.clientY, startX: t.clientX, fired: false };
+                      }}
+                      onTouchMove={(e) => {
+                        const s = pullToSearchRef.current;
+                        if (!s?.active || s.fired) return;
+                        const t = e.touches && e.touches[0];
+                        if (!t) return;
+                        const dy = t.clientY - s.startY;
+                        const dx = t.clientX - s.startX;
+                        if (Math.abs(dx) > 24) return;
+                        if (dy > 90) {
+                          s.fired = true;
+                          addSearchHistory(searchPaletteQuery);
+                          closeSearchPalette();
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        pullToSearchRef.current = { active: false, startY: 0, startX: 0, fired: false };
+                      }}
+                    >
+                      <div className="orders-search-palette-header">
+                        <div className="fw-semibold">Tìm nhanh</div>
+                        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { addSearchHistory(searchPaletteQuery); closeSearchPalette(); }} aria-label="Đóng">
+                          <i className="fas fa-xmark"></i>
+                        </button>
+                      </div>
+
+                      <div className="orders-search-palette-body">
+                        <div className="input-group">
+                          <span className="input-group-text"><i className="fas fa-search"></i></span>
+                          <input
+                            ref={searchPaletteInputRef}
+                            type="text"
+                            className="form-control"
+                            value={searchPaletteQuery}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setSearchPaletteQuery(v);
+                              setOrderSearchQuery(v);
+                            }}
+                            placeholder="Nhập tên / SĐT…"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                addSearchHistory(searchPaletteQuery);
+                                closeSearchPalette();
+                              }
+                            }}
+                          />
+                          {!!String(searchPaletteQuery || '').trim() && (
+                            <button type="button" className="btn btn-outline-secondary" onClick={() => { setSearchPaletteQuery(''); setOrderSearchQuery(''); }}>
+                              <i className="fas fa-times"></i>
+                            </button>
+                          )}
+                        </div>
+
+                        {Array.isArray(searchHistory) && searchHistory.length > 0 && (
+                          <div className="mt-3">
+                            <div className="text-muted small mb-2">Gần đây</div>
+                            <div className="orders-chip-row" style={{ marginTop: 0 }}>
+                              {searchHistory.slice(0, 8).map((q) => (
+                                <button
+                                  key={q}
+                                  type="button"
+                                  className="orders-chip"
+                                  onClick={() => { setSearchPaletteQuery(q); setOrderSearchQuery(q); addSearchHistory(q); closeSearchPalette(); }}
+                                >
+                                  {q}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mt-3">
+                          <div className="text-muted small mb-2">Filter nhanh</div>
+                          <div className="orders-filter-chip-grid">
+                            <button type="button" className={`orders-filter-chip ${pinnedOnly ? 'active' : ''}`} onClick={() => { setOrderSearchQuery(''); setSearchPaletteQuery(''); setOverdueOnly(false); setTodayOnly(false); setPinnedOnly((v) => !v); closeSearchPalette(); }}>
+                              <i className="fas fa-star me-2"></i>Ưu tiên
+                            </button>
+                            <button type="button" className={`orders-filter-chip ${todayOnly ? 'active' : ''}`} onClick={() => { setOrderSearchQuery(''); setSearchPaletteQuery(''); setOverdueOnly(false); setPinnedOnly(false); setTodayOnly((v) => !v); closeSearchPalette(); }}>
+                              <i className="fas fa-calendar me-2"></i>Hôm nay
+                            </button>
+                            <button type="button" className={`orders-filter-chip ${overdueOnly ? 'active' : ''}`} onClick={() => { setOrderSearchQuery(''); setSearchPaletteQuery(''); setOverdueOnly((v) => !v); if (!overdueOnly) { setFilterMonth(''); setFilterStatus('pending'); } closeSearchPalette(); }}>
+                              <i className="fas fa-triangle-exclamation me-2"></i>Chậm
+                            </button>
+                            <button type="button" className={`orders-filter-chip ${!filterStatus && !overdueOnly && !pinnedOnly && !todayOnly ? 'active' : ''}`} onClick={() => { setOrderSearchQuery(''); setSearchPaletteQuery(''); setOverdueOnly(false); setPinnedOnly(false); setTodayOnly(false); setFilterStatus(''); closeSearchPalette(); }}>
+                              Tất cả
+                            </button>
+                            {ORDER_STATUS_OPTIONS.map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                className={`orders-filter-chip ${filterStatus === opt.value && !overdueOnly ? 'active' : ''}`}
+                                onClick={() => { setOrderSearchQuery(''); setSearchPaletteQuery(''); setOverdueOnly(false); setPinnedOnly(false); setTodayOnly(false); setFilterStatus(opt.value); if (opt.value === 'draft') setFilterMonth(''); closeSearchPalette(); }}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="orders-search-palette-hint text-muted small">
+                        Tip: Giữ nút Search để mở • Vuốt xuống để đóng
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Desktop table */}
                 <div className="d-none d-md-block">
