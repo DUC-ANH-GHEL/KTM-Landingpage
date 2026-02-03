@@ -11320,7 +11320,7 @@
                 <i className="fas fa-triangle-exclamation me-2"></i>Chậm &gt; {OVERDUE_PENDING_DAYS} ngày
               </button>
               <button type="button" className="btn btn-sm btn-outline-warning" onClick={() => applyOrdersPreset('draftExpiring')} disabled={isSearchActive}>
-                <i className="fas fa-clock me-2"></i>Nháp sắp xóa
+                <i className="fas fa-clock me-2"></i>Nháp sắp hủy
               </button>
               {(filterStatus || overdueOnly || (!filterMonth && !isSearchActive)) && (
                 <button
@@ -11446,7 +11446,7 @@
               <div className="alert alert-warning d-flex align-items-center justify-content-between gap-2 mt-3 mb-0" role="alert">
                 <div style={{ minWidth: 0 }}>
                   <i className="fas fa-clock me-2"></i>
-                  Có <strong>{draftExpiringOrdersAll.length}</strong> đơn <strong>Nháp</strong> sắp tự xóa (còn ≤ {DRAFT_WARN_REMAINING_DAYS} ngày).
+                  Có <strong>{draftExpiringOrdersAll.length}</strong> đơn <strong>Nháp</strong> sắp tự hủy (còn ≤ {DRAFT_WARN_REMAINING_DAYS} ngày).
                   {loadingDraftExpiringOrders && <span className="ms-2 text-muted small">(đang cập nhật...)</span>}
                 </div>
                 <button
@@ -11891,7 +11891,7 @@
                               </span>
                             )}
                             {isDraftExpiringSoon(order) && (
-                              <span className="badge bg-warning text-dark" title={`Đơn nháp sẽ tự xóa sau ${DRAFT_AUTO_DELETE_DAYS} ngày`}>
+                              <span className="badge bg-warning text-dark" title={`Đơn nháp sẽ tự hủy sau ${DRAFT_AUTO_DELETE_DAYS} ngày`}>
                                 ⏳ Còn {getDraftRemainingDays(order)}d
                               </span>
                             )}
@@ -12124,7 +12124,7 @@
                             <i className="fas fa-triangle-exclamation me-2"></i>Chậm
                           </button>
                           <button type="button" className="btn btn-sm btn-outline-warning" onClick={() => applyOrdersPreset('draftExpiring')} disabled={isSearchActive}>
-                            <i className="fas fa-clock me-2"></i>Nháp sắp xóa
+                            <i className="fas fa-clock me-2"></i>Nháp sắp hủy
                           </button>
                         </div>
 
@@ -12447,7 +12447,7 @@
                                 </span>
                               )}
                               {isDraftExpiringSoon(order) && (
-                                <span className="badge bg-warning text-dark" title={`Đơn nháp sẽ tự xóa sau ${DRAFT_AUTO_DELETE_DAYS} ngày`}>
+                                <span className="badge bg-warning text-dark" title={`Đơn nháp sẽ tự hủy sau ${DRAFT_AUTO_DELETE_DAYS} ngày`}>
                                   ⏳ Còn {getDraftRemainingDays(order)}d
                                 </span>
                               )}
@@ -12660,7 +12660,7 @@
                       </span>
                     )}
                     {isDraftExpiringSoon(inspectorOrder) && (
-                      <span className="badge bg-warning text-dark" title={`Đơn nháp sẽ tự xóa sau ${DRAFT_AUTO_DELETE_DAYS} ngày`}>
+                      <span className="badge bg-warning text-dark" title={`Đơn nháp sẽ tự hủy sau ${DRAFT_AUTO_DELETE_DAYS} ngày`}>
                         ⏳ Còn {getDraftRemainingDays(inspectorOrder)}d
                       </span>
                     )}

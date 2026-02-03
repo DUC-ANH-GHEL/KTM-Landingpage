@@ -251,9 +251,19 @@ async function cleanupDraftOrders() {
   if (_lastDraftCleanupAt && now - _lastDraftCleanupAt < DRAFT_CLEANUP_TTL_MS) return;
   _lastDraftCleanupAt = now;
 
-  // Delete draft orders older than 7 days (best-effort; order_items should cascade)
+  // Auto-cancel draft orders older than DRAFT_AUTO_DELETE_DAYS (best-effort; keep data for auditing)
   await sql`
-    DELETE FROM orders
+    UPDATE orders
+    SET
+      status = 'canceled',
+      status_updated_at = NOW(),
+      updated_at = NOW(),
+      note = (
+        CASE
+          WHEN COALESCE(note, '') = '' THEN 'AUTO: Đơn nháp quá hạn → chuyển sang Hủy'
+          ELSE note || E'\n' || 'AUTO: Đơn nháp quá hạn → chuyển sang Hủy'
+        END
+      )
     WHERE status = 'draft'
       AND created_at IS NOT NULL
       AND created_at <= (NOW() - ((${DRAFT_AUTO_DELETE_DAYS}::int) * INTERVAL '1 day'))
@@ -954,8 +964,8 @@ export default async function handler(req, res) {
 
         query += ' )';
       } else if (draftExpiring) {
-        // Draft orders that are within <= remainingDays days of auto-deletion.
-        // Also limit to drafts created within the last 7 days (older drafts should be cleaned up).
+        // Draft orders that are within <= remainingDays days of auto-cancel.
+        // Also limit to drafts created within the last DRAFT_AUTO_DELETE_DAYS (older drafts are auto-canceled).
         query += " WHERE o.status = 'draft' AND o.created_at IS NOT NULL";
         query += " AND o.created_at > (NOW() - ($1::int * INTERVAL '1 day'))";
         params.push(DRAFT_AUTO_DELETE_DAYS);
