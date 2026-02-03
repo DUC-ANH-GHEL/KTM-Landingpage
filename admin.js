@@ -11714,12 +11714,14 @@
                         <div className="orders-mobile-swipe-bg-left">
                           <div className="orders-mobile-swipe-label">
                             {(() => {
-                              const meta = getSwipeLabelMeta(getSwipeTargetStatus(order?.status, 'right'));
-                              if (!meta?.label) return null;
+                              const target = getSwipeTargetStatus(order?.status, 'right');
+                              const meta = getSwipeLabelMeta(target);
+                              const text = meta?.label || String(target || '').trim();
+                              if (!text) return null;
                               return (
                                 <>
                                   <i className={`fas ${meta.icon || 'fa-circle'}`}></i>
-                                  {meta.label}
+                                  {text}
                                 </>
                               );
                             })()}
@@ -11728,12 +11730,14 @@
                         <div className="orders-mobile-swipe-bg-right">
                           <div className="orders-mobile-swipe-label">
                             {(() => {
-                              const meta = getSwipeLabelMeta(getSwipeTargetStatus(order?.status, 'left'));
-                              if (!meta?.label) return null;
+                              const target = getSwipeTargetStatus(order?.status, 'left');
+                              const meta = getSwipeLabelMeta(target);
+                              const text = meta?.label || String(target || '').trim();
+                              if (!text) return null;
                               return (
                                 <>
                                   <i className={`fas ${meta.icon || 'fa-circle'}`}></i>
-                                  {meta.label}
+                                  {text}
                                 </>
                               );
                             })()}
