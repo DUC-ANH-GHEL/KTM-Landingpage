@@ -111,6 +111,155 @@
           // ignore
         }
       };
+
+      // ===== SMART SUGGESTIONS: POPULAR QUERIES + POPULAR PRODUCTS =====
+      const QUERY_STATS_KEY = 'ktm_search_query_stats_v1';
+      const PRODUCT_STATS_KEY = 'ktm_search_product_stats_v1';
+
+      const safeReadJSON = (key, fallback) => {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) return fallback;
+          const parsed = JSON.parse(raw);
+          return parsed ?? fallback;
+        } catch {
+          return fallback;
+        }
+      };
+
+      const safeWriteJSON = (key, value) => {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch {
+          // ignore storage errors
+        }
+      };
+
+      const [queryStats, setQueryStats] = useState(() => safeReadJSON(QUERY_STATS_KEY, {}));
+      const [productStats, setProductStats] = useState(() => safeReadJSON(PRODUCT_STATS_KEY, {}));
+
+      const suppressFilterOnNextFocusRef = useRef(false);
+      const topProductTrackedAtByQueryRef = useRef(new Map());
+
+      useEffect(() => {
+        const onStorage = (e) => {
+          if (!e) return;
+          if (e.key === QUERY_STATS_KEY) setQueryStats(safeReadJSON(QUERY_STATS_KEY, {}));
+          if (e.key === PRODUCT_STATS_KEY) setProductStats(safeReadJSON(PRODUCT_STATS_KEY, {}));
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+      }, []);
+
+      const trackQueryUsage = (rawQuery) => {
+        const q = String(rawQuery || '').trim();
+        if (!q) return;
+
+        const qn = normalizeText(q).trim();
+        if (qn.length < 3) return;
+        if (qn === 'sdt:' || qn === '#' || qn.endsWith(':')) return;
+
+        const now = Date.now();
+        const base = safeReadJSON(QUERY_STATS_KEY, queryStats && typeof queryStats === 'object' ? queryStats : {});
+        const next = { ...(base && typeof base === 'object' ? base : {}) };
+        const cur = next[qn] && typeof next[qn] === 'object' ? next[qn] : {};
+        next[qn] = { q, count: (Number(cur.count) || 0) + 1, lastAt: now };
+        setQueryStats(next);
+        safeWriteJSON(QUERY_STATS_KEY, next);
+      };
+
+      const trackProductUsage = (item, action) => {
+        if (!item || item._type !== 'product') return;
+        const id = String(item.id || '').trim();
+        if (!id) return;
+
+        const now = Date.now();
+        const base = safeReadJSON(PRODUCT_STATS_KEY, productStats && typeof productStats === 'object' ? productStats : {});
+        const next = { ...(base && typeof base === 'object' ? base : {}) };
+        const cur = next[id] && typeof next[id] === 'object' ? next[id] : {};
+        next[id] = {
+          id,
+          name: String(item.name || cur.name || '').trim(),
+          code: String(item.code || cur.code || '').trim(),
+          count: (Number(cur.count) || 0) + 1,
+          lastAt: now,
+          action: String(action || cur.action || '').trim(),
+        };
+        setProductStats(next);
+        safeWriteJSON(PRODUCT_STATS_KEY, next);
+      };
+
+      const maybeTrackTopProductForQuery = (rawQuery, sortedItems) => {
+        const q = String(rawQuery || '').trim();
+        if (!q) return;
+
+        const qn = normalizeText(q).trim();
+        if (qn.length < 3) return;
+        if (qn === 'sdt:' || qn === '#' || qn.endsWith(':')) return;
+
+        const now = Date.now();
+        const lastAt = Number(topProductTrackedAtByQueryRef.current.get(qn) || 0);
+        if (now - lastAt < 30_000) return; // throttle per query (30s)
+
+        const arr = Array.isArray(sortedItems) ? sortedItems : [];
+        const top = arr.find((it) => it && it._type === 'product');
+        if (!top) return;
+
+        topProductTrackedAtByQueryRef.current.set(qn, now);
+        trackProductUsage(top, 'search');
+      };
+
+      const popularQueryChips = useMemo(() => {
+        const stats = queryStats && typeof queryStats === 'object' ? queryStats : {};
+        const rows = Object.values(stats)
+          .map((r) => ({ q: String(r?.q || '').trim(), count: Number(r?.count) || 0, lastAt: Number(r?.lastAt) || 0 }))
+          .filter((r) => r.q && r.count > 0)
+          .sort((a, b) => (b.count - a.count) || (b.lastAt - a.lastAt))
+          .slice(0, 6);
+        return rows;
+      }, [queryStats]);
+
+      const popularProductChips = useMemo(() => {
+        const stats = productStats && typeof productStats === 'object' ? productStats : {};
+        const rows = Object.values(stats)
+          .map((r) => ({ id: String(r?.id || '').trim(), name: String(r?.name || '').trim(), code: String(r?.code || '').trim(), count: Number(r?.count) || 0, lastAt: Number(r?.lastAt) || 0 }))
+          .filter((r) => r.id && r.count > 0)
+          .sort((a, b) => (b.count - a.count) || (b.lastAt - a.lastAt))
+          .slice(0, 8)
+          .map((r) => {
+            const live = allData.find((it) => it && it._type === 'product' && String(it.id) === r.id);
+            return live ? { ...r, item: live } : { ...r, item: null };
+          });
+        return rows;
+      }, [productStats, allData]);
+
+      const applySuggestion = (nextQuery, opts = {}) => {
+        const q = String(nextQuery || '');
+        handleSearch(q);
+        if (opts.addToHistory !== false) {
+          addToHistory(q);
+        }
+        setShowPalette(false);
+        setShowFilter(false);
+        setFabOpen(false);
+
+        const focus = opts.focus !== false;
+        if (focus) {
+          suppressFilterOnNextFocusRef.current = true;
+          setTimeout(() => {
+            const el = searchInputRef.current;
+            el?.focus?.();
+            try {
+              if (opts.caret === 'end' && el && typeof el.setSelectionRange === 'function') {
+                const len = String(el.value || '').length;
+                el.setSelectionRange(len, len);
+              }
+            } catch {
+              // ignore
+            }
+          }, 0);
+        }
+      };
       
       // Modal state for image preview
       const [previewImage, setPreviewImage] = useState(null);
@@ -370,7 +519,18 @@
 
       const parseSearchIntent = (query) => {
         const qn = normalizeText(query).trim();
-        const tokens = qn.split(/\s+/).filter(Boolean);
+        const tokens = qn
+          .split(/\s+/)
+          .filter(Boolean)
+          .map((t) => {
+            const s = String(t || '').trim();
+            if (!s) return '';
+            if (s.startsWith('#')) return s.slice(1);
+            if (s.startsWith('sdt:')) return s.slice(4);
+            if (s.startsWith('phone:')) return s.slice(6);
+            return s;
+          })
+          .filter(Boolean);
 
         const includeAlbum = tokens.includes('anh');
         const includeVideo = tokens.includes('video');
@@ -562,6 +722,9 @@
           }
           
           const sorted = sortByRelevance(finalResults, contentTokens, cleanedQuery);
+
+          trackQueryUsage(query);
+          maybeTrackTopProductForQuery(query, sorted);
           
           // Cache result (C: LRU)
           if (searchCacheRef.current.size > 20) {
@@ -613,7 +776,10 @@
       };
 
       // Copy helpers
-      const copyText = (text, id) => {
+      const copyText = (text, id, meta) => {
+        if (meta && meta.item) {
+          trackProductUsage(meta.item, meta.action || 'copy');
+        }
         window.KTM.clipboard.writeText(text).then(() => {
           setCopiedId(id);
           showToast('Đã copy!', 'success');
@@ -621,15 +787,18 @@
         });
       };
 
-      const copyImage = async (url, id) => {
+      const copyImage = async (url, id, meta) => {
         try {
+          if (meta && meta.item) {
+            trackProductUsage(meta.item, meta.action || 'copy_image');
+          }
           await window.KTM.clipboard.writeImageFromUrl(url);
           setCopiedId(id + '-img');
           showToast('Đã copy ảnh!', 'success');
           setTimeout(() => setCopiedId(null), 1500);
         } catch (err) {
           // Fallback: copy URL
-          copyText(url, id + '-img');
+          copyText(url, id + '-img', meta);
         }
       };
 
@@ -1679,7 +1848,7 @@
           // Grid view - compact cards
           return (
             <div key={item.id || index} className="grid-card">
-              <div className="thumb-wrap" onClick={() => setPreviewImage({ url: item.image, name: item.name, price: item.price, note: item.note, item })}>
+              <div className="thumb-wrap" onClick={() => { trackProductUsage(item, 'preview'); setPreviewImage({ url: item.image, name: item.name, price: item.price, note: item.note, item }); }}>
                 {item.image ? (
                   <img src={item.image} alt={item.name} className="thumb" loading="lazy" />
                 ) : (
@@ -1706,14 +1875,14 @@
                 <div className="quick-copy">
                   <button 
                     className={copiedId === item.id + '-img' ? 'copied' : ''}
-                    onClick={() => copyImage(item.image, item.id)}
+                    onClick={() => copyImage(item.image, item.id, { item, action: 'copy_image' })}
                   >
                     <i className="fas fa-image"></i>
                   </button>
                   {item.price && (
                     <button 
                       className={copiedId === item.id + '-price' ? 'copied' : ''}
-                      onClick={() => copyText(item.price.replace(/[đ\s]/g, ''), item.id + '-price')}
+                      onClick={() => copyText(item.price.replace(/[đ\s]/g, ''), item.id + '-price', { item, action: 'copy_price' })}
                     >
                       <i className="fas fa-tag"></i>
                     </button>
@@ -1740,7 +1909,7 @@
                   alt={item.name} 
                   className="thumb"
                   loading="lazy"
-                  onClick={() => setPreviewImage({ url: item.image, name: item.name, price: item.price, note: item.note, item })}
+                  onClick={() => { trackProductUsage(item, 'preview'); setPreviewImage({ url: item.image, name: item.name, price: item.price, note: item.note, item }); }}
                 />
               ) : (
                 <div className="thumb d-flex align-items-center justify-content-center bg-light">
@@ -1781,7 +1950,7 @@
             <div className="quick-actions">
               {isProduct && (
                 <button
-                  onClick={() => onNavigate && onNavigate('orders', 'create', { productId: item.id })}
+                  onClick={() => { trackProductUsage(item, 'create_order'); onNavigate && onNavigate('orders', 'create', { productId: item.id }); }}
                 >
                   <i className="fas fa-receipt"></i> Tạo đơn
                 </button>
@@ -1795,14 +1964,14 @@
               {item.price && (
                 <button 
                   className={copiedId === item.id + '-price' ? 'copied' : ''}
-                  onClick={() => copyText(item.price.replace(/[đ\s]/g, ''), item.id + '-price')}
+                  onClick={() => copyText(item.price.replace(/[đ\s]/g, ''), item.id + '-price', { item, action: 'copy_price' })}
                 >
                   <i className="fas fa-tag"></i> Giá
                 </button>
               )}
               <button 
                 className={copiedId === item.id + '-name' ? 'copied' : ''}
-                onClick={() => copyText(item.name, item.id + '-name')}
+                onClick={() => copyText(item.name, item.id + '-name', { item, action: 'copy_name' })}
               >
                 <i className="fas fa-font"></i> Tên
               </button>
@@ -1838,8 +2007,82 @@
       // State for filter dropdown
       const [showFilter, setShowFilter] = useState(false);
 
+      const quickSuggestionChips = [
+        { label: 'van 2 tay', query: 'van 2 tay' },
+        { label: 'combo rẻ', query: 'combo rẻ' },
+        { label: 'xylanh', query: 'xylanh' },
+        { label: 'sdt:…', query: 'sdt:', caret: 'end', addToHistory: false },
+        { label: '#mã…', query: '#', caret: 'end', addToHistory: false },
+      ];
+
       return (
         <>
+          {/* ========== SMART SUGGESTIONS (MOBILE) ========== */}
+          <div className="search-suggestions mobile-only">
+            <div className="search-suggestions-section">
+              <div className="search-suggestions-label">Gợi ý nhanh</div>
+              <div className="search-suggestions-row">
+                {quickSuggestionChips.map((c) => (
+                  <button
+                    key={c.label}
+                    type="button"
+                    className="suggestion-chip"
+                    onClick={() => applySuggestion(c.query, { caret: c.caret, addToHistory: c.addToHistory })}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {popularProductChips.length > 0 && (
+              <div className="search-suggestions-section">
+                <div className="search-suggestions-label">Sản phẩm hay tìm</div>
+                <div className="search-suggestions-row">
+                  {popularProductChips.map((r) => {
+                    const label = (r.item?.name || r.name || '').trim();
+                    if (!label) return null;
+                    const code = String(r.item?.code || r.code || '').trim();
+                    const q = code ? `#${code}` : label;
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        className="suggestion-chip suggestion-chip-popular"
+                        onClick={() => {
+                          if (r.item) trackProductUsage(r.item, 'suggestion');
+                          applySuggestion(q, { caret: 'end' });
+                        }}
+                        title={code ? `#${code}` : label}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {popularQueryChips.length > 0 && (
+              <div className="search-suggestions-section">
+                <div className="search-suggestions-label">Tìm gần đây / hay dùng</div>
+                <div className="search-suggestions-row">
+                  {popularQueryChips.map((r) => (
+                    <button
+                      key={r.q}
+                      type="button"
+                      className="suggestion-chip suggestion-chip-query"
+                      onClick={() => applySuggestion(r.q, { caret: 'end' })}
+                      title={`${r.q} (${r.count})`}
+                    >
+                      {r.q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* ========== RESULT HEADER ========== */}
           <div className="result-header">
             <span>
@@ -1976,6 +2219,10 @@
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 onFocus={() => {
+                  if (suppressFilterOnNextFocusRef.current) {
+                    suppressFilterOnNextFocusRef.current = false;
+                    return;
+                  }
                   if (searchQuery.trim()) setShowFilter(true);
                 }}
               />
