@@ -6198,6 +6198,42 @@
       }, [isLoggedIn, activeMenu]);
 
       useEffect(() => {
+        // Keep bottom-fixed UI above iOS Safari dynamic browser UI.
+        const vv = window.visualViewport;
+
+        const apply = () => {
+          try {
+            const innerH = Number(window.innerHeight) || 0;
+            const vvH = Number(vv?.height) || innerH;
+            const vvTop = Number(vv?.offsetTop) || 0;
+            const insetBottom = Math.max(0, Math.round(innerH - vvH - vvTop));
+            document.documentElement.style.setProperty('--ktm-visual-inset-bottom', `${insetBottom}px`);
+          } catch {
+            // ignore
+          }
+        };
+
+        apply();
+        window.addEventListener('resize', apply);
+        try {
+          vv?.addEventListener?.('resize', apply);
+          vv?.addEventListener?.('scroll', apply);
+        } catch {
+          // ignore
+        }
+
+        return () => {
+          window.removeEventListener('resize', apply);
+          try {
+            vv?.removeEventListener?.('resize', apply);
+            vv?.removeEventListener?.('scroll', apply);
+          } catch {
+            // ignore
+          }
+        };
+      }, []);
+
+      useEffect(() => {
         if (!isLoggedIn) return;
 
         const isEditableTarget = (target) => {
@@ -7384,6 +7420,33 @@
       // Mobile: quick action sheet (fast status updates + copy)
       const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
       const [mobileSheetOrder, setMobileSheetOrder] = useState(null);
+
+      // Mobile: filter sheet + sticky mini-toolbar + card UX
+      const [mobileFilterSheetOpen, setMobileFilterSheetOpen] = useState(false);
+      const [mobileMiniToolbarVisible, setMobileMiniToolbarVisible] = useState(false);
+      const [expandedOrderIds, setExpandedOrderIds] = useState(() => new Set());
+      const [recentlyUpdatedIds, setRecentlyUpdatedIds] = useState(() => ({}));
+
+      const [isMobileViewport, setIsMobileViewport] = useState(() => {
+        try {
+          return (window?.innerWidth || 1024) < 768;
+        } catch {
+          return false;
+        }
+      });
+
+      const INITIAL_MOBILE_RENDER = 24;
+      const MOBILE_RENDER_STEP = 20;
+      const [mobileRenderLimit, setMobileRenderLimit] = useState(INITIAL_MOBILE_RENDER);
+      const mobileListSentinelRef = useRef(null);
+
+      const phonePressTimerRef = useRef(null);
+      const phoneLongPressFiredRef = useRef(false);
+      const recentUpdateTimersRef = useRef(new Map());
+      const statusToastBatchRef = useRef({ timer: null, events: [] });
+      const scrollRafRef = useRef(null);
+
+      const PHONE_TIP_STORAGE_KEY = 'ktm_orders_phone_tip_v1';
       const [customerLookup, setCustomerLookup] = useState(null);
       const [showPhoneHistory, setShowPhoneHistory] = useState(false);
       const [phoneHistoryOrders, setPhoneHistoryOrders] = useState([]);
@@ -7469,21 +7532,171 @@
         setTimeout(() => setMobileSheetOrder(null), 180);
       };
 
-      useEffect(() => {
-        const cls = 'admin-sheet-open';
-        if (mobileSheetOpen) document.body.classList.add(cls);
-        else document.body.classList.remove(cls);
-        return () => document.body.classList.remove(cls);
-      }, [mobileSheetOpen]);
+      const openMobileFilterSheet = () => {
+        setMobileFilterSheetOpen(true);
+      };
+
+      const closeMobileFilterSheet = () => {
+        setMobileFilterSheetOpen(false);
+      };
+
+      const toggleOrderExpanded = (orderId) => {
+        const id = String(orderId || '').trim();
+        if (!id) return;
+        setExpandedOrderIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+      };
 
       useEffect(() => {
-        if (!mobileSheetOpen) return;
+        let mq;
+        const update = () => {
+          try {
+            if (mq) setIsMobileViewport(!!mq.matches);
+            else setIsMobileViewport((window?.innerWidth || 1024) < 768);
+          } catch {
+            setIsMobileViewport(false);
+          }
+        };
+
+        try {
+          mq = window.matchMedia?.('(max-width: 767.98px)');
+          if (mq?.addEventListener) mq.addEventListener('change', update);
+          else if (mq?.addListener) mq.addListener(update);
+        } catch {
+          mq = null;
+        }
+
+        window.addEventListener('resize', update);
+        update();
+
+        return () => {
+          try {
+            if (mq?.removeEventListener) mq.removeEventListener('change', update);
+            else if (mq?.removeListener) mq.removeListener(update);
+          } catch {
+            // ignore
+          }
+          window.removeEventListener('resize', update);
+        };
+      }, []);
+
+      useEffect(() => {
+        const cls = 'admin-sheet-open';
+        if (mobileSheetOpen || mobileFilterSheetOpen) document.body.classList.add(cls);
+        else document.body.classList.remove(cls);
+        return () => document.body.classList.remove(cls);
+      }, [mobileSheetOpen, mobileFilterSheetOpen]);
+
+      useEffect(() => {
+        if (!mobileSheetOpen && !mobileFilterSheetOpen) return;
         const onKeyDown = (e) => {
-          if (e.key === 'Escape') closeMobileSheet();
+          if (e.key === 'Escape') {
+            if (mobileSheetOpen) closeMobileSheet();
+            if (mobileFilterSheetOpen) closeMobileFilterSheet();
+          }
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-      }, [mobileSheetOpen]);
+      }, [mobileSheetOpen, mobileFilterSheetOpen]);
+
+      const maybeShowPhoneTip = () => {
+        try {
+          if (localStorage.getItem(PHONE_TIP_STORAGE_KEY)) return;
+          localStorage.setItem(PHONE_TIP_STORAGE_KEY, '1');
+          if (typeof showToast === 'function') {
+            showToast('Tip: Chạm SĐT để gọi • Giữ để copy', 'info', { durationMs: 7000 });
+          }
+        } catch {
+          // ignore
+        }
+      };
+
+      const getOrderAddressText = (order) => {
+        return String(order?.address || '')
+          .replace(/\s*\n+\s*/g, ', ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      };
+
+      const getOrderNoteText = (order) => {
+        return String(order?.note || '')
+          .replace(/\s*\n+\s*/g, ' — ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      };
+
+      const handlePhoneCall = (phoneRaw) => {
+        const phone = normalizePhone(String(phoneRaw || '')).replace(/[^0-9+]/g, '');
+        if (!phone) return;
+        try {
+          window.location.href = `tel:${phone}`;
+        } catch {
+          // ignore
+        }
+      };
+
+      const handlePhoneCopy = async (phoneRaw) => {
+        const phone = normalizePhone(String(phoneRaw || '')).replace(/[^0-9+]/g, '');
+        if (!phone) return;
+        try {
+          await (navigator.clipboard?.writeText?.(phone) ?? Promise.reject(new Error('Clipboard not available')));
+          if (typeof showToast === 'function') showToast('Đã copy SĐT', 'success');
+        } catch {
+          if (typeof showToast === 'function') showToast('Không copy được SĐT', 'danger');
+        }
+      };
+
+      const startPhoneLongPress = (e, phoneRaw) => {
+        e?.stopPropagation?.();
+        phoneLongPressFiredRef.current = false;
+        maybeShowPhoneTip();
+        try {
+          if (phonePressTimerRef.current) clearTimeout(phonePressTimerRef.current);
+        } catch {
+          // ignore
+        }
+        phonePressTimerRef.current = setTimeout(() => {
+          phoneLongPressFiredRef.current = true;
+          handlePhoneCopy(phoneRaw);
+        }, 520);
+      };
+
+      const cancelPhoneLongPress = (e) => {
+        e?.stopPropagation?.();
+        try {
+          if (phonePressTimerRef.current) clearTimeout(phonePressTimerRef.current);
+        } catch {
+          // ignore
+        }
+        phonePressTimerRef.current = null;
+      };
+
+      const markOrderRecentlyUpdated = (orderId) => {
+        const id = String(orderId || '').trim();
+        if (!id) return;
+        setRecentlyUpdatedIds((prev) => ({ ...prev, [id]: Date.now() }));
+
+        const timers = recentUpdateTimersRef.current;
+        try {
+          const old = timers.get(id);
+          if (old) clearTimeout(old);
+        } catch {
+          // ignore
+        }
+        const t = setTimeout(() => {
+          setRecentlyUpdatedIds((prev) => {
+            const next = { ...(prev || {}) };
+            delete next[id];
+            return next;
+          });
+          try { timers.delete(id); } catch {}
+        }, 9000);
+        timers.set(id, t);
+      };
 
       const normalizeSearchQuery = (value) => {
         return String(value || '').replace(/\s+/g, ' ').trim();
@@ -8092,6 +8305,88 @@
       const ordersToRender = React.useMemo(() => {
         return isSearchActive ? sortedSearchResults : filteredOrders;
       }, [filteredOrders, isSearchActive, sortedSearchResults]);
+
+      const mobileOrdersToRender = React.useMemo(() => {
+        const list = Array.isArray(ordersToRender) ? ordersToRender : [];
+        if (!isMobileViewport) return list;
+        return list.slice(0, Math.max(0, Number(mobileRenderLimit) || 0));
+      }, [isMobileViewport, mobileRenderLimit, ordersToRender]);
+
+      useEffect(() => {
+        // Reset virtualization window when filters/search changes.
+        if (!isMobileViewport) return;
+        setMobileRenderLimit(INITIAL_MOBILE_RENDER);
+      }, [isMobileViewport, filterStatus, overdueOnly, filterMonth, orderSearchQuery]);
+
+      useEffect(() => {
+        if (!isMobileViewport) return;
+        const total = Array.isArray(ordersToRender) ? ordersToRender.length : 0;
+        if (mobileRenderLimit >= total) return;
+
+        const sentinel = mobileListSentinelRef.current;
+        if (!sentinel) return;
+
+        const io = new IntersectionObserver(
+          (entries) => {
+            const hit = Array.isArray(entries) && entries.some((en) => en?.isIntersecting);
+            if (!hit) return;
+            setMobileRenderLimit((prev) => Math.min((Number(prev) || 0) + MOBILE_RENDER_STEP, total));
+          },
+          { root: null, rootMargin: '520px 0px', threshold: 0 }
+        );
+
+        io.observe(sentinel);
+        return () => io.disconnect();
+      }, [isMobileViewport, mobileRenderLimit, ordersToRender]);
+
+      useEffect(() => {
+        if (!isMobileViewport) {
+          setMobileMiniToolbarVisible(false);
+          return;
+        }
+        const onScroll = () => {
+          if (scrollRafRef.current) return;
+          scrollRafRef.current = window.requestAnimationFrame(() => {
+            scrollRafRef.current = null;
+            const y = window.scrollY || document.documentElement.scrollTop || 0;
+            setMobileMiniToolbarVisible(y > 140);
+          });
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+        return () => {
+          window.removeEventListener('scroll', onScroll);
+          if (scrollRafRef.current) {
+            window.cancelAnimationFrame(scrollRafRef.current);
+            scrollRafRef.current = null;
+          }
+        };
+      }, [isMobileViewport]);
+
+      useEffect(() => {
+        if (!isMobileViewport) {
+          try {
+            document.documentElement.style.removeProperty('--ktm-mobile-bottom-nav-h');
+          } catch {
+            // ignore
+          }
+          return;
+        }
+
+        const update = () => {
+          try {
+            const nav = document.querySelector('.mobile-bottom-nav');
+            const h = nav && nav.offsetHeight ? nav.offsetHeight : 0;
+            document.documentElement.style.setProperty('--ktm-mobile-bottom-nav-h', `${h}px`);
+          } catch {
+            // ignore
+          }
+        };
+
+        update();
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
+      }, [isMobileViewport]);
 
       const statusCounts = React.useMemo(() => {
         const source = Array.isArray(ordersToRender) ? ordersToRender : [];
@@ -9461,7 +9756,79 @@
         }
       };
 
-      const updateOrderStatus = async (order, nextStatus) => {
+      const flushStatusToastBatch = () => {
+        const batch = statusToastBatchRef.current;
+        if (!batch) return;
+        if (batch.timer) {
+          try { clearTimeout(batch.timer); } catch {}
+          batch.timer = null;
+        }
+
+        const events = Array.isArray(batch.events) ? batch.events.splice(0) : [];
+        if (!events.length) return;
+        if (typeof showToast !== 'function') return;
+
+        // Keep only the latest change per order.
+        const byId = new Map();
+        for (const ev of events) {
+          const id = String(ev?.orderId || '').trim();
+          if (!id) continue;
+          byId.set(id, ev);
+        }
+        const list = Array.from(byId.values());
+        if (!list.length) return;
+
+        const makeUndo = (undoList) => async () => {
+          try {
+            for (const ev of undoList) {
+              if (!ev?.prevStatus || !ev?.orderId) continue;
+              await updateOrderStatus({ id: ev.orderId, status: ev.nextStatus }, ev.prevStatus, { silentToast: true, skipToastBatch: true, fromUndo: true });
+            }
+            showToast(undoList.length > 1 ? `Đã hoàn tác ${undoList.length} đơn` : 'Đã hoàn tác', 'info');
+          } catch {
+            showToast('Hoàn tác thất bại', 'danger');
+          }
+        };
+
+        if (list.length === 1) {
+          const ev = list[0];
+          const label = `${getStatusLabel(ev.prevStatus)} → ${getStatusLabel(ev.nextStatus)}`.trim();
+          showToast(`Đã cập nhật trạng thái: ${label}`, 'success', {
+            actionLabel: 'Undo',
+            durationMs: 8500,
+            onAction: makeUndo([ev]),
+          });
+          return;
+        }
+
+        showToast(`Đã cập nhật ${list.length} đơn`, 'success', {
+          actionLabel: 'Undo',
+          durationMs: 9500,
+          onAction: makeUndo(list),
+        });
+      };
+
+      const queueStatusToastEvent = (ev) => {
+        const batch = statusToastBatchRef.current;
+        if (!batch) return;
+        if (!Array.isArray(batch.events)) batch.events = [];
+        batch.events.push(ev);
+        if (batch.timer) return;
+        batch.timer = setTimeout(() => flushStatusToastBatch(), 320);
+      };
+
+      useEffect(() => {
+        return () => {
+          try {
+            const batch = statusToastBatchRef.current;
+            if (batch?.timer) clearTimeout(batch.timer);
+          } catch {
+            // ignore
+          }
+        };
+      }, []);
+
+      const updateOrderStatus = async (order, nextStatus, options = {}) => {
         const fullOrder = await ensureFullOrder(order);
         const orderId = fullOrder?.id;
         if (!orderId || !nextStatus) return;
@@ -9518,17 +9885,18 @@
               ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
               : prev
           ));
-          if (typeof showToast === 'function') {
-            const label = `${getStatusLabel(prevStatus)} → ${getStatusLabel(nextStatus)}`.trim();
-            showToast(`Đã cập nhật trạng thái: ${label}`, 'success', {
-              actionLabel: 'Undo',
-              durationMs: 6500,
-              onAction: () => {
-                if (!prevStatus || prevStatus === normalizeOrderStatus(nextStatus)) return;
-                updateOrderStatus({ ...fullOrder, status: nextStatus }, prevStatus);
-              },
-            });
+          markOrderRecentlyUpdated(orderId);
+
+          if (options?.silentToast) return;
+          if (options?.skipToastBatch) {
+            if (typeof showToast === 'function') showToast('Đã cập nhật trạng thái', 'success', { durationMs: 4500 });
+            return;
           }
+          queueStatusToastEvent({
+            orderId,
+            prevStatus,
+            nextStatus: normalizeOrderStatus(nextStatus),
+          });
         } catch (err) {
           console.error(err);
           if (typeof showToast === 'function') showToast(err.message, 'danger');
@@ -10385,10 +10753,10 @@
               <>
                 {/* Mobile cards */}
                 <div className="d-md-none mt-3">
-                  {ordersToRender.map(order => (
+                  {mobileOrdersToRender.map(order => (
                     <div
                       key={order.id}
-                      className="card mb-2"
+                      className={`card mb-2 ${recentlyUpdatedIds?.[String(order.id)] ? 'order-recent-updated' : ''}`}
                       role="button"
                       tabIndex={0}
                       onClick={() => openOrderInspector(order)}
@@ -10404,34 +10772,80 @@
                         <div className="d-flex justify-content-between align-items-start gap-2">
                           <div className="flex-grow-1" style={{ minWidth: 0 }}>
                             <div className="fw-semibold order-customer-name">{order.customer_name}</div>
-                            <div className="fw-bold font-monospace order-phone" onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText?.(String(order.phone || '')); }} title="Chạm để copy SĐT">
+                            <div
+                              className="fw-bold font-monospace order-phone"
+                              role="button"
+                              tabIndex={0}
+                              onPointerDown={(e) => startPhoneLongPress(e, order.phone)}
+                              onPointerMove={cancelPhoneLongPress}
+                              onPointerUp={cancelPhoneLongPress}
+                              onPointerCancel={cancelPhoneLongPress}
+                              onPointerLeave={cancelPhoneLongPress}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (phoneLongPressFiredRef.current) {
+                                  phoneLongPressFiredRef.current = false;
+                                  return;
+                                }
+                                handlePhoneCall(order.phone);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handlePhoneCall(order.phone);
+                                }
+                              }}
+                              title="Chạm để gọi • Giữ để copy"
+                            >
                               {order.phone}
                             </div>
                             {Number(order?.split_seq ?? 0) > 0 && (
                               <div className="text-muted small">Đợt {order.split_seq}</div>
                             )}
                             {(() => {
-                              const addr = String(order?.address || '')
-                                .replace(/\s*\n+\s*/g, ', ')
-                                .replace(/\s+/g, ' ')
-                                .trim();
+                              const addr = getOrderAddressText(order);
                               if (!addr) return null;
+                              const expanded = expandedOrderIds.has(String(order.id));
+                              const longText = addr.length > 84 || getOrderNoteText(order).length > 84;
                               return (
-                                <div className="text-muted small order-address">
-                                  {addr}
-                                </div>
+                                <>
+                                  <div className={`text-muted small order-address ${!expanded ? 'order-text-collapsed' : ''}`}>
+                                    {addr}
+                                  </div>
+                                  {longText && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-link p-0 order-expand-btn"
+                                      onClick={(e) => { e.stopPropagation(); toggleOrderExpanded(order.id); }}
+                                    >
+                                      {expanded ? 'Thu gọn' : 'Xem thêm'}
+                                    </button>
+                                  )}
+                                </>
                               );
                             })()}
                             {(() => {
-                              const note = String(order?.note || '')
-                                .replace(/\s*\n+\s*/g, ' — ')
-                                .replace(/\s+/g, ' ')
-                                .trim();
+                              const note = getOrderNoteText(order);
                               if (!note) return null;
+                              const expanded = expandedOrderIds.has(String(order.id));
+                              const addrLen = getOrderAddressText(order).length;
+                              const longText = addrLen > 84 || note.length > 84;
                               return (
-                                <div className="text-muted small order-note">
-                                  <span className="fw-semibold">Ghi chú:</span> {note}
-                                </div>
+                                <>
+                                  <div className={`text-muted small order-note ${!expanded ? 'order-text-collapsed' : ''}`}>
+                                    <span className="fw-semibold">Ghi chú:</span> {note}
+                                  </div>
+                                  {longText && addrLen <= 0 && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-link p-0 order-expand-btn"
+                                      onClick={(e) => { e.stopPropagation(); toggleOrderExpanded(order.id); }}
+                                    >
+                                      {expanded ? 'Thu gọn' : 'Xem thêm'}
+                                    </button>
+                                  )}
+                                </>
                               );
                             })()}
                           </div>
@@ -10524,6 +10938,11 @@
                       </div>
                     </div>
                   ))}
+
+                  <div ref={mobileListSentinelRef} className="orders-mobile-sentinel" aria-hidden="true" />
+                  {Array.isArray(ordersToRender) && mobileOrdersToRender.length < ordersToRender.length && (
+                    <div className="text-center text-muted small py-2">Đang tải thêm…</div>
+                  )}
                 </div>
 
                 {/* Mobile quick action sheet */}
@@ -10601,6 +11020,141 @@
                     </div>
                   </div>
                 )}
+
+                {/* Mobile filter sheet */}
+                {mobileFilterSheetOpen && (
+                  <div className="admin-sheet-root" role="dialog" aria-modal="true" onClick={() => closeMobileFilterSheet()}>
+                    <div className="admin-sheet" onClick={(e) => e.stopPropagation()}>
+                      <div className="admin-sheet-handle" />
+                      <div className="admin-sheet-header">
+                        <div style={{ minWidth: 0 }}>
+                          <div className="fw-semibold admin-sheet-title">Lọc đơn hàng</div>
+                          <div className="text-muted small">Tối ưu cho thao tác một tay</div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => closeMobileFilterSheet()}
+                          aria-label="Đóng"
+                        >
+                          <i className="fas fa-xmark"></i>
+                        </button>
+                      </div>
+
+                      <div className="p-3">
+                        <div className="d-flex flex-wrap gap-2">
+                          <button type="button" className="btn btn-sm btn-outline-dark" onClick={() => applyOrdersPreset('thisMonth')} disabled={isSearchActive}>
+                            <i className="fas fa-calendar me-2"></i>Tháng này
+                          </button>
+                          <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => applyOrdersPreset('overduePending')} disabled={isSearchActive}>
+                            <i className="fas fa-triangle-exclamation me-2"></i>Chậm
+                          </button>
+                          <button type="button" className="btn btn-sm btn-outline-warning" onClick={() => applyOrdersPreset('draftExpiring')} disabled={isSearchActive}>
+                            <i className="fas fa-clock me-2"></i>Nháp sắp xóa
+                          </button>
+                        </div>
+
+                        <div className="mt-3">
+                          <div className="fw-semibold mb-2">Trạng thái</div>
+                          <div className="orders-filter-chip-grid">
+                            <button type="button" className={`orders-filter-chip ${!filterStatus && !overdueOnly ? 'active' : ''}`} onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setFilterStatus(''); }}>
+                              Tất cả
+                            </button>
+                            {ORDER_STATUS_OPTIONS.map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                className={`orders-filter-chip ${filterStatus === opt.value && !overdueOnly ? 'active' : ''}`}
+                                onClick={() => { if (isSearchActive) setOrderSearchQuery(''); setOverdueOnly(false); setFilterStatus(opt.value); if (opt.value === 'draft') setFilterMonth(''); }}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="mt-3">
+                          <label className="form-label small text-muted mb-1">Tháng</label>
+                          <input
+                            type="month"
+                            className="form-control"
+                            value={filterMonth}
+                            onChange={(e) => setFilterMonth(e.target.value)}
+                            disabled={overdueOnly || isSearchActive}
+                          />
+                          <div className="form-text">Bật “Chậm” sẽ bỏ qua tháng.</div>
+                        </div>
+
+                        <div className="form-check mt-3">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="ordersOverdueOnly"
+                            checked={overdueOnly}
+                            onChange={(e) => {
+                              if (isSearchActive) setOrderSearchQuery('');
+                              const v = !!e.target.checked;
+                              setOverdueOnly(v);
+                              if (v) {
+                                setFilterMonth('');
+                                setFilterStatus('pending');
+                              }
+                            }}
+                            disabled={isSearchActive}
+                          />
+                          <label className="form-check-label" htmlFor="ordersOverdueOnly">
+                            Chỉ xem đơn chậm &gt; {OVERDUE_PENDING_DAYS} ngày
+                          </label>
+                        </div>
+
+                        <div className="d-flex gap-2 mt-4">
+                          <button type="button" className="btn btn-outline-secondary" onClick={() => applyOrdersPreset('all')} disabled={isSearchActive}>
+                            Reset
+                          </button>
+                          <button type="button" className="btn btn-dark flex-grow-1" onClick={() => closeMobileFilterSheet()}>
+                            Xong
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mobile sticky mini-toolbar (one-hand reach) */}
+                <div className={`orders-mobile-toolbar d-md-none ${mobileMiniToolbarVisible ? 'visible' : ''}`}>
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={() => {
+                      try {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      } catch {
+                        // ignore
+                      }
+                      setTimeout(() => orderSearchInputRef.current?.focus?.(), 120);
+                    }}
+                    aria-label="Search"
+                  >
+                    <i className="fas fa-search me-2"></i>Search
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-dark"
+                    onClick={() => openCreateModal()}
+                    disabled={saving || !!deletingId}
+                    aria-label="Tạo đơn"
+                  >
+                    <i className="fas fa-plus me-2"></i>Tạo đơn
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline-dark"
+                    onClick={() => openMobileFilterSheet()}
+                    aria-label="Lọc"
+                  >
+                    <i className="fas fa-sliders me-2"></i>Lọc
+                  </button>
+                </div>
 
                 {/* Desktop table */}
                 <div className="d-none d-md-block">
