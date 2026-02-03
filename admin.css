@@ -1214,26 +1214,43 @@
       flex: 1;
       display: flex;
       align-items: center;
+      position: relative;
     }
 
     .orders-mobile-swipe-bg-left {
       justify-content: flex-start;
       padding-left: 14px;
+    }
+
+    .orders-mobile-swipe-bg-left::before {
+      content: '';
+      position: absolute;
+      inset: 0;
       background: linear-gradient(90deg, rgba(245, 158, 11, 0.22), rgba(245, 158, 11, 0.0));
       opacity: var(--swipe-l);
+      pointer-events: none;
     }
 
     .orders-mobile-swipe-bg-right {
       justify-content: flex-end;
       padding-right: 14px;
+    }
+
+    .orders-mobile-swipe-bg-right::before {
+      content: '';
+      position: absolute;
+      inset: 0;
       background: linear-gradient(270deg, rgba(34, 197, 94, 0.22), rgba(34, 197, 94, 0.0));
       opacity: var(--swipe-r);
+      pointer-events: none;
     }
 
     .orders-mobile-swipe-label {
       display: inline-flex;
       align-items: center;
       gap: 8px;
+      position: relative;
+      z-index: 1;
       font-weight: 900;
       letter-spacing: 0.2px;
       padding: 8px 10px;
