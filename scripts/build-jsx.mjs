@@ -25,11 +25,59 @@ async function ensureDir(filePath) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
 }
 
+async function readFileIfExists(filePath) {
+  try {
+    return await fs.readFile(filePath, 'utf8');
+  } catch (err) {
+    if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) return null;
+    throw err;
+  }
+}
+
+async function loadAdminSourceFromManifest() {
+  const manifestAbs = path.join(root, 'admin-src', 'manifest.json');
+  const raw = await readFileIfExists(manifestAbs);
+  if (!raw) return null;
+
+  let manifest;
+  try {
+    manifest = JSON.parse(raw);
+  } catch {
+    throw new Error('admin-src/manifest.json is not valid JSON');
+  }
+
+  if (!Array.isArray(manifest) || manifest.length === 0) return null;
+
+  const parts = [];
+  for (const rel of manifest) {
+    const relPath = String(rel || '').trim();
+    if (!relPath) continue;
+    const abs = path.join(root, 'admin-src', relPath);
+    const content = await readFileIfExists(abs);
+    if (content == null) {
+      throw new Error(`Missing admin source part: admin-src/${relPath}`);
+    }
+    parts.push(content);
+  }
+  return parts.join('\n');
+}
+
 async function buildOne({ input, output }) {
   const inAbs = path.join(root, input);
   const outAbs = path.join(root, output);
 
-  let source = await fs.readFile(inAbs, 'utf8');
+  let source = null;
+
+  // Allow splitting admin.js into many files without changing runtime loading.
+  // If admin-src/manifest.json exists, we concatenate the listed parts in order
+  // and build dist/admin.js from that combined source.
+  if (input === 'admin.js') {
+    source = await loadAdminSourceFromManifest();
+  }
+
+  if (source == null) {
+    source = await fs.readFile(inAbs, 'utf8');
+  }
 
   // These files are loaded as classic scripts (not ES modules). If multiple scripts
   // declare `const { useState } = React;` at top-level, the browser throws:

@@ -1,0 +1,19 @@
+[
+  "00-globals.js",
+  "01-login.js",
+  "02-ui-components.js",
+  "03-sidebar.js",
+  "04-settings.js",
+  "05-album-list.js",
+  "06-album-modal.js",
+  "07-folder-tree-item.js",
+  "08-album-detail.js",
+  "09-search-center.js",
+  "10-video-list.js",
+  "11-video-folder-modal.js",
+  "12-product-manager.js",
+  "13-product-modal.js",
+  "14-video-modal.js",
+  "15-main-app.js",
+  "16-order-manager.js"
+]
