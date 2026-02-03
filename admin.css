@@ -966,6 +966,10 @@
         display: none !important;
       }
 
+      body.admin-sheet-open .mobile-bottom-nav {
+        display: none !important;
+      }
+
       /* Bottom-sheet style for better iPhone usability */
       .order-modal .modal-dialog {
         margin: 0;
@@ -1007,6 +1011,130 @@
         background: #fff;
         padding-bottom: calc(12px + env(safe-area-inset-bottom));
       }
+    }
+
+    /* ========== MOBILE QUICK ACTION SHEET (ORDERS) ========== */
+    body.admin-sheet-open {
+      overflow: hidden;
+    }
+
+    .admin-sheet-root {
+      position: fixed;
+      inset: 0;
+      z-index: 1700;
+      background: rgba(2, 6, 23, 0.40);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    }
+
+    .admin-sheet {
+      width: min(720px, 100%);
+      background: #fff;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -18px 60px rgba(2, 6, 23, 0.24);
+      border: 1px solid rgba(15, 23, 42, 0.10);
+      max-height: min(78vh, 640px);
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      transform: translateY(0);
+      animation: adminSheetUp 160ms ease-out;
+    }
+
+    @keyframes adminSheetUp {
+      from { transform: translateY(12px); opacity: 0.96; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .admin-sheet-handle {
+      width: 44px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.16);
+      margin: 10px auto 6px;
+    }
+
+    .admin-sheet-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .admin-sheet-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    @media (max-width: 420px) {
+      .admin-sheet-actions {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .admin-sheet-section-title {
+      padding: 0 12px 8px;
+      font-weight: 800;
+      color: rgba(15, 23, 42, 0.75);
+      letter-spacing: 0.2px;
+    }
+
+    .orders-status-grid {
+      padding: 0 12px 14px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .orders-status-chip {
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      background: rgba(15, 23, 42, 0.03);
+      color: var(--ktm-admin-text);
+      border-radius: 14px;
+      padding: 12px 12px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .orders-status-chip.active {
+      background: rgba(255, 193, 7, 0.18);
+      border-color: rgba(255, 193, 7, 0.55);
+    }
+
+    .orders-status-chip:disabled {
+      opacity: 0.6;
+    }
+
+    /* Mobile orders action button */
+    .orders-mobile-action {
+      border-radius: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .order-card-mobile .order-phone {
+      display: inline-block;
+      border-radius: 10px;
+      padding: 2px 8px;
+      background: rgba(15, 23, 42, 0.04);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      user-select: none;
+    }
+
+    .order-card-mobile .order-status-badge-btn {
+      border: none;
+      cursor: pointer;
+    }
+
+    .order-card-mobile .order-card-actions .btn {
+      border-radius: 12px;
+      font-weight: 800;
     }
     
     /* ========== FLOATING ACTION BUTTON (FAB) ========== */

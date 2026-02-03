@@ -7380,6 +7380,10 @@
       const [inspectorError, setInspectorError] = useState('');
       const [inspectorEditMode, setInspectorEditMode] = useState(false);
       const inspectorRequestIdRef = useRef(0);
+
+      // Mobile: quick action sheet (fast status updates + copy)
+      const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+      const [mobileSheetOrder, setMobileSheetOrder] = useState(null);
       const [customerLookup, setCustomerLookup] = useState(null);
       const [showPhoneHistory, setShowPhoneHistory] = useState(false);
       const [phoneHistoryOrders, setPhoneHistoryOrders] = useState([]);
@@ -7444,6 +7448,42 @@
       const isSearchActive = React.useMemo(() => {
         return String(orderSearchQuery || '').trim().length > 0;
       }, [orderSearchQuery]);
+
+      const ORDER_STATUS_OPTIONS = React.useMemo(() => ([
+        { value: 'draft', label: 'Đơn nháp' },
+        { value: 'pending', label: 'Chờ xử lý' },
+        { value: 'processing', label: 'Đang vận chuyển' },
+        { value: 'done', label: 'Hoàn thành' },
+        { value: 'paid', label: 'Đã nhận tiền' },
+        { value: 'canceled', label: 'Hủy đơn' },
+      ]), []);
+
+      const openMobileSheet = (order) => {
+        setMobileSheetOrder(order);
+        setMobileSheetOpen(true);
+      };
+
+      const closeMobileSheet = () => {
+        setMobileSheetOpen(false);
+        // Let the close animation finish before clearing the content
+        setTimeout(() => setMobileSheetOrder(null), 180);
+      };
+
+      useEffect(() => {
+        const cls = 'admin-sheet-open';
+        if (mobileSheetOpen) document.body.classList.add(cls);
+        else document.body.classList.remove(cls);
+        return () => document.body.classList.remove(cls);
+      }, [mobileSheetOpen]);
+
+      useEffect(() => {
+        if (!mobileSheetOpen) return;
+        const onKeyDown = (e) => {
+          if (e.key === 'Escape') closeMobileSheet();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+      }, [mobileSheetOpen]);
 
       const normalizeSearchQuery = (value) => {
         return String(value || '').replace(/\s+/g, ' ').trim();
@@ -10360,11 +10400,13 @@
                       }}
                       title="Xem chi tiết"
                     >
-                      <div className="card-body p-3">
+                      <div className="card-body p-3 order-card-mobile">
                         <div className="d-flex justify-content-between align-items-start gap-2">
                           <div className="flex-grow-1" style={{ minWidth: 0 }}>
                             <div className="fw-semibold text-truncate">{order.customer_name}</div>
-                            <div className="fw-bold font-monospace">{order.phone}</div>
+                            <div className="fw-bold font-monospace order-phone" onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText?.(String(order.phone || '')); }} title="Chạm để copy SĐT">
+                              {order.phone}
+                            </div>
                             {Number(order?.split_seq ?? 0) > 0 && (
                               <div className="text-muted small">Đợt {order.split_seq}</div>
                             )}
@@ -10380,7 +10422,14 @@
                             )}
                           </div>
                           <div className="d-flex align-items-start gap-1 flex-shrink-0">
-                            <span className={`badge ${getStatusBadgeClass(order.status)}`}>{getStatusLabel(order.status)}</span>
+                            <button
+                              type="button"
+                              className={`badge ${getStatusBadgeClass(order.status)} order-status-badge-btn`}
+                              onClick={(e) => { e.stopPropagation(); openMobileSheet(order); }}
+                              title="Đổi trạng thái nhanh"
+                            >
+                              {getStatusLabel(order.status)}
+                            </button>
                             {isOverduePending(order) && (
                               <span className="badge bg-danger" title={`Chờ xử lý quá ${OVERDUE_PENDING_DAYS} ngày`}>
                                 ⚠ Chậm {getOrderAgeDays(order)}d
@@ -10439,7 +10488,7 @@
                           <div className="text-muted"><span>Thời gian:</span> {formatDateTime(order.created_at)}</div>
                         </div>
 
-                        <div className="mt-3 d-flex gap-2 align-items-center">
+                        <div className="mt-3 d-flex gap-2 align-items-center order-card-actions">
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-secondary"
@@ -10448,32 +10497,96 @@
                           >
                             <i className="fas fa-copy me-1"></i>Copy
                           </button>
-                          <select
-                            className="form-select form-select-sm orders-status-quick"
-                            defaultValue=""
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              const v = String(e.target.value || '').trim();
-                              e.target.value = '';
-                              if (!v) return;
-                              updateOrderStatus(order, v);
-                            }}
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-dark orders-mobile-action"
+                            onClick={(e) => { e.stopPropagation(); openMobileSheet(order); }}
                             disabled={saving || !!deletingId || updatingId === order.id}
-                            aria-label="Đổi trạng thái"
+                            aria-label="Mở thao tác nhanh"
                           >
-                            <option value="">Đổi trạng thái…</option>
-                            <option value="pending">Chờ xử lý</option>
-                            <option value="processing">Đang vận chuyển</option>
-                            <option value="done">Hoàn thành</option>
-                            <option value="paid">Đã nhận tiền</option>
-                            <option value="canceled">Hủy đơn</option>
-                          </select>
+                            <i className="fas fa-bolt me-1"></i>Thao tác
+                          </button>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
+
+                {/* Mobile quick action sheet */}
+                {mobileSheetOpen && mobileSheetOrder && (
+                  <div className="admin-sheet-root" role="dialog" aria-modal="true" onClick={() => closeMobileSheet()}>
+                    <div className="admin-sheet" onClick={(e) => e.stopPropagation()}>
+                      <div className="admin-sheet-handle" />
+                      <div className="admin-sheet-header">
+                        <div style={{ minWidth: 0 }}>
+                          <div className="fw-semibold text-truncate">{mobileSheetOrder.customer_name || 'Đơn hàng'}</div>
+                          <div className="text-muted small d-flex align-items-center gap-2" style={{ flexWrap: 'wrap' }}>
+                            <span className="font-monospace">{mobileSheetOrder.phone || ''}</span>
+                            <span className={`badge ${getStatusBadgeClass(mobileSheetOrder.status)}`}>{getStatusLabel(mobileSheetOrder.status)}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => closeMobileSheet()}
+                          aria-label="Đóng"
+                        >
+                          <i className="fas fa-xmark"></i>
+                        </button>
+                      </div>
+
+                      <div className="admin-sheet-actions">
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary"
+                          onClick={() => { handleCopyOrder(mobileSheetOrder); closeMobileSheet(); }}
+                          disabled={saving || !!deletingId || updatingId === mobileSheetOrder.id}
+                        >
+                          <i className="fas fa-copy me-2"></i>Copy
+                        </button>
+                        {!!String(mobileSheetOrder.phone || '').trim() && (
+                          <a
+                            className="btn btn-outline-secondary"
+                            href={`tel:${String(mobileSheetOrder.phone || '').trim()}`}
+                            onClick={() => closeMobileSheet()}
+                          >
+                            <i className="fas fa-phone me-2"></i>Gọi
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-dark"
+                          onClick={() => { openOrderInspector(mobileSheetOrder); closeMobileSheet(); }}
+                        >
+                          <i className="fas fa-eye me-2"></i>Mở chi tiết
+                        </button>
+                      </div>
+
+                      <div className="admin-sheet-section-title">Đổi trạng thái</div>
+                      <div className="orders-status-grid">
+                        {ORDER_STATUS_OPTIONS.map((opt) => {
+                          const active = normalizeOrderStatus(mobileSheetOrder.status) === normalizeOrderStatus(opt.value);
+                          const busy = saving || !!deletingId || updatingId === mobileSheetOrder.id;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className={`orders-status-chip ${active ? 'active' : ''}`}
+                              onClick={() => {
+                                if (active) return;
+                                updateOrderStatus(mobileSheetOrder, opt.value);
+                                closeMobileSheet();
+                              }}
+                              disabled={busy}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Desktop table */}
                 <div className="d-none d-md-block">
