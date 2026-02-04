@@ -1286,7 +1286,16 @@
 
               let candidates2 = candidates;
               const exactMoneyCandidates = (g.cod > 0) ? candidates.filter((o) => Number(o.cod || 0) === Number(g.cod || 0)) : [];
-              if (g.cod > 0 && exactMoneyCandidates.length) candidates2 = exactMoneyCandidates;
+              if (g.cod > 0) {
+                if (exactMoneyCandidates.length) {
+                  candidates2 = exactMoneyCandidates;
+                } else if (phoneKey) {
+                  // If phone matches but COD doesn't, don't force a match here.
+                  // We'll try to pair it as an amount mismatch in pass 2.
+                  groupExcelOnly.push(g);
+                  continue;
+                }
+              }
 
               let best = null;
               let bestScore = -1;
@@ -1319,7 +1328,11 @@
             const stillExcelOnly = [];
             for (const g of groupExcelOnly) {
               const phoneKey = String(g.phoneNorm || '').trim();
-              const pool = phoneKey ? (systemByPhone.get(phoneKey) || []) : sysOrders;
+              let pool = phoneKey ? (systemByPhone.get(phoneKey) || []) : sysOrders;
+              if (phoneKey && g.dayKey) {
+                const sameDay = pool.filter((o) => String(o.dayKey || '') === String(g.dayKey || ''));
+                if (sameDay.length) pool = sameDay;
+              }
               let best = null;
               let bestScore = -1;
               for (const o of pool) {
@@ -1329,7 +1342,7 @@
                   best = o;
                 }
               }
-              if (best && bestScore >= (phoneKey ? 0.6 : 0.72) && Number(best.cod || 0) !== Number(g.cod || 0)) {
+              if (best && bestScore >= (phoneKey ? 0.52 : 0.72) && Number(best.cod || 0) !== Number(g.cod || 0)) {
                 amountMismatch.push({ group: g, order: best, score: bestScore, diff: Number(g.cod || 0) - Number(best.cod || 0) });
               } else {
                 stillExcelOnly.push(g);
@@ -1819,8 +1832,45 @@
                             </div>
                           )}
 
-                          {Array.isArray(reconResult.excelOnly) && reconResult.excelOnly.length > 0 && (
+                          {Array.isArray(reconResult.systemOnly) && reconResult.systemOnly.length > 0 && (
                             <div className="card border-0 shadow-sm mb-2">
+                              <div className="card-body">
+                                <div className="fw-semibold mb-2 text-warning">Có trong hệ thống nhưng thiếu trong Excel</div>
+                                <div className="table-responsive">
+                                  <table className="table table-sm align-middle mb-0">
+                                    <thead>
+                                      <tr>
+                                        <th>Order ID</th>
+                                        <th>Ngày tạo</th>
+                                        <th>SĐT</th>
+                                        <th>Tên sản phẩm</th>
+                                        <th className="text-end">Thu hộ</th>
+                                        <th>Trạng thái</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {reconResult.systemOnly.slice(0, 30).map((o) => (
+                                        <tr key={`so-${o.id}`} className="table-warning">
+                                          <td className="text-muted">{o.id}</td>
+                                          <td className="text-muted">{window.KTM.date.formatDateTime(o.created_at)}</td>
+                                          <td className="text-muted">{o.phone || '—'}</td>
+                                          <td style={{ minWidth: 280 }}>{o.productSummary}</td>
+                                          <td className="text-end fw-semibold">{window.KTM.money.formatNumber(o.cod)}</td>
+                                          <td className="text-muted">{o.status}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                {reconResult.systemOnly.length > 30 && (
+                                  <div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.systemOnly.length} đơn.</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {Array.isArray(reconResult.excelOnly) && reconResult.excelOnly.length > 0 && (
+                            <div className="card border-0 shadow-sm">
                               <div className="card-body">
                                 <div className="fw-semibold mb-2 text-warning">Có trong Excel nhưng không thấy đơn khớp trong hệ thống</div>
                                 <div className="table-responsive">
@@ -1852,43 +1902,6 @@
                                 </div>
                                 {reconResult.excelOnly.length > 30 && (
                                   <div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.excelOnly.length} dòng.</div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {Array.isArray(reconResult.systemOnly) && reconResult.systemOnly.length > 0 && (
-                            <div className="card border-0 shadow-sm">
-                              <div className="card-body">
-                                <div className="fw-semibold mb-2 text-warning">Có trong hệ thống nhưng thiếu trong Excel</div>
-                                <div className="table-responsive">
-                                  <table className="table table-sm align-middle mb-0">
-                                    <thead>
-                                      <tr>
-                                        <th>Order ID</th>
-                                        <th>Ngày tạo</th>
-                                        <th>SĐT</th>
-                                        <th>Tên sản phẩm</th>
-                                        <th className="text-end">Thu hộ</th>
-                                        <th>Trạng thái</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {reconResult.systemOnly.slice(0, 30).map((o) => (
-                                        <tr key={`so-${o.id}`} className="table-warning">
-                                          <td className="text-muted">{o.id}</td>
-                                          <td className="text-muted">{window.KTM.date.formatDateTime(o.created_at)}</td>
-                                          <td className="text-muted">{o.phone || '—'}</td>
-                                          <td style={{ minWidth: 280 }}>{o.productSummary}</td>
-                                          <td className="text-end fw-semibold">{window.KTM.money.formatNumber(o.cod)}</td>
-                                          <td className="text-muted">{o.status}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                                {reconResult.systemOnly.length > 30 && (
-                                  <div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.systemOnly.length} đơn.</div>
                                 )}
                               </div>
                             </div>
