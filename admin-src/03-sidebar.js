@@ -46,6 +46,7 @@
         { id: 'videos', icon: 'fa-video', label: 'Quản lý Video' },
         { id: 'products', icon: 'fa-box', label: 'Sản phẩm' },
         { id: 'orders', icon: 'fa-receipt', label: 'Quản lý đơn hàng' },
+        { id: 'recon', icon: 'fa-file-excel', label: 'Đối soát Excel' },
         { id: 'stats', icon: 'fa-chart-column', label: 'Thống kê' },
         { id: 'settings', icon: 'fa-cog', label: 'Cài đặt' },
       ];
