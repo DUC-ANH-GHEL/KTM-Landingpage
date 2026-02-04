@@ -482,6 +482,15 @@
         const [swipeDx, setSwipeDx] = useState(0);
         const [swipeAnimating, setSwipeAnimating] = useState(false);
         const swipeLimitToastAtRef = useRef(0);
+
+        // Debt reconciliation (Excel)
+        const [reconRunning, setReconRunning] = useState(false);
+        const [reconError, setReconError] = useState('');
+        const [reconProgress, setReconProgress] = useState('');
+        const [reconFileName, setReconFileName] = useState('');
+        const [reconResult, setReconResult] = useState(null);
+        const productsByIdRef = useRef(new Map());
+        const [xlsxStatus, setXlsxStatus] = useState(window?.XLSX ? 'ready' : 'loading');
         const createEmptyStats = () => ({
           statusCounts: { draft: 0, pending: 0, processing: 0, done: 0, paid: 0, canceled: 0, other: 0 },
           activeOrders: 0,
@@ -584,6 +593,416 @@
         const getNavThreshold = () => {
           const w = getSwipeWidth();
           return clamp(Math.floor(w * 0.22), 70, 140);
+        };
+
+        useEffect(() => {
+          let cancelled = false;
+
+          const hasXlsx = () => Boolean(window?.XLSX && typeof window.XLSX.read === 'function');
+
+          const injectScript = (src) => new Promise((resolve, reject) => {
+            try {
+              const existing = Array.from(document.querySelectorAll('script')).find((s) => (s?.src || '').includes(src));
+              if (existing) {
+                // If it's already there, just wait briefly for global.
+                const waitStarted = Date.now();
+                const wait = setInterval(() => {
+                  if (hasXlsx()) {
+                    clearInterval(wait);
+                    resolve(true);
+                  } else if (Date.now() - waitStarted > 2500) {
+                    clearInterval(wait);
+                    reject(new Error('existing script not loaded'));
+                  }
+                }, 100);
+                return;
+              }
+
+              const s = document.createElement('script');
+              s.src = src;
+              s.async = true;
+              s.onload = () => resolve(true);
+              s.onerror = () => reject(new Error(`load failed: ${src}`));
+              document.head.appendChild(s);
+            } catch (e) {
+              reject(e);
+            }
+          });
+
+          const tryLoadXlsxFallback = async () => {
+            if (hasXlsx()) return true;
+            const sources = [
+              'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+              'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+              'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
+            ];
+
+            for (const src of sources) {
+              if (hasXlsx()) return true;
+              try {
+                await injectScript(src);
+                if (hasXlsx()) return true;
+              } catch {
+                // try next source
+              }
+            }
+            return hasXlsx();
+          };
+
+          (async () => {
+            if (xlsxStatus === 'ready' || xlsxStatus === 'failed') return;
+            if (hasXlsx()) {
+              if (!cancelled) setXlsxStatus('ready');
+              return;
+            }
+
+            // Give HTML defer script a moment, then try fallbacks.
+            if (!cancelled) setXlsxStatus('loading');
+            await new Promise((r) => setTimeout(r, 300));
+
+            const ok = await tryLoadXlsxFallback();
+            if (cancelled) return;
+            setXlsxStatus(ok ? 'ready' : 'failed');
+          })();
+
+          return () => { cancelled = true; };
+        }, [xlsxStatus]);
+
+        const normalizeLoose = (value) => {
+          const s = String(value ?? '').trim().toLowerCase();
+          if (!s) return '';
+          try {
+            return s
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/đ/g, 'd')
+              .replace(/[^a-z0-9\s\.\-\/\+]/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+          } catch {
+            return s.replace(/\s+/g, ' ').trim();
+          }
+        };
+
+        const parseExcelDateToMonthKey = (cell) => {
+          if (cell == null || cell === '') return '';
+          // Excel serial number
+          if (typeof cell === 'number' && Number.isFinite(cell) && window?.XLSX?.SSF?.parse_date_code) {
+            try {
+              const d = window.XLSX.SSF.parse_date_code(cell);
+              if (!d || !d.y || !d.m) return '';
+              return `${String(d.y).padStart(4, '0')}-${String(d.m).padStart(2, '0')}`;
+            } catch {
+              // ignore
+            }
+          }
+
+          const s = String(cell).trim();
+          // dd.mm.yyyy or d.m.yyyy
+          const m = s.match(/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})$/);
+          if (m) {
+            const mm = String(Number(m[2]) || 0).padStart(2, '0');
+            return `${m[3]}-${mm}`;
+          }
+
+          // ISO-ish yyyy-mm-dd
+          const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (iso) return `${iso[1]}-${iso[2]}`;
+
+          // Fallback: Date.parse
+          const d = new Date(s);
+          if (!Number.isNaN(d.getTime())) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          }
+          return '';
+        };
+
+        const parseExcelMoney = (cell) => {
+          if (cell == null || cell === '') return 0;
+          if (typeof cell === 'number' && Number.isFinite(cell)) return Math.trunc(cell);
+          return window.KTM.money.parseMoney(String(cell));
+        };
+
+        const ensureProductsLoaded = async () => {
+          const map = productsByIdRef.current;
+          if (map && map.size > 0) return map;
+          try {
+            const data = await window.KTM.api.getJSON(`${API_BASE}/api/products`, 'Lỗi tải sản phẩm');
+            const arr = Array.isArray(data?.products) ? data.products : (Array.isArray(data) ? data : []);
+            const next = new Map();
+            for (const p of arr) {
+              const id = String(p?.id ?? '').trim();
+              if (!id) continue;
+              next.set(id, p);
+            }
+            productsByIdRef.current = next;
+            return next;
+          } catch {
+            productsByIdRef.current = new Map();
+            return productsByIdRef.current;
+          }
+        };
+
+        const getProductByIdForRecon = (pid) => {
+          const id = String(pid ?? '').trim();
+          if (!id) return null;
+          return productsByIdRef.current?.get(id) || null;
+        };
+
+        const parseExcelFileRows = async (file) => {
+          if (!file) throw new Error('Chưa chọn file');
+          if (!window?.XLSX?.read) {
+            throw new Error('Thiếu thư viện đọc Excel (XLSX). Vui lòng tải lại trang admin.');
+          }
+
+          const buf = await file.arrayBuffer();
+          const wb = window.XLSX.read(buf, { type: 'array' });
+          const sheetName = wb?.SheetNames?.[0];
+          const ws = sheetName ? wb.Sheets[sheetName] : null;
+          if (!ws) throw new Error('Không đọc được sheet trong file');
+
+          const grid = window.XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+          const rows = Array.isArray(grid) ? grid : [];
+          if (!rows.length) throw new Error('File rỗng');
+
+          const want = {
+            product: ['ten san pham', 'tensanpham', 'san pham', 'tên sản phẩm'],
+            cod: ['tong tien thu ho', 'tổng tiền thu hộ', 'thu ho', 'thu hộ', 'tong thu ho', 'tổng thu hộ'],
+            date: ['ngay', 'ngày', 'date'],
+          };
+
+          const findHeaderRow = () => {
+            const maxScan = Math.min(30, rows.length);
+            for (let r = 0; r < maxScan; r++) {
+              const row = Array.isArray(rows[r]) ? rows[r] : [];
+              const normalized = row.map((c) => normalizeLoose(c));
+              const findCol = (aliases) => {
+                for (let i = 0; i < normalized.length; i++) {
+                  const v = normalized[i];
+                  if (!v) continue;
+                  if (aliases.some((a) => v.includes(normalizeLoose(a)))) return i;
+                }
+                return -1;
+              };
+
+              const productCol = findCol(want.product);
+              const codCol = findCol(want.cod);
+              if (productCol >= 0 && codCol >= 0) {
+                const dateCol = findCol(want.date);
+                return { headerRow: r, productCol, codCol, dateCol };
+              }
+            }
+            return null;
+          };
+
+          const hdr = findHeaderRow();
+          if (!hdr) throw new Error('Không tìm thấy header cột "Tên sản phẩm" và "Tổng tiền thu hộ"');
+
+          const out = [];
+          const monthKeys = new Set();
+          for (let r = hdr.headerRow + 1; r < rows.length; r++) {
+            const row = Array.isArray(rows[r]) ? rows[r] : [];
+            const product = String(row[hdr.productCol] ?? '').trim();
+            const cod = parseExcelMoney(row[hdr.codCol]);
+            if (!product && !cod) continue;
+
+            // Ignore summary/footer rows
+            const productN = normalizeLoose(product);
+            if (!productN) continue;
+            if (productN.includes('tong tien') || productN.includes('tong') || productN.includes('thanh toan') || productN.includes('thanh toán')) {
+              continue;
+            }
+
+            const rawDate = hdr.dateCol >= 0 ? row[hdr.dateCol] : '';
+            const mk = rawDate ? parseExcelDateToMonthKey(rawDate) : '';
+            if (mk) monthKeys.add(mk);
+
+            out.push({
+              rowIndex: r + 1,
+              dateRaw: rawDate,
+              monthKey: mk,
+              product,
+              productNorm: normalizeLoose(product),
+              productCompact: normalizeLoose(product).replace(/\s+/g, ''),
+              cod,
+            });
+          }
+
+          return { rows: out, monthKeys: Array.from(monthKeys.values()).sort() };
+        };
+
+        const fetchOrdersForMonth = async (monthKey) => {
+          const url = `${API_BASE}/api/orders?month=${encodeURIComponent(monthKey)}&includeItems=1`;
+          const data = await window.KTM.api.getJSON(url, 'Lỗi tải danh sách đơn');
+          const arr = Array.isArray(data?.orders) ? data.orders : (Array.isArray(data) ? data : []);
+          return arr;
+        };
+
+        const buildSystemOrderRecords = async (monthKeys) => {
+          const keys = Array.isArray(monthKeys) && monthKeys.length ? monthKeys : [month];
+          const ordersAll = [];
+
+          for (let i = 0; i < keys.length; i++) {
+            const mk = keys[i];
+            setReconProgress(`Đang tải đơn hệ thống tháng ${mk} (${i + 1}/${keys.length})...`);
+            const list = await fetchOrdersForMonth(mk);
+            ordersAll.push(...list);
+          }
+
+          const normalizeStatus = (s) => String(s || '').trim().toLowerCase();
+          const filtered = ordersAll.filter((o) => {
+            const st = normalizeStatus(o?.status);
+            return st !== 'draft' && st !== 'canceled';
+          });
+
+          const records = filtered.map((o) => {
+            const productSummary = window.KTM.orders.getOrderProductSummary(o, getProductByIdForRecon);
+            const cod = window.KTM.orders.getOrderTotalMoney(o, getProductByIdForRecon);
+            const productNorm = normalizeLoose(productSummary);
+            return {
+              id: String(o?.id ?? ''),
+              created_at: o?.created_at ?? null,
+              status: String(o?.status ?? ''),
+              productSummary,
+              productNorm,
+              productCompact: productNorm.replace(/\s+/g, ''),
+              cod: Number(cod || 0) || 0,
+              raw: o,
+            };
+          }).filter((r) => r.id && r.cod > 0);
+
+          return records;
+        };
+
+        const similarityScore = (aNorm, bNorm) => {
+          const a = String(aNorm || '').trim();
+          const b = String(bNorm || '').trim();
+          if (!a || !b) return 0;
+          if (a === b) return 1;
+          const aCompact = a.replace(/\s+/g, '');
+          const bCompact = b.replace(/\s+/g, '');
+          if (aCompact && bCompact && (aCompact === bCompact)) return 1;
+          if (aCompact && bCompact && (bCompact.includes(aCompact) || aCompact.includes(bCompact))) return 0.9;
+
+          const toks = a.split(' ').filter(Boolean);
+          if (!toks.length) return 0;
+          let hit = 0;
+          for (const t of toks) {
+            if (t.length <= 1) continue;
+            if (b.includes(t)) hit += 1;
+          }
+          const base = hit / Math.max(1, toks.length);
+          const lenPenalty = Math.min(0.15, Math.abs(a.length - b.length) / Math.max(1, Math.max(a.length, b.length)));
+          return Math.max(0, base - lenPenalty);
+        };
+
+        const reconcileExcelAgainstSystem = async (file) => {
+          setReconError('');
+          setReconResult(null);
+          setReconFileName(file?.name || '');
+          setReconRunning(true);
+          setReconProgress('Đang đọc file Excel...');
+
+          try {
+            await ensureProductsLoaded();
+
+            const parsed = await parseExcelFileRows(file);
+            const excelRows = parsed.rows;
+            const monthKeys = parsed.monthKeys.length ? parsed.monthKeys : [month];
+
+            setReconProgress(`Đọc được ${excelRows.length} dòng. Đang chuẩn bị đối soát...`);
+
+            const sysOrders = await buildSystemOrderRecords(monthKeys);
+            setReconProgress(`Đang đối soát (${excelRows.length} dòng Excel vs ${sysOrders.length} đơn hệ thống)...`);
+
+            const moneyMap = new Map();
+            for (const o of sysOrders) {
+              const key = String(o.cod);
+              const arr = moneyMap.get(key) || [];
+              arr.push(o);
+              moneyMap.set(key, arr);
+            }
+
+            const usedOrderIds = new Set();
+            const matches = [];
+            const excelOnly = [];
+            const amountMismatch = [];
+
+            // Pass 1: match by COD, then best product similarity
+            for (const row of excelRows) {
+              const candidates = (moneyMap.get(String(row.cod)) || []).filter((o) => !usedOrderIds.has(o.id));
+              if (!candidates.length) {
+                excelOnly.push(row);
+                continue;
+              }
+
+              let best = null;
+              let bestScore = -1;
+              for (const o of candidates) {
+                const sc = similarityScore(row.productNorm, o.productNorm);
+                if (sc > bestScore) {
+                  bestScore = sc;
+                  best = o;
+                }
+              }
+
+              if (best && bestScore >= 0.55) {
+                usedOrderIds.add(best.id);
+                matches.push({
+                  row,
+                  order: best,
+                  score: bestScore,
+                });
+              } else {
+                excelOnly.push(row);
+              }
+            }
+
+            // Pass 2: for excel-only rows, try to find closest order by product, report amount diff
+            const stillExcelOnly = [];
+            for (const row of excelOnly) {
+              let best = null;
+              let bestScore = -1;
+              for (const o of sysOrders) {
+                const sc = similarityScore(row.productNorm, o.productNorm);
+                if (sc > bestScore) {
+                  bestScore = sc;
+                  best = o;
+                }
+              }
+              if (best && bestScore >= 0.72 && Number(best.cod || 0) !== Number(row.cod || 0)) {
+                amountMismatch.push({
+                  row,
+                  order: best,
+                  score: bestScore,
+                  diff: Number(row.cod || 0) - Number(best.cod || 0),
+                });
+              } else {
+                stillExcelOnly.push(row);
+              }
+            }
+
+            const systemOnly = sysOrders.filter((o) => !usedOrderIds.has(o.id));
+
+            const ok = stillExcelOnly.length === 0 && systemOnly.length === 0 && amountMismatch.length === 0;
+
+            setReconResult({
+              ok,
+              monthKeys,
+              excelCount: excelRows.length,
+              systemCount: sysOrders.length,
+              matches,
+              excelOnly: stillExcelOnly,
+              systemOnly,
+              amountMismatch,
+            });
+            setReconProgress(ok ? 'OK ✅' : 'Đã đối soát xong');
+          } catch (e) {
+            setReconError(String(e?.message || e || 'Lỗi đối soát'));
+            setReconProgress('');
+          } finally {
+            setReconRunning(false);
+          }
         };
 
         const handleStatsTouchStart = (e) => {
@@ -913,6 +1332,205 @@
                     </span>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="card border-0 shadow-sm mb-3">
+              <div className="card-body">
+                <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                  <div className="fw-semibold">
+                    <i className="fas fa-file-excel me-2 text-success"></i>
+                    Đối soát công nợ (Excel)
+                  </div>
+                  <div className="d-flex flex-wrap gap-2 align-items-center">
+                    <span className="text-muted small">Check: <span className="fw-semibold">Tên sản phẩm</span> + <span className="fw-semibold">Tổng tiền thu hộ</span></span>
+                  </div>
+                </div>
+
+                {xlsxStatus === 'loading' && (
+                  <div className="alert alert-info mt-3 mb-0">
+                    Đang tải thư viện đọc Excel (XLSX)...
+                  </div>
+                )}
+
+                {xlsxStatus === 'failed' && (
+                  <div className="alert alert-warning mt-3 mb-0">
+                    Không tải được thư viện đọc Excel (XLSX). Hãy kiểm tra mạng / chặn CDN (AdBlock) hoặc refresh lại trang.
+                  </div>
+                )}
+
+                <div className="row g-2 align-items-end mt-2">
+                  <div className="col-12 col-md-7">
+                    <label className="form-label mb-1">Upload file Excel</label>
+                    <input
+                      type="file"
+                      className="form-control"
+                      accept=".xlsx,.xls,.csv"
+                      disabled={reconRunning}
+                      onChange={async (e) => {
+                        const f = e.target.files && e.target.files[0];
+                        if (!f) return;
+                        await reconcileExcelAgainstSystem(f);
+                      }}
+                    />
+                    <div className="form-text">
+                      {reconFileName ? `File: ${reconFileName}` : 'Header cần có: "Tên sản phẩm" và "Tổng Tiền Thu Hộ". Có cột "Ngày" thì sẽ tự tải đúng tháng trong file.'}
+                    </div>
+                  </div>
+
+                  <div className="col-12 col-md-5 d-flex gap-2 justify-content-md-end">
+                    <button
+                      className="btn btn-outline-secondary"
+                      disabled={reconRunning}
+                      onClick={() => {
+                        setReconError('');
+                        setReconProgress('');
+                        setReconResult(null);
+                        setReconFileName('');
+                        showToast('Đã reset đối soát', 'info');
+                      }}
+                    >
+                      <i className="fas fa-rotate-left me-2"></i>Reset
+                    </button>
+                  </div>
+                </div>
+
+                {reconProgress && (
+                  <div className="mt-2 small text-muted">{reconProgress}</div>
+                )}
+
+                {reconError && (
+                  <div className="alert alert-danger mt-3 mb-0">{reconError}</div>
+                )}
+
+                {reconResult && (
+                  <div className="mt-3">
+                    <div className={`alert ${reconResult.ok ? 'alert-success' : 'alert-warning'} mb-3`}>
+                      {reconResult.ok ? (
+                        <div className="fw-semibold">OK — File Excel đã khớp đầy đủ với hệ thống.</div>
+                      ) : (
+                        <div className="fw-semibold">CHƯA KHỚP — Có thiếu/sai lệch so với hệ thống.</div>
+                      )}
+                      <div className="small mt-1">
+                        Tháng đối soát: {Array.isArray(reconResult.monthKeys) ? reconResult.monthKeys.join(', ') : ''} · Excel: {reconResult.excelCount} dòng · Hệ thống: {reconResult.systemCount} đơn
+                      </div>
+                    </div>
+
+                    {!reconResult.ok && (
+                      <div className="row g-2">
+                        <div className="col-12">
+                          {Array.isArray(reconResult.amountMismatch) && reconResult.amountMismatch.length > 0 && (
+                            <div className="card border-0 shadow-sm mb-2">
+                              <div className="card-body">
+                                <div className="fw-semibold mb-2 text-danger">Sai lệch số tiền (tìm theo tên sản phẩm)</div>
+                                <div className="table-responsive">
+                                  <table className="table table-sm align-middle mb-0">
+                                    <thead>
+                                      <tr>
+                                        <th>Excel (dòng)</th>
+                                        <th>Tên sản phẩm (Excel)</th>
+                                        <th className="text-end">Thu hộ (Excel)</th>
+                                        <th>Order ID</th>
+                                        <th>Tên SP (Hệ thống)</th>
+                                        <th className="text-end">Thu hộ (Hệ thống)</th>
+                                        <th className="text-end">Lệch</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {reconResult.amountMismatch.slice(0, 30).map((x) => (
+                                        <tr key={`mm-${x.row.rowIndex}`}
+                                          className="table-danger">
+                                          <td>{x.row.rowIndex}</td>
+                                          <td style={{ minWidth: 260 }}>{x.row.product}</td>
+                                          <td className="text-end fw-semibold">{window.KTM.money.formatNumber(x.row.cod)}</td>
+                                          <td className="text-muted">{x.order.id}</td>
+                                          <td style={{ minWidth: 240 }}>{x.order.productSummary}</td>
+                                          <td className="text-end fw-semibold">{window.KTM.money.formatNumber(x.order.cod)}</td>
+                                          <td className="text-end fw-semibold">{window.KTM.money.formatNumber(x.diff)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                {reconResult.amountMismatch.length > 30 && (
+                                  <div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.amountMismatch.length} dòng.</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {Array.isArray(reconResult.excelOnly) && reconResult.excelOnly.length > 0 && (
+                            <div className="card border-0 shadow-sm mb-2">
+                              <div className="card-body">
+                                <div className="fw-semibold mb-2 text-warning">Có trong Excel nhưng không thấy đơn khớp trong hệ thống</div>
+                                <div className="table-responsive">
+                                  <table className="table table-sm align-middle mb-0">
+                                    <thead>
+                                      <tr>
+                                        <th>Excel (dòng)</th>
+                                        <th>Ngày</th>
+                                        <th>Tên sản phẩm</th>
+                                        <th className="text-end">Thu hộ</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {reconResult.excelOnly.slice(0, 30).map((r) => (
+                                        <tr key={`eo-${r.rowIndex}`} className="table-warning">
+                                          <td>{r.rowIndex}</td>
+                                          <td className="text-muted">{String(r.dateRaw || '')}</td>
+                                          <td style={{ minWidth: 280 }}>{r.product}</td>
+                                          <td className="text-end fw-semibold">{window.KTM.money.formatNumber(r.cod)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                {reconResult.excelOnly.length > 30 && (
+                                  <div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.excelOnly.length} dòng.</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {Array.isArray(reconResult.systemOnly) && reconResult.systemOnly.length > 0 && (
+                            <div className="card border-0 shadow-sm">
+                              <div className="card-body">
+                                <div className="fw-semibold mb-2 text-warning">Có trong hệ thống nhưng thiếu trong Excel</div>
+                                <div className="table-responsive">
+                                  <table className="table table-sm align-middle mb-0">
+                                    <thead>
+                                      <tr>
+                                        <th>Order ID</th>
+                                        <th>Ngày tạo</th>
+                                        <th>Tên sản phẩm</th>
+                                        <th className="text-end">Thu hộ</th>
+                                        <th>Trạng thái</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {reconResult.systemOnly.slice(0, 30).map((o) => (
+                                        <tr key={`so-${o.id}`} className="table-warning">
+                                          <td className="text-muted">{o.id}</td>
+                                          <td className="text-muted">{window.KTM.date.formatDateTime(o.created_at)}</td>
+                                          <td style={{ minWidth: 280 }}>{o.productSummary}</td>
+                                          <td className="text-end fw-semibold">{window.KTM.money.formatNumber(o.cod)}</td>
+                                          <td className="text-muted">{o.status}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                {reconResult.systemOnly.length > 30 && (
+                                  <div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.systemOnly.length} đơn.</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
