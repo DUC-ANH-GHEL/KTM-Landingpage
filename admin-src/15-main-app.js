@@ -717,10 +717,117 @@
           return '';
         };
 
+        const parseExcelDateToDayKey = (cell) => {
+          if (cell == null || cell === '') return '';
+          if (typeof cell === 'number' && Number.isFinite(cell) && window?.XLSX?.SSF?.parse_date_code) {
+            try {
+              const d = window.XLSX.SSF.parse_date_code(cell);
+              if (!d || !d.y || !d.m || !d.d) return '';
+              return `${String(d.y).padStart(4, '0')}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+            } catch {
+              // ignore
+            }
+          }
+
+          const s = String(cell).trim();
+          const m = s.match(/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})$/);
+          if (m) {
+            const dd = String(Number(m[1]) || 0).padStart(2, '0');
+            const mm = String(Number(m[2]) || 0).padStart(2, '0');
+            return `${m[3]}-${mm}-${dd}`;
+          }
+
+          const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+          const d = new Date(s);
+          if (!Number.isNaN(d.getTime())) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          }
+          return '';
+        };
+
         const parseExcelMoney = (cell) => {
           if (cell == null || cell === '') return 0;
           if (typeof cell === 'number' && Number.isFinite(cell)) return Math.trunc(cell);
           return window.KTM.money.parseMoney(String(cell));
+        };
+
+        const normalizePhoneDigits = (value) => {
+          let digits = '';
+          try {
+            if (window?.KTM?.phone?.normalize) digits = window.KTM.phone.normalize(value);
+          } catch {
+            // ignore
+          }
+
+          if (!digits) digits = String(value ?? '').replace(/[^0-9]/g, '');
+          digits = String(digits || '').replace(/[^0-9]/g, '');
+          if (!digits) return '';
+
+          // Canonicalize VN phone: treat 84xxxxxxxxx, 840xxxxxxxxx and 0xxxxxxxxx as the same.
+          // Example: 84335615735 -> 0335615735
+          if (digits.startsWith('840')) {
+            digits = `0${digits.slice(3)}`;
+          } else if (digits.startsWith('84')) {
+            // Most common: 84 + 9 digits (E.164 without leading 0)
+            if (digits.length === 11) digits = `0${digits.slice(2)}`;
+            // Some sources may include 84 + 10 digits; still prefer stripping 84.
+            else if (digits.length === 12 && digits[2] !== '0') digits = `0${digits.slice(2)}`;
+          }
+
+          // Excel sometimes drops the leading 0 (9-digit tail)
+          if (digits.length === 9) digits = `0${digits}`;
+
+          return digits;
+        };
+
+        const extractPhoneFromText = (textRaw) => {
+          const text = String(textRaw ?? '');
+          if (!text.trim()) return { phone: '', phoneNorm: '', cleanedText: String(textRaw ?? '').trim() };
+
+          // Try to find a phone-like substring first (avoid picking up "2m4" etc)
+          const re = /(?:\+?84|0)\s*[0-9\s\-.()]{8,16}/g;
+          let best = null;
+          let m;
+          while ((m = re.exec(text)) != null) {
+            const raw = m[0];
+            const digits = normalizePhoneDigits(raw);
+            if (!digits) continue;
+            if (digits.length < 9 || digits.length > 12) continue;
+            best = { raw, digits };
+          }
+
+          // Fallback: if there is a long enough digit tail, use it.
+          if (!best) {
+            const digitsAll = normalizePhoneDigits(text);
+            if (digitsAll.length >= 9) {
+              const tail = digitsAll.slice(-12);
+              if (tail.length >= 9) best = { raw: tail, digits: tail };
+            }
+          }
+
+          if (!best) return { phone: '', phoneNorm: '', cleanedText: text.trim() };
+
+          const phoneNorm = best.digits;
+          const phone = phoneNorm;
+
+          // Remove the matched raw phone substring if present
+          let cleaned = text;
+          if (best.raw && text.includes(best.raw)) {
+            cleaned = cleaned.replace(best.raw, ' ');
+          } else {
+            // Otherwise remove the trailing digits (best-effort)
+            cleaned = cleaned.replace(new RegExp(`${best.digits}$`), ' ');
+          }
+
+          cleaned = cleaned
+            .replace(/[\-–—•|]+\s*$/g, ' ')
+            .replace(/\s+[\-–—•|]+\s*/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          return { phone, phoneNorm, cleanedText: cleaned };
         };
 
         const ensureProductsLoaded = async () => {
@@ -769,6 +876,7 @@
             product: ['ten san pham', 'tensanpham', 'san pham', 'tên sản phẩm'],
             cod: ['tong tien thu ho', 'tổng tiền thu hộ', 'thu ho', 'thu hộ', 'tong thu ho', 'tổng thu hộ'],
             date: ['ngay', 'ngày', 'date'],
+            phone: ['sdt', 'sđt', 'so dien thoai', 'số điện thoại', 'dien thoai', 'điện thoại', 'phone'],
           };
 
           const findHeaderRow = () => {
@@ -789,7 +897,8 @@
               const codCol = findCol(want.cod);
               if (productCol >= 0 && codCol >= 0) {
                 const dateCol = findCol(want.date);
-                return { headerRow: r, productCol, codCol, dateCol };
+                const phoneCol = findCol(want.phone);
+                return { headerRow: r, productCol, codCol, dateCol, phoneCol };
               }
             }
             return null;
@@ -802,9 +911,23 @@
           const monthKeys = new Set();
           for (let r = hdr.headerRow + 1; r < rows.length; r++) {
             const row = Array.isArray(rows[r]) ? rows[r] : [];
-            const product = String(row[hdr.productCol] ?? '').trim();
+            const productRaw = String(row[hdr.productCol] ?? '').trim();
             const cod = parseExcelMoney(row[hdr.codCol]);
-            if (!product && !cod) continue;
+            if (!productRaw && !cod) continue;
+
+            const phoneCell = hdr.phoneCol >= 0 ? String(row[hdr.phoneCol] ?? '').trim() : '';
+            const phoneFromCell = normalizePhoneDigits(phoneCell);
+            // Always try to clean phone out of the product text (even if phone is in a separate column)
+            let phoneParsed = extractPhoneFromText(productRaw);
+            if (phoneFromCell) {
+              phoneParsed = { ...phoneParsed, phone: phoneFromCell, phoneNorm: phoneFromCell };
+            }
+            if (!phoneParsed.phoneNorm) {
+              const rowJoined = row.map((c) => String(c ?? '')).join(' | ');
+              const p2 = extractPhoneFromText(rowJoined);
+              if (p2.phoneNorm) phoneParsed = { ...phoneParsed, phone: p2.phone, phoneNorm: p2.phoneNorm };
+            }
+            const product = phoneParsed.cleanedText || productRaw;
 
             // Ignore summary/footer rows
             const productN = normalizeLoose(product);
@@ -816,19 +939,116 @@
             const rawDate = hdr.dateCol >= 0 ? row[hdr.dateCol] : '';
             const mk = rawDate ? parseExcelDateToMonthKey(rawDate) : '';
             if (mk) monthKeys.add(mk);
+            const dk = rawDate ? parseExcelDateToDayKey(rawDate) : '';
 
             out.push({
               rowIndex: r + 1,
               dateRaw: rawDate,
               monthKey: mk,
+              dayKey: dk,
               product,
               productNorm: normalizeLoose(product),
               productCompact: normalizeLoose(product).replace(/\s+/g, ''),
+              phone: phoneParsed.phone,
+              phoneNorm: phoneParsed.phoneNorm,
               cod,
             });
           }
 
           return { rows: out, monthKeys: Array.from(monthKeys.values()).sort() };
+        };
+
+        const buildExcelGroups = (excelRows) => {
+          const groups = new Map();
+
+          const pushToGroup = (key, row) => {
+            const cur = groups.get(key) || { key, rows: [], phoneNorm: '', phone: '', monthKey: '' };
+            cur.rows.push(row);
+            if (!cur.phoneNorm && row.phoneNorm) {
+              cur.phoneNorm = row.phoneNorm;
+              cur.phone = row.phone || row.phoneNorm;
+            }
+            if (!cur.monthKey && row.monthKey) cur.monthKey = row.monthKey;
+            groups.set(key, cur);
+          };
+
+          for (const row of (Array.isArray(excelRows) ? excelRows : [])) {
+            const p = String(row?.phoneNorm || '').trim();
+            const dayKey = String(row?.dayKey || '').trim();
+            const monthKey = String(row?.monthKey || '').trim();
+            if (p) {
+              // Prefer grouping by phone+day if available (avoids merging multiple orders in a month)
+              const k = dayKey ? `p:${p}:d:${dayKey}` : (monthKey ? `p:${p}:m:${monthKey}` : `p:${p}`);
+              pushToGroup(k, row);
+            }
+            else pushToGroup(`r:${row?.rowIndex}`, row);
+          }
+
+          const computeGroup = (g) => {
+            const rs = g.rows.slice().filter(Boolean);
+            const rowIndices = rs.map((x) => x.rowIndex).filter(Boolean);
+            const productParts = [];
+            const productPartSet = new Set();
+            for (const r of rs) {
+              const pn = String(r?.productNorm || '').trim();
+              if (!pn) continue;
+              if (productPartSet.has(pn)) continue;
+              productPartSet.add(pn);
+              productParts.push(String(r?.product || '').trim());
+            }
+            const productDisplay = productParts.filter(Boolean).join(' + ');
+            const productNorm = normalizeLoose(productDisplay);
+
+            const codValues = rs.map((r) => Number(r?.cod || 0) || 0).filter((n) => n > 0);
+            let cod = 0;
+            if (!codValues.length) cod = 0;
+            else {
+              const freq = new Map();
+              for (const v of codValues) freq.set(v, (freq.get(v) || 0) + 1);
+              const distinct = Array.from(freq.keys());
+              if (distinct.length === 1) {
+                cod = distinct[0];
+              } else {
+                // Heuristic: if a value repeats, it's likely the order total repeated on split rows
+                let bestRepeat = null;
+                let bestCount = 0;
+                for (const [v, c] of freq.entries()) {
+                  if (c > bestCount) {
+                    bestCount = c;
+                    bestRepeat = v;
+                  }
+                }
+                if (bestRepeat != null && bestCount >= 2) {
+                  cod = bestRepeat;
+                } else {
+                  cod = codValues.reduce((s, n) => s + n, 0);
+                }
+              }
+            }
+
+            const monthKey = g.monthKey || (rs.find((x) => x?.monthKey)?.monthKey || '');
+            const dayKey = rs.find((x) => x?.dayKey)?.dayKey || '';
+            const dateRaw = rs.find((x) => x?.dateRaw)?.dateRaw || '';
+
+            return {
+              key: g.key,
+              phoneNorm: g.phoneNorm || '',
+              phone: g.phone || g.phoneNorm || '',
+              monthKey,
+              dayKey,
+              dateRaw,
+              rowIndices,
+              rowIndexFirst: rowIndices.length ? Math.min(...rowIndices) : null,
+              rowCount: rs.length,
+              productDisplay,
+              productNorm,
+              productCompact: String(productNorm || '').replace(/\s+/g, ''),
+              cod,
+              rows: rs,
+            };
+          };
+
+          return Array.from(groups.values()).map(computeGroup);
         };
 
         const fetchOrdersForMonth = async (monthKey) => {
@@ -859,10 +1079,21 @@
             const productSummary = window.KTM.orders.getOrderProductSummary(o, getProductByIdForRecon);
             const cod = window.KTM.orders.getOrderTotalMoney(o, getProductByIdForRecon);
             const productNorm = normalizeLoose(productSummary);
+            const phoneNorm = normalizePhoneDigits(o?.phone ?? '');
+            const createdAt = o?.created_at ?? null;
+            const dayKey = (() => {
+              if (!createdAt) return '';
+              const d = new Date(createdAt);
+              if (Number.isNaN(d.getTime())) return '';
+              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            })();
             return {
               id: String(o?.id ?? ''),
               created_at: o?.created_at ?? null,
+              dayKey,
               status: String(o?.status ?? ''),
+              phone: String(o?.phone ?? ''),
+              phoneNorm,
               productSummary,
               productNorm,
               productCompact: productNorm.replace(/\s+/g, ''),
@@ -879,21 +1110,89 @@
           const b = String(bNorm || '').trim();
           if (!a || !b) return 0;
           if (a === b) return 1;
+
           const aCompact = a.replace(/\s+/g, '');
           const bCompact = b.replace(/\s+/g, '');
-          if (aCompact && bCompact && (aCompact === bCompact)) return 1;
-          if (aCompact && bCompact && (bCompact.includes(aCompact) || aCompact.includes(bCompact))) return 0.9;
+          if (aCompact && bCompact && aCompact === bCompact) return 1;
+          if (aCompact && bCompact && (bCompact.includes(aCompact) || aCompact.includes(bCompact))) return 0.92;
 
-          const toks = a.split(' ').filter(Boolean);
-          if (!toks.length) return 0;
-          let hit = 0;
-          for (const t of toks) {
-            if (t.length <= 1) continue;
-            if (b.includes(t)) hit += 1;
+          const tokenize = (s) => {
+            const raw = String(s || '')
+              .replace(/[\+]/g, ' ')
+              .replace(/[()\[\]{},.;:!?]/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            const toks = raw.split(' ').map((t) => t.trim()).filter(Boolean);
+            return toks
+              .map((t) => t.replace(/[^a-z0-9]/g, ''))
+              .filter(Boolean)
+              .filter((t) => t.length > 1);
+          };
+
+          const aToks = tokenize(a);
+          const bToks = tokenize(b);
+          if (!aToks.length || !bToks.length) return 0;
+
+          const bSet = new Set(bToks);
+
+          const edit1 = (x, y) => {
+            if (x === y) return 0;
+            const lx = x.length;
+            const ly = y.length;
+            if (Math.abs(lx - ly) > 1) return 2;
+            let i = 0;
+            let j = 0;
+            let diff = 0;
+            while (i < lx && j < ly) {
+              if (x[i] === y[j]) { i += 1; j += 1; continue; }
+              diff += 1;
+              if (diff > 1) return diff;
+              if (lx > ly) i += 1;
+              else if (ly > lx) j += 1;
+              else { i += 1; j += 1; }
+            }
+            if (i < lx || j < ly) diff += 1;
+            return diff;
+          };
+
+          const weightOf = (t) => (/[0-9]/.test(t) ? 2 : 1);
+          let matchedW = 0;
+          let totalW = 0;
+
+          for (const t of aToks) {
+            const w = weightOf(t);
+            totalW += w;
+            if (bSet.has(t) || (bCompact && bCompact.includes(t))) {
+              matchedW += w;
+              continue;
+            }
+            // Prefix or edit-distance match for longer tokens
+            if (t.length >= 4) {
+              let ok = false;
+              for (const bt of bToks) {
+                if (bt === t) { ok = true; break; }
+                if (bt.includes(t) || t.includes(bt)) { ok = true; break; }
+                if (bCompact && bCompact.includes(t)) { ok = true; break; }
+                if (edit1(t, bt) <= 1) { ok = true; break; }
+              }
+              if (ok) matchedW += w * 0.8;
+            }
           }
-          const base = hit / Math.max(1, toks.length);
-          const lenPenalty = Math.min(0.15, Math.abs(a.length - b.length) / Math.max(1, Math.max(a.length, b.length)));
-          return Math.max(0, base - lenPenalty);
+
+          const base = matchedW / Math.max(1, totalW);
+          const lenPenalty = Math.min(0.12, Math.abs(a.length - b.length) / Math.max(1, Math.max(a.length, b.length)));
+          // Small bonus if both sides share a long number-ish token (e.g. 1m8, 2000...)
+          const numTokenBonus = (() => {
+            const numsA = aToks.filter((t) => /[0-9]/.test(t) && t.length >= 3);
+            if (!numsA.length) return 0;
+            let hit = 0;
+            for (const t of numsA) {
+              if (bSet.has(t) || (bCompact && bCompact.includes(t))) hit += 1;
+            }
+            return Math.min(0.08, 0.04 * hit);
+          })();
+
+          return Math.max(0, Math.min(1, base - lenPenalty + numTokenBonus));
         };
 
         const reconcileExcelAgainstSystem = async (file) => {
@@ -910,11 +1209,34 @@
             const excelRows = parsed.rows;
             const monthKeys = parsed.monthKeys.length ? parsed.monthKeys : [month];
 
-            setReconProgress(`Đọc được ${excelRows.length} dòng. Đang chuẩn bị đối soát...`);
+            const excelGroups = buildExcelGroups(excelRows);
+            setReconProgress(`Đọc được ${excelRows.length} dòng (${excelGroups.length} cụm). Đang chuẩn bị đối soát...`);
 
             const sysOrders = await buildSystemOrderRecords(monthKeys);
-            setReconProgress(`Đang đối soát (${excelRows.length} dòng Excel vs ${sysOrders.length} đơn hệ thống)...`);
+            setReconProgress(`Đang đối soát (${excelGroups.length} cụm Excel vs ${sysOrders.length} đơn hệ thống)...`);
 
+            const usedOrderIds = new Set();
+            const matches = [];
+            const excelOnly = [];
+            const amountMismatch = [];
+
+            // Pass 1: match groups by phone (strong signal), then COD, then product similarity
+            const systemByPhone = new Map();
+            const systemByPhoneMoney = new Map();
+            for (const o of sysOrders) {
+              const p = String(o.phoneNorm || '').trim();
+              if (!p) continue;
+              const arr = systemByPhone.get(p) || [];
+              arr.push(o);
+              systemByPhone.set(p, arr);
+
+              const k2 = `${p}|${String(o.cod)}`;
+              const arr2 = systemByPhoneMoney.get(k2) || [];
+              arr2.push(o);
+              systemByPhoneMoney.set(k2, arr2);
+            }
+
+            // Also keep a COD index for groups without phone
             const moneyMap = new Map();
             for (const o of sysOrders) {
               const key = String(o.cod);
@@ -923,62 +1245,94 @@
               moneyMap.set(key, arr);
             }
 
-            const usedOrderIds = new Set();
-            const matches = [];
-            const excelOnly = [];
-            const amountMismatch = [];
+            const groupExcelOnly = [];
 
-            // Pass 1: match by COD, then best product similarity
-            for (const row of excelRows) {
-              const candidates = (moneyMap.get(String(row.cod)) || []).filter((o) => !usedOrderIds.has(o.id));
+            for (const g of excelGroups) {
+              const phoneKey = String(g.phoneNorm || '').trim();
+              const candidatesByPhone = phoneKey ? (systemByPhone.get(phoneKey) || []) : [];
+              const moneyKey = phoneKey ? `${phoneKey}|${String(g.cod)}` : '';
+              const candidatesByPhoneMoney = (phoneKey && g.cod > 0) ? (systemByPhoneMoney.get(moneyKey) || []) : [];
+
+              let candidates = (phoneKey ? candidatesByPhone : (moneyMap.get(String(g.cod)) || [])).filter((o) => !usedOrderIds.has(o.id));
+
+              // Strongest signal: phone + exact COD. If it uniquely identifies an order => accept without name strictness.
+              if (phoneKey && g.cod > 0) {
+                const pool = candidatesByPhoneMoney.filter((o) => !usedOrderIds.has(o.id));
+                let pool2 = pool;
+                if (g.dayKey) {
+                  const sameDay2 = pool2.filter((o) => String(o.dayKey || '') === String(g.dayKey || ''));
+                  if (sameDay2.length) pool2 = sameDay2;
+                }
+                if (pool2.length === 1) {
+                  const only = pool2[0];
+                  usedOrderIds.add(only.id);
+                  matches.push({ group: g, order: only, score: 1 });
+                  continue;
+                }
+                // Otherwise, narrow candidates to phone+money when possible
+                if (pool2.length) candidates = pool2;
+              }
+
+              // Prefer same day if Excel has a dayKey
+              if (g.dayKey) {
+                const sameDay = candidates.filter((o) => String(o.dayKey || '') === String(g.dayKey || ''));
+                if (sameDay.length) candidates = sameDay;
+              }
+
               if (!candidates.length) {
-                excelOnly.push(row);
+                groupExcelOnly.push(g);
                 continue;
               }
 
+              let candidates2 = candidates;
+              const exactMoneyCandidates = (g.cod > 0) ? candidates.filter((o) => Number(o.cod || 0) === Number(g.cod || 0)) : [];
+              if (g.cod > 0 && exactMoneyCandidates.length) candidates2 = exactMoneyCandidates;
+
               let best = null;
               let bestScore = -1;
-              for (const o of candidates) {
-                const sc = similarityScore(row.productNorm, o.productNorm);
+              for (const o of candidates2) {
+                const sc = similarityScore(g.productNorm, o.productNorm);
                 if (sc > bestScore) {
                   bestScore = sc;
                   best = o;
                 }
               }
 
-              if (best && bestScore >= 0.55) {
+              // Accept lower when phone matches. If phone+COD match exists, allow very weak name evidence.
+              const threshold = phoneKey ? (g.dayKey ? 0.30 : 0.36) : 0.55;
+              const hasStrongMoneySignal = Boolean(phoneKey && g.cod > 0 && exactMoneyCandidates.length >= 1);
+              const allowVeryWeakName = Boolean(hasStrongMoneySignal && bestScore >= 0.12);
+              if (best && (bestScore >= threshold || allowVeryWeakName)) {
                 usedOrderIds.add(best.id);
-                matches.push({
-                  row,
-                  order: best,
-                  score: bestScore,
-                });
+                const moneyDiff = Number(g.cod || 0) - Number(best.cod || 0);
+                if (g.cod > 0 && best.cod > 0 && moneyDiff !== 0 && bestScore >= 0.68 && phoneKey && String(best.phoneNorm || '') === phoneKey) {
+                  amountMismatch.push({ group: g, order: best, score: bestScore, diff: moneyDiff });
+                } else {
+                  matches.push({ group: g, order: best, score: bestScore });
+                }
               } else {
-                excelOnly.push(row);
+                groupExcelOnly.push(g);
               }
             }
 
-            // Pass 2: for excel-only rows, try to find closest order by product, report amount diff
+            // Pass 2: try to explain remaining Excel groups as money mismatch by closest phone+product
             const stillExcelOnly = [];
-            for (const row of excelOnly) {
+            for (const g of groupExcelOnly) {
+              const phoneKey = String(g.phoneNorm || '').trim();
+              const pool = phoneKey ? (systemByPhone.get(phoneKey) || []) : sysOrders;
               let best = null;
               let bestScore = -1;
-              for (const o of sysOrders) {
-                const sc = similarityScore(row.productNorm, o.productNorm);
+              for (const o of pool) {
+                const sc = similarityScore(g.productNorm, o.productNorm);
                 if (sc > bestScore) {
                   bestScore = sc;
                   best = o;
                 }
               }
-              if (best && bestScore >= 0.72 && Number(best.cod || 0) !== Number(row.cod || 0)) {
-                amountMismatch.push({
-                  row,
-                  order: best,
-                  score: bestScore,
-                  diff: Number(row.cod || 0) - Number(best.cod || 0),
-                });
+              if (best && bestScore >= (phoneKey ? 0.6 : 0.72) && Number(best.cod || 0) !== Number(g.cod || 0)) {
+                amountMismatch.push({ group: g, order: best, score: bestScore, diff: Number(g.cod || 0) - Number(best.cod || 0) });
               } else {
-                stillExcelOnly.push(row);
+                stillExcelOnly.push(g);
               }
             }
 
@@ -990,6 +1344,7 @@
               ok,
               monthKeys,
               excelCount: excelRows.length,
+              excelGroupCount: excelGroups.length,
               systemCount: sysOrders.length,
               matches,
               excelOnly: stillExcelOnly,
@@ -1412,7 +1767,7 @@
                         <div className="fw-semibold">CHƯA KHỚP — Có thiếu/sai lệch so với hệ thống.</div>
                       )}
                       <div className="small mt-1">
-                        Tháng đối soát: {Array.isArray(reconResult.monthKeys) ? reconResult.monthKeys.join(', ') : ''} · Excel: {reconResult.excelCount} dòng · Hệ thống: {reconResult.systemCount} đơn
+                        Tháng đối soát: {Array.isArray(reconResult.monthKeys) ? reconResult.monthKeys.join(', ') : ''} · Excel: {reconResult.excelCount} dòng{Number(reconResult.excelGroupCount || 0) ? ` (${reconResult.excelGroupCount} cụm)` : ''} · Hệ thống: {reconResult.systemCount} đơn
                       </div>
                     </div>
 
@@ -1428,6 +1783,7 @@
                                     <thead>
                                       <tr>
                                         <th>Excel (dòng)</th>
+                                        <th>SĐT</th>
                                         <th>Tên sản phẩm (Excel)</th>
                                         <th className="text-end">Thu hộ (Excel)</th>
                                         <th>Order ID</th>
@@ -1438,11 +1794,15 @@
                                     </thead>
                                     <tbody>
                                       {reconResult.amountMismatch.slice(0, 30).map((x) => (
-                                        <tr key={`mm-${x.row.rowIndex}`}
+                                        <tr key={`mm-${String(x?.group?.key || x?.order?.id || Math.random())}`}
                                           className="table-danger">
-                                          <td>{x.row.rowIndex}</td>
-                                          <td style={{ minWidth: 260 }}>{x.row.product}</td>
-                                          <td className="text-end fw-semibold">{window.KTM.money.formatNumber(x.row.cod)}</td>
+                                          <td>
+                                            {x?.group?.rowIndexFirst || '—'}
+                                            {Number(x?.group?.rowCount || 0) > 1 ? ` (+${Number(x.group.rowCount) - 1})` : ''}
+                                          </td>
+                                          <td className="text-muted">{x?.group?.phone || '—'}</td>
+                                          <td style={{ minWidth: 260 }}>{x?.group?.productDisplay || '—'}</td>
+                                          <td className="text-end fw-semibold">{window.KTM.money.formatNumber(Number(x?.group?.cod || 0))}</td>
                                           <td className="text-muted">{x.order.id}</td>
                                           <td style={{ minWidth: 240 }}>{x.order.productSummary}</td>
                                           <td className="text-end fw-semibold">{window.KTM.money.formatNumber(x.order.cod)}</td>
@@ -1469,17 +1829,22 @@
                                       <tr>
                                         <th>Excel (dòng)</th>
                                         <th>Ngày</th>
+                                        <th>SĐT</th>
                                         <th>Tên sản phẩm</th>
                                         <th className="text-end">Thu hộ</th>
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      {reconResult.excelOnly.slice(0, 30).map((r) => (
-                                        <tr key={`eo-${r.rowIndex}`} className="table-warning">
-                                          <td>{r.rowIndex}</td>
-                                          <td className="text-muted">{String(r.dateRaw || '')}</td>
-                                          <td style={{ minWidth: 280 }}>{r.product}</td>
-                                          <td className="text-end fw-semibold">{window.KTM.money.formatNumber(r.cod)}</td>
+                                      {reconResult.excelOnly.slice(0, 30).map((g) => (
+                                        <tr key={`eo-${String(g?.key || g?.rowIndexFirst || Math.random())}`} className="table-warning">
+                                          <td>
+                                            {g?.rowIndexFirst || '—'}
+                                            {Number(g?.rowCount || 0) > 1 ? ` (+${Number(g.rowCount) - 1})` : ''}
+                                          </td>
+                                          <td className="text-muted">{String(g?.dateRaw || '')}</td>
+                                          <td className="text-muted">{g?.phone || '—'}</td>
+                                          <td style={{ minWidth: 280 }}>{g?.productDisplay || '—'}</td>
+                                          <td className="text-end fw-semibold">{window.KTM.money.formatNumber(Number(g?.cod || 0))}</td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -1502,6 +1867,7 @@
                                       <tr>
                                         <th>Order ID</th>
                                         <th>Ngày tạo</th>
+                                        <th>SĐT</th>
                                         <th>Tên sản phẩm</th>
                                         <th className="text-end">Thu hộ</th>
                                         <th>Trạng thái</th>
@@ -1512,6 +1878,7 @@
                                         <tr key={`so-${o.id}`} className="table-warning">
                                           <td className="text-muted">{o.id}</td>
                                           <td className="text-muted">{window.KTM.date.formatDateTime(o.created_at)}</td>
+                                          <td className="text-muted">{o.phone || '—'}</td>
                                           <td style={{ minWidth: 280 }}>{o.productSummary}</td>
                                           <td className="text-end fw-semibold">{window.KTM.money.formatNumber(o.cod)}</td>
                                           <td className="text-muted">{o.status}</td>
