@@ -1179,6 +1179,20 @@
 					// Fetch system orders only for the 3-month window (based on selected month).
 					const sysOrders = await buildSystemOrderRecords(monthKeys);
 
+					// Count system orders per phone+day to allow a safe merge of multiple Excel rows
+					// into a single group only when the system has exactly one order on that day.
+					const sysCountByPhoneDay = (() => {
+						const map = new Map();
+						for (const o of (Array.isArray(sysOrders) ? sysOrders : [])) {
+							const p = String(o?.phoneNorm || '').trim();
+							const d = String(o?.dayKey || '').trim();
+							if (!p || !d) continue;
+							const k = `${p}|${d}`;
+							map.set(k, (map.get(k) || 0) + 1);
+						}
+						return map;
+					})();
+
 					// Build helper keys for matching and for hinting when Excel has a likely row
 					// but its date is outside the 3-month window.
 					const toNum = (v) => {
@@ -1211,8 +1225,73 @@
 					})();
 					const excelRows = inWindowRows;
 
-					const excelGroups = buildExcelGroups(excelRows);
-					setReconProgress(`Đọc được ${excelRows.length} dòng (${excelGroups.length} cụm) trong 3 tháng gần nhất. Đang chuẩn bị đối soát...`);
+					const rowCodBest = (r) => {
+						const c = Number(r?.cod || 0) || 0;
+						if (c > 0) return c;
+						const alt = Number(r?.codAlt || 0) || 0;
+						if (alt > 0) return alt;
+						return 0;
+					};
+
+					const buildMergedExcelGroups = (rows) => {
+						const buckets = new Map();
+						for (const r of (Array.isArray(rows) ? rows : [])) {
+							const p = String(r?.phoneNorm || '').trim();
+							const d = String(r?.dayKey || '').trim();
+							if (!p || !d) continue;
+							const k = `${p}|${d}`;
+							const list = buckets.get(k) || [];
+							list.push(r);
+							buckets.set(k, list);
+						}
+
+						const out = [];
+						for (const [k, list] of buckets.entries()) {
+							if (!Array.isArray(list) || list.length < 2) continue;
+							const [p, dayKey] = String(k).split('|');
+							const monthKey = dayKey && dayKey.length >= 7 ? dayKey.slice(0, 7) : '';
+							const cod = list.map(rowCodBest).filter((n) => n > 0).reduce((s, n) => s + n, 0);
+							if (!cod) continue;
+
+							const rowIndices = list.map((x) => x?.rowIndex).filter(Boolean);
+							const productParts = [];
+							const seen = new Set();
+							for (const r of list) {
+								const t = String(r?.product || '').trim();
+								if (!t) continue;
+								if (seen.has(t)) continue;
+								seen.add(t);
+								productParts.push(t);
+							}
+
+							out.push({
+								key: `merge:p:${p}:d:${dayKey}`,
+								isMerged: true,
+								phoneNorm: p,
+								phone: p,
+								monthKey,
+								dayKey,
+								dateRaw: list.find((x) => x?.dateRaw)?.dateRaw || '',
+								rowIndices,
+								rowIndexFirst: rowIndices.length ? Math.min(...rowIndices) : null,
+								rowCount: list.length,
+								productDisplay: productParts.join(' + '),
+								productNorm: '',
+								productCompact: '',
+								cod,
+								codCandidates: [],
+								rows: list,
+							});
+						}
+						return out;
+					};
+
+					const excelGroupsBase = buildExcelGroups(excelRows);
+					const excelGroupsMerged = buildMergedExcelGroups(excelRows);
+					const excelGroups = excelGroupsMerged.length
+						? excelGroupsBase.concat(excelGroupsMerged)
+						: excelGroupsBase;
+					setReconProgress(`Đọc được ${excelRows.length} dòng (${excelGroupsBase.length} cụm; +${excelGroupsMerged.length} cụm gộp) trong 3 tháng gần nhất. Đang chuẩn bị đối soát...`);
 					setReconProgress(`Đang đối soát (${excelGroups.length} cụm Excel vs ${sysOrders.length} đơn hệ thống)...`);
 
 					// Match only by: phoneNorm + COD (total collected). No product-name checking.
@@ -1234,6 +1313,33 @@
 					}
 
 					const usedExcelGroupKeys = new Set();
+					const excelGroupKeysByRowIndex = (() => {
+						const map = new Map();
+						for (const g of excelGroups) {
+							const key = String(g?.key || '').trim();
+							if (!key) continue;
+							const idxs = Array.isArray(g?.rowIndices) ? g.rowIndices : [];
+							for (const ri of idxs) {
+								const r = Number(ri);
+								if (!Number.isFinite(r)) continue;
+								const list = map.get(r) || [];
+								list.push(key);
+								map.set(r, list);
+							}
+						}
+						return map;
+					})();
+					const markUsedGroupAndOverlaps = (g) => {
+						const idxs = Array.isArray(g?.rowIndices) ? g.rowIndices : [];
+						for (const ri of idxs) {
+							const r = Number(ri);
+							if (!Number.isFinite(r)) continue;
+							const keys = excelGroupKeysByRowIndex.get(r) || [];
+							for (const k of keys) usedExcelGroupKeys.add(String(k));
+						}
+						const selfKey = String(g?.key || '').trim();
+						if (selfKey) usedExcelGroupKeys.add(selfKey);
+					};
 					const matches = [];
 					const moneyMismatch = [];
 					const systemOnly = [];
@@ -1263,11 +1369,20 @@
 							const available = exactList.filter((g) => !usedExcelGroupKeys.has(String(g?.key)));
 							let pick = null;
 							if (available.length) {
-								if (day) pick = available.find((g) => String(g.dayKey || '').trim() === day) || null;
-								if (!pick) pick = available[0] || null;
+								const canUseMerged = (g) => {
+									if (!g?.isMerged) return true;
+									const gd = String(g?.dayKey || '').trim();
+									if (!day || !gd || gd !== day) return false;
+									return (sysCountByPhoneDay.get(`${p}|${day}`) || 0) === 1;
+								};
+								if (day) {
+									pick = available.find((g) => !g?.isMerged && String(g.dayKey || '').trim() === day) || null;
+									if (!pick) pick = available.find((g) => String(g.dayKey || '').trim() === day && canUseMerged(g)) || null;
+								}
+								if (!pick) pick = available.find((g) => canUseMerged(g)) || null;
 							}
 							if (pick) {
-								usedExcelGroupKeys.add(String(pick.key));
+								markUsedGroupAndOverlaps(pick);
 								matches.push({ group: pick, order: o, score: 1, reasons: ['SĐT trùng', 'COD trùng', ...(pick.dayKey && day && pick.dayKey === day ? ['Cùng ngày'] : [])] });
 								continue;
 							}
