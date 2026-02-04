@@ -1135,6 +1135,13 @@
 						if (!Number.isFinite(y) || !Number.isFinite(mo) || mo < 1 || mo > 12) return NaN;
 						return (y * 12) + (mo - 1);
 					};
+					const indexToMonthKey = (idx) => {
+						if (!Number.isFinite(idx)) return '';
+						const y = Math.floor(idx / 12);
+						const mo = (idx % 12) + 1;
+						if (!Number.isFinite(y) || !Number.isFinite(mo) || mo < 1 || mo > 12) return '';
+						return `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}`;
+					};
 					const curIdx = monthKeyToIndex(curMonthKey);
 					const minIdx = Number.isFinite(curIdx) ? (curIdx - 2) : NaN;
 					const isIn3MonthWindow = (mk) => {
@@ -1142,32 +1149,38 @@
 						if (!Number.isFinite(idx) || !Number.isFinite(curIdx) || !Number.isFinite(minIdx)) return false;
 						return idx >= minIdx && idx <= curIdx;
 					};
+					const windowMonthKeys = (() => {
+						if (!Number.isFinite(curIdx) || !Number.isFinite(minIdx)) return [curMonthKey];
+						const arr = [];
+						for (let idx = minIdx; idx <= curIdx; idx++) {
+							const mk = indexToMonthKey(idx);
+							if (mk) arr.push(mk);
+						}
+						return arr.length ? arr : [curMonthKey];
+					})();
 
-					const excelRows = allExcelRows.filter((r) => {
+					const inWindowRows = allExcelRows.filter((r) => {
 						const mk = String(r?.monthKey || '').trim();
 						if (!mk) return true; // treat missing date as current month (user-selected month)
 						return isIn3MonthWindow(mk);
 					});
+					const outOfWindowRows = allExcelRows.filter((r) => {
+						const mk = String(r?.monthKey || '').trim();
+						if (!mk) return false;
+						return !isIn3MonthWindow(mk);
+					});
 
-					if (!excelRows.length) {
+					if (!inWindowRows.length) {
 						throw new Error(`File không có dữ liệu trong 3 tháng gần nhất quanh ${curMonthKey}.`);
 					}
 
-					const monthKeySet = new Set();
-					for (const r of excelRows) {
-						const mk = String(r?.monthKey || '').trim();
-						if (mk && isIn3MonthWindow(mk)) monthKeySet.add(mk);
-					}
-					if (!monthKeySet.size) monthKeySet.add(curMonthKey);
-					const monthKeys = Array.from(monthKeySet.values()).sort();
+					const monthKeys = windowMonthKeys;
 
-					const excelGroups = buildExcelGroups(excelRows);
-					setReconProgress(`Đọc được ${excelRows.length} dòng (${excelGroups.length} cụm) trong 3 tháng gần nhất. Đang chuẩn bị đối soát...`);
-
+					// Fetch system orders only for the 3-month window (based on selected month).
 					const sysOrders = await buildSystemOrderRecords(monthKeys);
-					setReconProgress(`Đang đối soát (${excelGroups.length} cụm Excel vs ${sysOrders.length} đơn hệ thống)...`);
 
-					// Match only by: phoneNorm + COD (total collected). No product-name checking.
+					// Build helper keys for matching and for hinting when Excel has a likely row
+					// but its date is outside the 3-month window.
 					const toNum = (v) => {
 						const n = Number(v);
 						return Number.isFinite(n) ? Math.trunc(n) : 0;
@@ -1178,6 +1191,31 @@
 						if (!p || !c) return '';
 						return `${p}|${c}`;
 					};
+					const sysKeySet = new Set(sysOrders.map((o) => makeKey(o?.phoneNorm, o?.cod)).filter(Boolean));
+					const outsideHintsByKey = (() => {
+						const map = new Map();
+						for (const r of outOfWindowRows) {
+							const k = makeKey(r?.phoneNorm, r?.cod);
+							if (!k || !sysKeySet.has(k)) continue;
+							const list = map.get(k) || [];
+							list.push({
+								rowIndex: r?.rowIndex ?? null,
+								dateRaw: r?.dateRaw ?? '',
+								monthKey: r?.monthKey ?? '',
+								dayKey: r?.dayKey ?? '',
+								product: r?.product ?? '',
+							});
+							map.set(k, list);
+						}
+						return map;
+					})();
+					const excelRows = inWindowRows;
+
+					const excelGroups = buildExcelGroups(excelRows);
+					setReconProgress(`Đọc được ${excelRows.length} dòng (${excelGroups.length} cụm) trong 3 tháng gần nhất. Đang chuẩn bị đối soát...`);
+					setReconProgress(`Đang đối soát (${excelGroups.length} cụm Excel vs ${sysOrders.length} đơn hệ thống)...`);
+
+					// Match only by: phoneNorm + COD (total collected). No product-name checking.
 
 					const excelByPhone = new Map();
 					const excelByKey = new Map();
@@ -1199,6 +1237,16 @@
 					const matches = [];
 					const moneyMismatch = [];
 					const systemOnly = [];
+					const formatOutsideHint = (hints) => {
+						const arr = Array.isArray(hints) ? hints.filter(Boolean) : [];
+						if (!arr.length) return '';
+						const top = arr.slice(0, 2).map((h) => {
+							const d = String(h?.dateRaw || h?.dayKey || h?.monthKey || '').trim();
+							const r = h?.rowIndex ? `dòng ${h.rowIndex}` : '';
+							return [d, r].filter(Boolean).join(' · ');
+						}).join(' | ');
+						return `Có dòng Excel ngoài 3 tháng trùng SĐT+COD: ${top}`;
+					};
 
 					for (const o of sysOrders) {
 						const p = String(o.phoneNorm || '').trim();
@@ -1227,7 +1275,8 @@
 
 						const byPhone = excelByPhone.get(p) || [];
 						if (!byPhone.length) {
-							systemOnly.push(o);
+							const hints = outsideHintsByKey.get(key) || [];
+							systemOnly.push(hints.length ? { ...o, excelOutsideHints: hints, excelOutsideHintText: formatOutsideHint(hints) } : o);
 							continue;
 						}
 
@@ -1248,7 +1297,8 @@
 							if (abs < bestAbs) { bestAbs = abs; best = g; }
 						}
 						if (!best) {
-							systemOnly.push(o);
+							const hints = outsideHintsByKey.get(key) || [];
+							systemOnly.push(hints.length ? { ...o, excelOutsideHints: hints, excelOutsideHintText: formatOutsideHint(hints) } : o);
 							continue;
 						}
 
@@ -1642,7 +1692,7 @@
 																			'',
 																			Number(o?.cod || 0),
 																			'',
-																			'',
+																		String(o?.excelOutsideHintText || ''),
 																		]);
 																	}
 																	downloadCSV(`recon_${String(month || '').replace(/[^0-9\-]/g, '')}.csv`, rows);
@@ -1756,6 +1806,9 @@
 																				<td style={{ minWidth: 280 }}>{o.productSummary}</td>
 																				<td className="text-end fw-semibold">{window.KTM.money.formatNumber(o.cod)}</td>
 																				<td className="text-muted">{o.status}</td>
+																				{o?.excelOutsideHintText ? (
+																					<div className="small text-muted mt-1">{o.excelOutsideHintText}</div>
+																				) : null}
 																			</tr>
 																		))}
 																	</tbody>
