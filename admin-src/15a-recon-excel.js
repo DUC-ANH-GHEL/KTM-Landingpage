@@ -41,66 +41,90 @@
 
 			const loadScriptOnce = (src) => new Promise((resolve, reject) => {
 				try {
-					const existing = document.querySelector(`script[data-ktm-xlsx="${src}"]`);
+					if (!src) return resolve();
+					const safeSrc = String(src);
+					const existing = document.querySelector(`script[data-ktm-src="${safeSrc}"]`) || document.querySelector(`script[src="${safeSrc}"]`);
 					if (existing) {
-						if (window?.XLSX?.read) return resolve(true);
-						existing.addEventListener('load', () => resolve(true), { once: true });
-						existing.addEventListener('error', () => reject(new Error('load failed')), { once: true });
+						if (existing.getAttribute('data-ktm-loaded') === '1') return resolve();
+						if (window?.XLSX?.read) return resolve();
+						existing.addEventListener('load', () => resolve(), { once: true });
+						existing.addEventListener('error', () => reject(new Error(`Failed to load ${safeSrc}`)), { once: true });
 						return;
 					}
+
 					const s = document.createElement('script');
-					s.src = src;
+					s.src = safeSrc;
 					s.async = true;
 					s.defer = true;
-					s.setAttribute('data-ktm-xlsx', src);
-					s.onload = () => resolve(true);
-					s.onerror = () => reject(new Error('load failed'));
+					s.setAttribute('data-ktm-src', safeSrc);
+					s.addEventListener('load', () => {
+						s.setAttribute('data-ktm-loaded', '1');
+						resolve();
+					}, { once: true });
+					s.addEventListener('error', () => reject(new Error(`Failed to load ${safeSrc}`)), { once: true });
 					document.head.appendChild(s);
-				} catch (e) {
-					reject(e);
+				} catch (err) {
+					reject(err);
 				}
 			});
 
+			const hasXlsx = () => Boolean(window?.XLSX && typeof window.XLSX.read === 'function');
+
 			const ensureXlsxMain = async () => {
-				if (window?.XLSX?.read) return true;
+				if (hasXlsx()) {
+					setXlsxStatus('ready');
+					return true;
+				}
+
 				if (xlsxLoadPromiseRef.current) return xlsxLoadPromiseRef.current;
+
 				const sources = [
 					'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
 					'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
 					'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
 				];
-				xlsxLoadPromiseRef.current = (async () => {
-					for (const src of sources) {
-						try {
-							await loadScriptOnce(src);
-							if (window?.XLSX?.read) return true;
-						} catch {
-							// try next
-						}
+
+				const waitForXlsx = async (timeoutMs) => {
+					const started = Date.now();
+					while (Date.now() - started < timeoutMs) {
+						if (hasXlsx()) return true;
+						await new Promise((r) => setTimeout(r, 50));
 					}
-					return Boolean(window?.XLSX?.read);
+					return hasXlsx();
+				};
+
+				setXlsxStatus('loading');
+
+				xlsxLoadPromiseRef.current = (async () => {
+					try {
+						for (const src of sources) {
+							try {
+								await loadScriptOnce(src);
+								const ok = await waitForXlsx(1500);
+								if (ok) {
+									setXlsxStatus('ready');
+									return true;
+								}
+							} catch {
+								// try next
+							}
+						}
+						setXlsxStatus('failed');
+						return false;
+					} finally {
+						xlsxLoadPromiseRef.current = null;
+					}
 				})();
+
 				return xlsxLoadPromiseRef.current;
 			};
 
 			useEffect(() => {
-				let cancelled = false;
-				(async () => {
-					try {
-						if (window?.XLSX?.read) {
-							if (!cancelled) setXlsxStatus('ready');
-							return;
-						}
-						if (!cancelled) setXlsxStatus('loading');
-						const ok = await ensureXlsxMain();
-						if (!cancelled) setXlsxStatus(ok ? 'ready' : 'failed');
-					} catch {
-						if (!cancelled) setXlsxStatus('failed');
-					}
-				})();
-				return () => {
-					cancelled = true;
-				};
+				if (hasXlsx()) {
+					setXlsxStatus('ready');
+					return;
+				}
+				ensureXlsxMain();
 			}, []);
 
 			const normalizeWhitespace = (s) => {
@@ -471,7 +495,7 @@
 
 						const productCol = findCol(want.product);
 						const codCol = findCol(want.cod);
-						if (productCol >= 0 && codCol >= 0) {
+						if (codCol >= 0) {
 							const dateCol = findCol(want.date);
 							const phoneCol = findCol(want.phone);
 							const qtyCol = findCol(want.qty);
@@ -482,7 +506,7 @@
 				};
 
 				const hdr = findHeaderRow();
-				if (!hdr) throw new Error('Không tìm thấy header cột "Tên sản phẩm" và "Tổng tiền thu hộ"');
+				if (!hdr) throw new Error('Không tìm thấy header cột "Tổng tiền thu hộ"');
 
 				const out = [];
 				const monthKeys = new Set();
@@ -499,7 +523,7 @@
 
 				for (let r = hdr.headerRow + 1; r < rows.length; r++) {
 					const row = Array.isArray(rows[r]) ? rows[r] : [];
-					const productRaw0 = String(row[hdr.productCol] ?? '').trim();
+					const productRaw0 = hdr.productCol >= 0 ? String(row[hdr.productCol] ?? '').trim() : '';
 					const stripped = stripLeadingQtyFromText(productRaw0);
 					const productRaw = stripped.text;
 					const codRaw = parseExcelMoney(row[hdr.codCol]);
@@ -536,11 +560,10 @@
 						const p2 = extractPhoneFromText(rowJoined);
 						if (p2.phoneNorm) phoneParsed = { ...phoneParsed, phone: p2.phone, phoneNorm: p2.phoneNorm };
 					}
-					const product = phoneParsed.cleanedText || productRaw;
+					const product = phoneParsed.cleanedText || productRaw || '';
 
 					const productN = normalizeLoose(product);
-					if (!productN) continue;
-					if (productN.includes('tong tien') || productN.includes('tong') || productN.includes('thanh toan') || productN.includes('thanh toán')) {
+					if (productN && (productN.includes('tong tien') || productN.includes('tong') || productN.includes('thanh toan') || productN.includes('thanh toán'))) {
 						continue;
 					}
 
@@ -1107,11 +1130,44 @@
 					await ensureProductsLoaded();
 
 					const parsed = await parseExcelFileRows(file);
-					const excelRows = parsed.rows;
-					const monthKeys = parsed.monthKeys.length ? parsed.monthKeys : [month];
+					const allExcelRows = Array.isArray(parsed.rows) ? parsed.rows : [];
+					const curMonthKey = String(month || '').trim() || getCurrentMonth();
+					const monthKeyToIndex = (mk) => {
+						const m = String(mk || '').match(/^(\d{4})-(\d{2})$/);
+						if (!m) return NaN;
+						const y = Number(m[1]);
+						const mo = Number(m[2]);
+						if (!Number.isFinite(y) || !Number.isFinite(mo) || mo < 1 || mo > 12) return NaN;
+						return (y * 12) + (mo - 1);
+					};
+					const curIdx = monthKeyToIndex(curMonthKey);
+					const minIdx = Number.isFinite(curIdx) ? (curIdx - 2) : NaN;
+					const isIn3MonthWindow = (mk) => {
+						const idx = monthKeyToIndex(mk);
+						if (!Number.isFinite(idx) || !Number.isFinite(curIdx) || !Number.isFinite(minIdx)) return false;
+						return idx >= minIdx && idx <= curIdx;
+					};
+
+					const excelRows = allExcelRows.filter((r) => {
+						const mk = String(r?.monthKey || '').trim();
+						if (!mk) return true; // treat missing date as current month (user-selected month)
+						return isIn3MonthWindow(mk);
+					});
+
+					if (!excelRows.length) {
+						throw new Error(`File không có dữ liệu trong 3 tháng gần nhất quanh ${curMonthKey}.`);
+					}
+
+					const monthKeySet = new Set();
+					for (const r of excelRows) {
+						const mk = String(r?.monthKey || '').trim();
+						if (mk && isIn3MonthWindow(mk)) monthKeySet.add(mk);
+					}
+					if (!monthKeySet.size) monthKeySet.add(curMonthKey);
+					const monthKeys = Array.from(monthKeySet.values()).sort();
 
 					const excelGroups = buildExcelGroups(excelRows);
-					setReconProgress(`Đọc được ${excelRows.length} dòng (${excelGroups.length} cụm). Đang chuẩn bị đối soát...`);
+					setReconProgress(`Đọc được ${excelRows.length} dòng (${excelGroups.length} cụm) trong 3 tháng gần nhất. Đang chuẩn bị đối soát...`);
 
 					const sysOrders = await buildSystemOrderRecords(monthKeys);
 					setReconProgress(`Đang đối soát (${excelGroups.length} cụm Excel vs ${sysOrders.length} đơn hệ thống)...`);
@@ -1119,23 +1175,7 @@
 					const usedOrderIds = new Set();
 					const matches = [];
 					const excelOnly = []; // { group, suggestions }
-					const moneyMismatch = []; // { group, order, score, diff, reason, itemDiff? }
-					const productMismatch = []; // { group, order, score, diff(=0), reason, itemDiff }
-					const needsReview = []; // { group, order, score, diff, reason, suggestions? }
-
-					const pushMismatch = (x) => {
-						const diff = Number(x?.diff || 0);
-						const dItems = x?.itemDiff;
-						if (diff === 0 && dItems && dItems.hasDiff) {
-							productMismatch.push(x);
-							return;
-						}
-						if (diff === 0) {
-							needsReview.push(x);
-							return;
-						}
-						moneyMismatch.push(x);
-					};
+					const moneyMismatch = []; // { group, order, score, diff, reason, suggestions? }
 
 					const codTolerance = reconEnableCodTolerance ? Math.max(0, Number(reconCodTolerance || 0) || 0) : 0;
 
@@ -1185,15 +1225,8 @@
 							}
 							if (exactPool2.length === 1) {
 								const only = exactPool2[0];
-								const dItems = diffItems(g, only);
-								if (dItems.hasDiff) {
-									usedOrderIds.add(only.id);
-									const diff = Number(g.cod || 0) - Number(only.cod || 0);
-									pushMismatch({ group: g, order: only, score: 1, diff, reason: ['SĐT trùng', 'COD trùng', ...(g.dayKey ? ['Cùng ngày'] : []), itemDiffToReason(dItems)].filter(Boolean).join(' · '), itemDiff: dItems });
-								} else {
-									usedOrderIds.add(only.id);
-									matches.push({ group: g, order: only, score: 1, reasons: ['SĐT trùng', 'COD trùng', ...(g.dayKey ? ['Cùng ngày'] : [])] });
-								}
+								usedOrderIds.add(only.id);
+								matches.push({ group: g, order: only, score: 1, reasons: ['SĐT trùng', 'COD trùng', ...(g.dayKey ? ['Cùng ngày'] : [])] });
 								continue;
 							}
 						}
@@ -1216,34 +1249,32 @@
 
 						const threshold = phoneKey ? 0.70 : 0.80;
 						if (best && best.score >= threshold && best.codExact) {
-							const dItems = diffItems(g, best.order);
-							if (dItems.hasDiff) {
-								usedOrderIds.add(best.order.id);
-								const diff = Number(g.cod || 0) - Number(best.order.cod || 0);
-								pushMismatch({ group: g, order: best.order, score: best.score, diff, reason: [...best.reasons, itemDiffToReason(dItems)].filter(Boolean).join(' · '), itemDiff: dItems });
-							} else {
-								usedOrderIds.add(best.order.id);
-								matches.push({ group: g, order: best.order, score: best.score, reasons: best.reasons });
-							}
+							usedOrderIds.add(best.order.id);
+							matches.push({ group: g, order: best.order, score: best.score, reasons: best.reasons });
 						} else if (best && phoneKey) {
 							// If same phone exists in system, always surface as mismatch instead of treating as missing.
 							usedOrderIds.add(best.order.id);
 							const diff = Number(g.cod || 0) - Number(best.order.cod || 0);
-							const dItems = diffItems(g, best.order);
-							const extraReason = itemDiffToReason(dItems);
-							pushMismatch({
-								group: g,
-								order: best.order,
-								score: best.score,
-								diff,
-								reason: [...(best.reasons || []), extraReason, best.score < threshold ? 'Cần kiểm tra thủ công (khớp chưa chắc chắn)' : ''].filter(Boolean).join(' · '),
-								suggestions,
-								itemDiff: dItems,
-							});
+							if (diff === 0) {
+								matches.push({ group: g, order: best.order, score: best.score, reasons: (best.reasons || []).slice() });
+							} else {
+								moneyMismatch.push({
+									group: g,
+									order: best.order,
+									score: best.score,
+									diff,
+									reason: [...(best.reasons || [])].filter(Boolean).join(' · '),
+									suggestions,
+								});
+							}
 						} else if (best && (best.codWithin || (codTolerance > 0 && Number.isFinite(best.codDiff) && best.codDiff <= codTolerance)) && best.nameSim >= 0.55) {
 							usedOrderIds.add(best.order.id);
 							const diff = Number(g.cod || 0) - Number(best.order.cod || 0);
-							pushMismatch({ group: g, order: best.order, score: best.score, diff, reason: best.reasons.join(' · '), suggestions });
+							if (diff === 0) {
+								matches.push({ group: g, order: best.order, score: best.score, reasons: best.reasons });
+							} else {
+								moneyMismatch.push({ group: g, order: best.order, score: best.score, diff, reason: best.reasons.join(' · '), suggestions });
+							}
 						} else {
 							excelOnly.push({ group: g, suggestions });
 						}
@@ -1252,7 +1283,7 @@
 					const stillExcelOnly = excelOnly;
 					const systemOnly = sysOrders.filter((o) => !usedOrderIds.has(o.id));
 
-					const ok = stillExcelOnly.length === 0 && systemOnly.length === 0 && moneyMismatch.length === 0 && productMismatch.length === 0 && needsReview.length === 0;
+					const ok = stillExcelOnly.length === 0 && systemOnly.length === 0 && moneyMismatch.length === 0;
 
 					setReconResult({
 						ok,
@@ -1264,8 +1295,6 @@
 						excelOnly: stillExcelOnly,
 						systemOnly,
 						moneyMismatch,
-						productMismatch,
-						needsReview,
 					});
 					setReconSelectedMatchIds(new Set());
 					setReconProgress(ok ? 'OK ✅' : 'Đã đối soát xong');
@@ -1368,8 +1397,6 @@
 							matches: Array.isArray(prev.matches) ? prev.matches.map((m) => ({ ...m, order: patchOrder(m?.order) })) : prev.matches,
 							systemOnly: Array.isArray(prev.systemOnly) ? prev.systemOnly.map(patchOrder) : prev.systemOnly,
 							moneyMismatch: Array.isArray(prev.moneyMismatch) ? prev.moneyMismatch.map((x) => ({ ...x, order: patchOrder(x?.order) })) : prev.moneyMismatch,
-							productMismatch: Array.isArray(prev.productMismatch) ? prev.productMismatch.map((x) => ({ ...x, order: patchOrder(x?.order) })) : prev.productMismatch,
-							needsReview: Array.isArray(prev.needsReview) ? prev.needsReview.map((x) => ({ ...x, order: patchOrder(x?.order) })) : prev.needsReview,
 						};
 					});
 					setReconSelectedMatchIds(new Set());
@@ -1414,7 +1441,7 @@
 									Đối soát công nợ (Excel)
 								</div>
 								<div className="d-flex flex-wrap gap-2 align-items-center">
-									<span className="text-muted small">Check: <span className="fw-semibold">Tên sản phẩm</span> + <span className="fw-semibold">Tổng tiền thu hộ</span></span>
+													<span className="text-muted small">Đối soát theo: <span className="fw-semibold">SĐT</span> + <span className="fw-semibold">Tổng tiền thu hộ</span></span>
 								</div>
 							</div>
 
@@ -1445,7 +1472,7 @@
 										}}
 									/>
 									<div className="form-text">
-										{reconFileName ? `File: ${reconFileName}` : 'Header cần có: "Tên sản phẩm" và "Tổng Tiền Thu Hộ". Có cột "Ngày" thì sẽ tự tải đúng tháng trong file.'}
+													{reconFileName ? `File: ${reconFileName}` : 'Header cần có: "Tổng Tiền Thu Hộ". "Tên sản phẩm" (nếu có) sẽ giúp gợi ý khớp tốt hơn. Có cột "Ngày" thì sẽ tự tải đúng tháng trong file.'}
 									</div>
 								</div>
 
@@ -1592,16 +1619,6 @@
 																	className={`btn ${reconView === 'moneyMismatch' ? 'btn-danger' : 'btn-outline-danger'}`}
 																	onClick={() => setReconView('moneyMismatch')}
 														>Sai lệch tiền</button>
-																<button
-																	type="button"
-																	className={`btn ${reconView === 'productMismatch' ? 'btn-warning' : 'btn-outline-warning'}`}
-																	onClick={() => setReconView('productMismatch')}
-																>Sai lệch SP</button>
-																<button
-																	type="button"
-																	className={`btn ${reconView === 'needsReview' ? 'btn-secondary' : 'btn-outline-secondary'}`}
-																	onClick={() => setReconView('needsReview')}
-																>Cần kiểm tra</button>
 													</div>
 
 													<div className="d-flex flex-wrap gap-2 align-items-center">
@@ -1625,34 +1642,6 @@
 																		if (pf && String(x?.group?.phoneNorm || '').indexOf(pf) < 0) continue;
 																		rows.push([
 																			'moneyMismatch',
-																			x?.order?.id || '',
-																			String(x?.group?.dateRaw || ''),
-																			x?.group?.phone || '',
-																			x?.group?.productDisplay || '',
-																			Number(x?.group?.cod || 0),
-																			Number(x?.order?.cod || 0),
-																			Number(x?.diff || 0),
-																			String(x?.reason || ''),
-																		]);
-																	}
-																	for (const x of (Array.isArray(reconResult.productMismatch) ? reconResult.productMismatch : [])) {
-																		if (pf && String(x?.group?.phoneNorm || '').indexOf(pf) < 0) continue;
-																		rows.push([
-																			'productMismatch',
-																			x?.order?.id || '',
-																			String(x?.group?.dateRaw || ''),
-																			x?.group?.phone || '',
-																			x?.group?.productDisplay || '',
-																			Number(x?.group?.cod || 0),
-																			Number(x?.order?.cod || 0),
-																			Number(x?.diff || 0),
-																			String(x?.reason || ''),
-																		]);
-																	}
-																	for (const x of (Array.isArray(reconResult.needsReview) ? reconResult.needsReview : [])) {
-																		if (pf && String(x?.group?.phoneNorm || '').indexOf(pf) < 0) continue;
-																		rows.push([
-																			'needsReview',
 																			x?.order?.id || '',
 																			String(x?.group?.dateRaw || ''),
 																			x?.group?.phone || '',
@@ -1763,125 +1752,6 @@
 																			</div>
 																		)}
 
-																			{Array.isArray(reconResult.productMismatch) && reconResult.productMismatch.length > 0 && (
-																				<div className="card border-0 shadow-sm mb-2" style={{ display: (reconView === 'all' || reconView === 'productMismatch') ? 'block' : 'none' }}>
-																					<div className="card-body">
-																						<div className="fw-semibold mb-2 text-warning">Sai lệch/thiếu sản phẩm (tiền khớp)</div>
-																						<div className="table-responsive">
-																							<table className="table table-sm align-middle mb-0">
-																								<thead>
-																									<tr>
-																										<th>Excel (dòng)</th>
-																										<th>SĐT</th>
-																										<th>Tên sản phẩm (Excel)</th>
-																										<th className="text-end">Thu hộ (Excel)</th>
-																										<th>Order ID</th>
-																										<th>Tên SP (Hệ thống)</th>
-																										<th className="text-end">Thu hộ (Hệ thống)</th>
-																										<th>Lý do</th>
-																									</tr>
-																								</thead>
-																								<tbody>
-																									{reconResult.productMismatch
-																											.filter((x) => {
-																												const pf = normalizePhoneDigits(reconPhoneFilter);
-																												if (!pf) return true;
-																												return String(x?.group?.phoneNorm || '').includes(pf);
-																											})
-																											.slice(0, 30)
-																											.map((x) => (
-																												<tr key={`pm-${String(x?.group?.key || x?.order?.id || Math.random())}`} className="table-warning">
-																													<td>
-																														{x?.group?.rowIndexFirst || '—'}
-																														{Number(x?.group?.rowCount || 0) > 1 ? ` (+${Number(x.group.rowCount) - 1})` : ''}
-																													</td>
-																													<td className="text-muted">{x?.group?.phone || '—'}</td>
-																													<td style={{ minWidth: 260 }}>{x?.group?.productDisplay || '—'}</td>
-																													<td className="text-end fw-semibold">{window.KTM.money.formatNumber(Number(x?.group?.cod || 0))}</td>
-																													<td>
-																														<button
-																															type="button"
-																																className="btn btn-link btn-sm p-0 text-decoration-none"
-																																onClick={() => {
-																																	setReconDrawerOrder(x?.order || null);
-																																	setReconDrawerOpen(true);
-																																}}
-																														>{x?.order?.id}</button>
-																													</td>
-																													<td style={{ minWidth: 240 }}>{x?.order?.productSummary}</td>
-																													<td className="text-end fw-semibold">{window.KTM.money.formatNumber(x?.order?.cod)}</td>
-																													<td className="text-muted" style={{ minWidth: 240 }}>{x?.reason || ''}</td>
-																													</tr>
-																												))}
-																									</tbody>
-																							</table>
-																						</div>
-																						{reconResult.productMismatch.length > 30 && (
-																							<div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.productMismatch.length} dòng.</div>
-																						)}
-																					</div>
-																				</div>
-																			)}
-
-																			{Array.isArray(reconResult.needsReview) && reconResult.needsReview.length > 0 && (
-																				<div className="card border-0 shadow-sm mb-2" style={{ display: (reconView === 'all' || reconView === 'needsReview') ? 'block' : 'none' }}>
-																					<div className="card-body">
-																						<div className="fw-semibold mb-2 text-secondary">Cần kiểm tra thủ công (tiền khớp)</div>
-																						<div className="table-responsive">
-																							<table className="table table-sm align-middle mb-0">
-																								<thead>
-																									<tr>
-																										<th>Excel (dòng)</th>
-																										<th>SĐT</th>
-																										<th>Tên sản phẩm (Excel)</th>
-																										<th className="text-end">Thu hộ (Excel)</th>
-																										<th>Order ID</th>
-																										<th>Tên SP (Hệ thống)</th>
-																										<th className="text-end">Thu hộ (Hệ thống)</th>
-																										<th>Lý do</th>
-																									</tr>
-																								</thead>
-																								<tbody>
-																									{reconResult.needsReview
-																											.filter((x) => {
-																												const pf = normalizePhoneDigits(reconPhoneFilter);
-																												if (!pf) return true;
-																												return String(x?.group?.phoneNorm || '').includes(pf);
-																											})
-																											.slice(0, 30)
-																											.map((x) => (
-																												<tr key={`rv-${String(x?.group?.key || x?.order?.id || Math.random())}`} className="table-light">
-																													<td>
-																														{x?.group?.rowIndexFirst || '—'}
-																														{Number(x?.group?.rowCount || 0) > 1 ? ` (+${Number(x.group.rowCount) - 1})` : ''}
-																													</td>
-																													<td className="text-muted">{x?.group?.phone || '—'}</td>
-																													<td style={{ minWidth: 260 }}>{x?.group?.productDisplay || '—'}</td>
-																													<td className="text-end fw-semibold">{window.KTM.money.formatNumber(Number(x?.group?.cod || 0))}</td>
-																													<td>
-																														<button
-																															type="button"
-																																className="btn btn-link btn-sm p-0 text-decoration-none"
-																																onClick={() => {
-																																	setReconDrawerOrder(x?.order || null);
-																																	setReconDrawerOpen(true);
-																																}}
-																														>{x?.order?.id}</button>
-																													</td>
-																													<td style={{ minWidth: 240 }}>{x?.order?.productSummary}</td>
-																													<td className="text-end fw-semibold">{window.KTM.money.formatNumber(x?.order?.cod)}</td>
-																													<td className="text-muted" style={{ minWidth: 240 }}>{x?.reason || ''}</td>
-																													</tr>
-																												))}
-																									</tbody>
-																							</table>
-																						</div>
-																						{reconResult.needsReview.length > 30 && (
-																							<div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.needsReview.length} dòng.</div>
-																						)}
-																					</div>
-																				</div>
-																			)}
 
 												{Array.isArray(reconResult.systemOnly) && reconResult.systemOnly.length > 0 && (
 													<div className="card border-0 shadow-sm mb-2" style={{ display: (reconView === 'all' || reconView === 'systemOnly') ? 'block' : 'none' }}>
