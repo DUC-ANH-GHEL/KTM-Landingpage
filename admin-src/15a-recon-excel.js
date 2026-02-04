@@ -1205,6 +1205,15 @@
 						if (!p || !c) return '';
 						return `${p}|${c}`;
 					};
+					const sysCountByKey = (() => {
+						const map = new Map();
+						for (const o of (Array.isArray(sysOrders) ? sysOrders : [])) {
+							const k = makeKey(o?.phoneNorm, o?.cod);
+							if (!k) continue;
+							map.set(k, (map.get(k) || 0) + 1);
+						}
+						return map;
+					})();
 					const sysKeySet = new Set(sysOrders.map((o) => makeKey(o?.phoneNorm, o?.cod)).filter(Boolean));
 					const outsideHintsByKey = (() => {
 						const map = new Map();
@@ -1298,6 +1307,7 @@
 
 					const excelByPhone = new Map();
 					const excelByKey = new Map();
+					const excelByKeyDay = new Map();
 					for (const g of excelGroups) {
 						const p = String(g.phoneNorm || '').trim();
 						if (!p) continue;
@@ -1309,6 +1319,13 @@
 							const list = excelByKey.get(k) || [];
 							list.push(g);
 							excelByKey.set(k, list);
+							const dk = String(g?.dayKey || '').trim();
+							if (dk) {
+								const kd = `${k}|${dk}`;
+								const l2 = excelByKeyDay.get(kd) || [];
+								l2.push(g);
+								excelByKeyDay.set(kd, l2);
+							}
 						}
 					}
 
@@ -1363,24 +1380,53 @@
 						}
 
 						const key = makeKey(p, c);
+						const day = String(o.dayKey || '').trim();
 						let exactList = key ? (excelByKey.get(key) || []) : [];
-						if (exactList.length) {
-							const day = String(o.dayKey || '').trim();
-							const available = exactList.filter((g) => !usedExcelGroupKeys.has(String(g?.key)));
-							let pick = null;
-							if (available.length) {
-								const canUseMerged = (g) => {
-									if (!g?.isMerged) return true;
-									const gd = String(g?.dayKey || '').trim();
-									if (!day || !gd || gd !== day) return false;
-									return (sysCountByPhoneDay.get(`${p}|${day}`) || 0) === 1;
-								};
-								if (day) {
-									pick = available.find((g) => !g?.isMerged && String(g.dayKey || '').trim() === day) || null;
-									if (!pick) pick = available.find((g) => String(g.dayKey || '').trim() === day && canUseMerged(g)) || null;
-								}
-								if (!pick) pick = available.find((g) => canUseMerged(g)) || null;
+						let exactDayList = [];
+						if (key && day) {
+							exactDayList = excelByKeyDay.get(`${key}|${day}`) || [];
+						}
+						if (day && exactList.length) {
+							// If both sides have a dayKey, avoid consuming an Excel group from a different day
+							// (prevents a different system order with same COD stealing the correct Excel group).
+							const keyHasMultipleSystemOrders = (sysCountByKey.get(key) || 0) > 1;
+							exactList = exactList.filter((g) => {
+								const gd = String(g?.dayKey || '').trim();
+								if (!gd) return !keyHasMultipleSystemOrders; // ambiguous when multiple system orders share same SĐT+COD
+								return gd === day;
+							});
+						}
+
+						const canUseMergedForOrder = (g) => {
+							if (!g?.isMerged) return true;
+							const gd = String(g?.dayKey || '').trim();
+							if (!day || !gd || gd !== day) return false;
+							return (sysCountByPhoneDay.get(`${p}|${day}`) || 0) === 1;
+						};
+
+						const pickFromExactList = (list) => {
+							const available = (Array.isArray(list) ? list : []).filter((g) => !usedExcelGroupKeys.has(String(g?.key)));
+							if (!available.length) return null;
+							// Prefer non-merged first, then merged (if allowed)
+							let pick = available.find((g) => !g?.isMerged) || null;
+							if (!pick) pick = available.find((g) => canUseMergedForOrder(g)) || null;
+							if (pick && pick?.isMerged && !canUseMergedForOrder(pick)) return null;
+							return pick;
+						};
+
+						// 1) Exact match by phone+COD+dayKey
+						if (exactDayList.length) {
+							const pick = pickFromExactList(exactDayList);
+							if (pick) {
+								markUsedGroupAndOverlaps(pick);
+								matches.push({ group: pick, order: o, score: 1, reasons: ['SĐT trùng', 'COD trùng', 'Cùng ngày'] });
+								continue;
 							}
+						}
+
+						// 2) Exact match by phone+COD (but not cross-day when both sides know the day)
+						if (exactList.length) {
+							const pick = pickFromExactList(exactList);
 							if (pick) {
 								markUsedGroupAndOverlaps(pick);
 								matches.push({ group: pick, order: o, score: 1, reasons: ['SĐT trùng', 'COD trùng', ...(pick.dayKey && day && pick.dayKey === day ? ['Cùng ngày'] : [])] });
@@ -1396,12 +1442,15 @@
 						}
 
 						// Same phone exists in Excel but COD differs => money mismatch.
-						const day = String(o.dayKey || '').trim();
 						let pool = byPhone.filter((g) => !usedExcelGroupKeys.has(String(g?.key)));
-						if (!pool.length) pool = byPhone;
 						if (day) {
 							const sameDay = pool.filter((g) => String(g.dayKey || '').trim() === day);
 							if (sameDay.length) pool = sameDay;
+						}
+						if (!pool.length) {
+							const hints = outsideHintsByKey.get(key) || [];
+							systemOnly.push(hints.length ? { ...o, excelOutsideHints: hints, excelOutsideHintText: formatOutsideHint(hints) } : o);
+							continue;
 						}
 						let best = null;
 						let bestAbs = Number.POSITIVE_INFINITY;
@@ -1417,11 +1466,25 @@
 							continue;
 						}
 
+						const diff = toNum(best.cod) - c;
+						const absDiff = Math.abs(diff);
+						const tol = reconEnableCodTolerance ? Math.max(0, toNum(reconCodTolerance)) : 0;
+						if (absDiff === 0 || (tol > 0 && absDiff <= tol)) {
+							markUsedGroupAndOverlaps(best);
+							matches.push({
+								group: best,
+								order: o,
+								score: 1,
+								reasons: ['SĐT trùng', 'COD trùng', ...(tol > 0 && absDiff > 0 ? [`Trong ngưỡng ±${tol}`] : []), ...(day && String(best.dayKey || '').trim() === day ? ['Cùng ngày'] : [])],
+							});
+							continue;
+						}
+
 						moneyMismatch.push({
 							group: best,
 							order: o,
 							score: 0,
-							diff: toNum(best.cod) - c,
+							diff,
 							reason: day && String(best.dayKey || '').trim() === day ? 'SĐT trùng · Cùng ngày' : 'SĐT trùng',
 							suggestions: pool.slice(0, 3).map((g) => ({
 								key: g.key,
