@@ -967,19 +967,16 @@
 					return dd > 0 && dd <= 1.01;
 				})();
 
-				const nameSim = similarityScore(String(group?.productNorm || ''), String(order?.productNorm || ''));
-
+				// NOTE: Product-name similarity must NOT be used for matching.
 				const hasPhone = Boolean(phoneKey);
 				const weights = hasPhone
-					? { phone: 0.50, cod: 0.30, day: 0.08, name: 0.12 }
-					: { phone: 0, cod: 0.45, day: 0.10, name: 0.45 };
+					? { phone: 0.65, cod: 0.27, day: 0.08 }
+					: { phone: 0, cod: 0.85, day: 0.15 };
 
 				const phoneScore = phoneMatch ? weights.phone : 0;
 				const codScore = codExact ? weights.cod : (codWithin ? weights.cod * (1 - (bestDiff / Math.max(1, tol))) : 0);
 				const dayScore = dayExact ? weights.day : (dayNear ? weights.day * 0.6 : 0);
-				const nameScore = Math.max(0, Math.min(1, nameSim)) * weights.name;
-
-				const score = phoneScore + codScore + dayScore + nameScore;
+				const score = phoneScore + codScore + dayScore;
 				const reasons = [];
 				if (phoneMatch) reasons.push('SĐT trùng');
 				if (codExact) reasons.push('COD trùng');
@@ -987,9 +984,7 @@
 				else if (bestCand > 0 && Number.isFinite(bestDiff) && bestDiff !== Infinity) reasons.push(`COD lệch ${window.KTM.money.formatNumber(bestDiff)}`);
 				if (dayExact) reasons.push('Cùng ngày');
 				else if (dayNear) reasons.push('Ngày gần đúng (±1)');
-				if (nameSim >= 0.8) reasons.push(`Tên tương đương ${Math.round(nameSim * 100)}%`);
-				else if (nameSim >= 0.6) reasons.push(`Tên tương đương ${Math.round(nameSim * 100)}%`);
-				return { score, reasons, nameSim, phoneMatch, codExact, codWithin, codDiff: bestDiff, bestCand };
+				return { score, reasons, nameSim: null, phoneMatch, codExact, codWithin, codDiff: bestDiff, bestCand };
 			};
 
 			const normalizeItemCoreForCompare = (value) => {
@@ -1172,118 +1167,108 @@
 					const sysOrders = await buildSystemOrderRecords(monthKeys);
 					setReconProgress(`Đang đối soát (${excelGroups.length} cụm Excel vs ${sysOrders.length} đơn hệ thống)...`);
 
-					const usedOrderIds = new Set();
+					// Match only by: phoneNorm + COD (total collected). No product-name checking.
+					const toNum = (v) => {
+						const n = Number(v);
+						return Number.isFinite(n) ? Math.trunc(n) : 0;
+					};
+					const makeKey = (phoneNorm, cod) => {
+						const p = String(phoneNorm || '').trim();
+						const c = toNum(cod);
+						if (!p || !c) return '';
+						return `${p}|${c}`;
+					};
+
+					const excelByPhone = new Map();
+					const excelByKey = new Map();
+					for (const g of excelGroups) {
+						const p = String(g.phoneNorm || '').trim();
+						if (!p) continue;
+						const arr = excelByPhone.get(p) || [];
+						arr.push(g);
+						excelByPhone.set(p, arr);
+						const k = makeKey(p, g.cod);
+						if (k) {
+							const list = excelByKey.get(k) || [];
+							list.push(g);
+							excelByKey.set(k, list);
+						}
+					}
+
+					const usedExcelGroupKeys = new Set();
 					const matches = [];
-					const excelOnly = []; // { group, suggestions }
-					const moneyMismatch = []; // { group, order, score, diff, reason, suggestions? }
+					const moneyMismatch = [];
+					const systemOnly = [];
 
-					const codTolerance = reconEnableCodTolerance ? Math.max(0, Number(reconCodTolerance || 0) || 0) : 0;
-
-					const systemByPhone = new Map();
 					for (const o of sysOrders) {
 						const p = String(o.phoneNorm || '').trim();
-						if (!p) continue;
-						const arr = systemByPhone.get(p) || [];
-						arr.push(o);
-						systemByPhone.set(p, arr);
-					}
-
-					const moneyMap = new Map();
-					for (const o of sysOrders) {
-						const key = String(o.cod);
-						const arr = moneyMap.get(key) || [];
-						arr.push(o);
-						moneyMap.set(key, arr);
-					}
-
-					for (const g of excelGroups) {
-						const phoneKey = String(g.phoneNorm || '').trim();
-						let candidates = [];
-						if (phoneKey) {
-							candidates = (systemByPhone.get(phoneKey) || []).filter((o) => !usedOrderIds.has(o.id));
-						} else {
-							candidates = (moneyMap.get(String(g.cod)) || []).filter((o) => !usedOrderIds.has(o.id));
-						}
-
-						if (g.dayKey && candidates.length) {
-							const sameDay = candidates.filter((o) => String(o.dayKey || '') === String(g.dayKey || ''));
-							if (sameDay.length) candidates = sameDay;
-						}
-
-						if (!candidates.length) {
-							excelOnly.push({ group: g, suggestions: [] });
+						const c = toNum(o.cod);
+						if (!p || !c) {
+							systemOnly.push(o);
 							continue;
 						}
 
-						if (phoneKey) {
-							const codCands = Array.isArray(g.codCandidates) && g.codCandidates.length ? g.codCandidates : [Number(g.cod || 0) || 0];
-							const exactPool = candidates.filter((o) => codCands.some((c) => Number(c || 0) === Number(o.cod || 0)));
-							let exactPool2 = exactPool;
-							if (g.dayKey && exactPool2.length) {
-								const sameDay2 = exactPool2.filter((o) => String(o.dayKey || '') === String(g.dayKey || ''));
-								if (sameDay2.length) exactPool2 = sameDay2;
+						const key = makeKey(p, c);
+						let exactList = key ? (excelByKey.get(key) || []) : [];
+						if (exactList.length) {
+							const day = String(o.dayKey || '').trim();
+							const available = exactList.filter((g) => !usedExcelGroupKeys.has(String(g?.key)));
+							let pick = null;
+							if (available.length) {
+								if (day) pick = available.find((g) => String(g.dayKey || '').trim() === day) || null;
+								if (!pick) pick = available[0] || null;
 							}
-							if (exactPool2.length === 1) {
-								const only = exactPool2[0];
-								usedOrderIds.add(only.id);
-								matches.push({ group: g, order: only, score: 1, reasons: ['SĐT trùng', 'COD trùng', ...(g.dayKey ? ['Cùng ngày'] : [])] });
+							if (pick) {
+								usedExcelGroupKeys.add(String(pick.key));
+								matches.push({ group: pick, order: o, score: 1, reasons: ['SĐT trùng', 'COD trùng', ...(pick.dayKey && day && pick.dayKey === day ? ['Cùng ngày'] : [])] });
 								continue;
 							}
 						}
 
-						const scored = candidates
-							.map((o) => {
-								const s = scoreCandidate(g, o, { codTolerance });
-								return { order: o, ...s };
-							})
-							.sort((a, b) => b.score - a.score);
-
-						const best = scored[0];
-						const suggestions = scored.slice(0, 3).map((x) => ({
-							id: x.order.id,
-							cod: x.order.cod,
-							productSummary: x.order.productSummary,
-							score: x.score,
-							reasons: x.reasons,
-						}));
-
-						const threshold = phoneKey ? 0.70 : 0.80;
-						if (best && best.score >= threshold && best.codExact) {
-							usedOrderIds.add(best.order.id);
-							matches.push({ group: g, order: best.order, score: best.score, reasons: best.reasons });
-						} else if (best && phoneKey) {
-							// If same phone exists in system, always surface as mismatch instead of treating as missing.
-							usedOrderIds.add(best.order.id);
-							const diff = Number(g.cod || 0) - Number(best.order.cod || 0);
-							if (diff === 0) {
-								matches.push({ group: g, order: best.order, score: best.score, reasons: (best.reasons || []).slice() });
-							} else {
-								moneyMismatch.push({
-									group: g,
-									order: best.order,
-									score: best.score,
-									diff,
-									reason: [...(best.reasons || [])].filter(Boolean).join(' · '),
-									suggestions,
-								});
-							}
-						} else if (best && (best.codWithin || (codTolerance > 0 && Number.isFinite(best.codDiff) && best.codDiff <= codTolerance)) && best.nameSim >= 0.55) {
-							usedOrderIds.add(best.order.id);
-							const diff = Number(g.cod || 0) - Number(best.order.cod || 0);
-							if (diff === 0) {
-								matches.push({ group: g, order: best.order, score: best.score, reasons: best.reasons });
-							} else {
-								moneyMismatch.push({ group: g, order: best.order, score: best.score, diff, reason: best.reasons.join(' · '), suggestions });
-							}
-						} else {
-							excelOnly.push({ group: g, suggestions });
+						const byPhone = excelByPhone.get(p) || [];
+						if (!byPhone.length) {
+							systemOnly.push(o);
+							continue;
 						}
+
+						// Same phone exists in Excel but COD differs => money mismatch.
+						const day = String(o.dayKey || '').trim();
+						let pool = byPhone.filter((g) => !usedExcelGroupKeys.has(String(g?.key)));
+						if (!pool.length) pool = byPhone;
+						if (day) {
+							const sameDay = pool.filter((g) => String(g.dayKey || '').trim() === day);
+							if (sameDay.length) pool = sameDay;
+						}
+						let best = null;
+						let bestAbs = Number.POSITIVE_INFINITY;
+						for (const g of pool) {
+							const gc = toNum(g.cod);
+							if (!gc) continue;
+							const abs = Math.abs(gc - c);
+							if (abs < bestAbs) { bestAbs = abs; best = g; }
+						}
+						if (!best) {
+							systemOnly.push(o);
+							continue;
+						}
+
+						moneyMismatch.push({
+							group: best,
+							order: o,
+							score: 0,
+							diff: toNum(best.cod) - c,
+							reason: day && String(best.dayKey || '').trim() === day ? 'SĐT trùng · Cùng ngày' : 'SĐT trùng',
+							suggestions: pool.slice(0, 3).map((g) => ({
+								key: g.key,
+								cod: toNum(g.cod),
+								productSummary: String(g.product || '').trim(),
+								score: 0,
+								reasons: ['Excel cùng SĐT'],
+							})),
+						});
 					}
 
-					const stillExcelOnly = excelOnly;
-					const systemOnly = sysOrders.filter((o) => !usedOrderIds.has(o.id));
-
-					const ok = stillExcelOnly.length === 0 && systemOnly.length === 0 && moneyMismatch.length === 0;
+					const ok = systemOnly.length === 0 && moneyMismatch.length === 0;
 
 					setReconResult({
 						ok,
@@ -1292,7 +1277,6 @@
 						excelGroupCount: excelGroups.length,
 						systemCount: sysOrders.length,
 						matches,
-						excelOnly: stillExcelOnly,
 						systemOnly,
 						moneyMismatch,
 					});
@@ -1585,9 +1569,9 @@
 								<div className="mt-3">
 									<div className={`alert ${reconResult.ok ? 'alert-success' : 'alert-warning'} mb-3`}>
 										{reconResult.ok ? (
-											<div className="fw-semibold">OK — File Excel đã khớp đầy đủ với hệ thống.</div>
+											<div className="fw-semibold">OK — Không thấy đơn hệ thống bị thiếu trong Excel hoặc lệch tiền.</div>
 										) : (
-											<div className="fw-semibold">CHƯA KHỚP — Có thiếu/sai lệch so với hệ thống.</div>
+											<div className="fw-semibold">CHƯA KHỚP — Có đơn hệ thống thiếu trong Excel hoặc lệch tiền.</div>
 										)}
 										<div className="small mt-1">
 											Tháng đối soát: {Array.isArray(reconResult.monthKeys) ? reconResult.monthKeys.join(', ') : ''} · Excel: {reconResult.excelCount} dòng{Number(reconResult.excelGroupCount || 0) ? ` (${reconResult.excelGroupCount} cụm)` : ''} · Hệ thống: {reconResult.systemCount} đơn
@@ -1609,11 +1593,6 @@
 															className={`btn ${reconView === 'systemOnly' ? 'btn-warning' : 'btn-outline-warning'}`}
 															onClick={() => setReconView('systemOnly')}
 														>Hệ thống thiếu Excel</button>
-														<button
-															type="button"
-															className={`btn ${reconView === 'excelOnly' ? 'btn-warning' : 'btn-outline-warning'}`}
-															onClick={() => setReconView('excelOnly')}
-														>Excel thiếu hệ thống</button>
 														<button
 															type="button"
 																	className={`btn ${reconView === 'moneyMismatch' ? 'btn-danger' : 'btn-outline-danger'}`}
@@ -1664,23 +1643,6 @@
 																			Number(o?.cod || 0),
 																			'',
 																			'',
-																		]);
-																	}
-																	for (const item of (Array.isArray(reconResult.excelOnly) ? reconResult.excelOnly : [])) {
-																		const g = item?.group;
-																		if (pf && String(g?.phoneNorm || '').indexOf(pf) < 0) continue;
-																		rows.push([
-																			'excelOnly',
-																			'',
-																			String(g?.dateRaw || ''),
-																			g?.phone || '',
-																			g?.productDisplay || '',
-																			Number(g?.cod || 0),
-																			'',
-																			'',
-																			(Array.isArray(item?.suggestions) && item.suggestions.length)
-																				? item.suggestions.map((s) => `#${s.id}(${window.KTM.money.formatNumber(s.cod)}|${Math.round((s.score || 0) * 100)}%)`).join(' | ')
-																				: '',
 																		]);
 																	}
 																	downloadCSV(`recon_${String(month || '').replace(/[^0-9\-]/g, '')}.csv`, rows);
@@ -1806,66 +1768,6 @@
 													</div>
 												)}
 
-												{Array.isArray(reconResult.excelOnly) && reconResult.excelOnly.length > 0 && (
-													<div className="card border-0 shadow-sm" style={{ display: (reconView === 'all' || reconView === 'excelOnly') ? 'block' : 'none' }}>
-														<div className="card-body">
-															<div className="fw-semibold mb-2 text-warning">Có trong Excel nhưng không thấy đơn khớp trong hệ thống</div>
-															<div className="table-responsive">
-																<table className="table table-sm align-middle mb-0">
-																	<thead>
-																		<tr>
-																			<th>Excel (dòng)</th>
-																			<th>Ngày</th>
-																			<th>SĐT</th>
-																			<th>Tên sản phẩm</th>
-																			<th className="text-end">Thu hộ</th>
-																			<th>Gợi ý (top 3)</th>
-																		</tr>
-																	</thead>
-																	<tbody>
-																		{reconResult.excelOnly
-																			.filter((item) => {
-																				const pf = normalizePhoneDigits(reconPhoneFilter);
-																				if (!pf) return true;
-																				return String(item?.group?.phoneNorm || '').includes(pf);
-																			})
-																			.slice(0, 30)
-																			.map((item) => {
-																				const g = item?.group;
-																				const sugg = Array.isArray(item?.suggestions) ? item.suggestions : [];
-																				return (
-																			<tr key={`eo-${String(g?.key || g?.rowIndexFirst || Math.random())}`} className="table-warning">
-																				<td>
-																					{g?.rowIndexFirst || '—'}
-																					{Number(g?.rowCount || 0) > 1 ? ` (+${Number(g.rowCount) - 1})` : ''}
-																				</td>
-																				<td className="text-muted">{String(g?.dateRaw || '')}</td>
-																				<td className="text-muted">{g?.phone || '—'}</td>
-																				<td style={{ minWidth: 280 }}>{g?.productDisplay || '—'}</td>
-																				<td className="text-end fw-semibold">{window.KTM.money.formatNumber(Number(g?.cod || 0))}</td>
-																				<td className="text-muted" style={{ minWidth: 280 }}>
-																					{sugg.length ? (
-																						<div className="small">
-																							{sugg.map((s) => (
-																								<div key={`s-${s.id}`}>#{s.id} · {window.KTM.money.formatNumber(s.cod)} · {Math.round((s.score || 0) * 100)}%<br />
-																									<span className="text-muted">{Array.isArray(s.reasons) ? s.reasons.join(' · ') : ''}</span>
-																								</div>
-																							))}
-																						</div>
-																					) : '—'}
-																				</td>
-																			</tr>
-																				);
-																			})}
-																	</tbody>
-																</table>
-															</div>
-															{reconResult.excelOnly.length > 30 && (
-																<div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.excelOnly.length} dòng.</div>
-															)}
-														</div>
-													</div>
-												)}
 											</div>
 										</div>
 									)}
