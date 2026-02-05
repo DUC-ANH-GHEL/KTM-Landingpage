@@ -20,7 +20,7 @@
 			const [reconProgress, setReconProgress] = useState('');
 			const [reconFileName, setReconFileName] = useState('');
 			const [reconResult, setReconResult] = useState(null);
-			const [reconView, setReconView] = useState('all');
+			const [reconView, setReconView] = useState('matches');
 			const [reconPhoneFilter, setReconPhoneFilter] = useState('');
 			const [reconExcludeDraft, setReconExcludeDraft] = useState(true);
 			const [reconExcludeCanceled, setReconExcludeCanceled] = useState(true);

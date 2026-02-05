@@ -68,6 +68,7 @@
 						systemOnly,
 						moneyMismatch,
 					});
+					setReconView(systemOnly.length ? 'systemOnly' : (moneyMismatch.length ? 'moneyMismatch' : 'matches'));
 					setReconSelectedMatchIds(new Set());
 					setReconProgress(ok ? 'OK ✅' : 'Đã đối soát xong');
 				} catch (e) {
@@ -335,7 +336,7 @@
 											setReconProgress('');
 											setReconResult(null);
 											setReconFileName('');
-											setReconView('all');
+											setReconView('matches');
 											setReconPhoneFilter('');
 											toast('Đã reset đối soát', 'info');
 										}}
@@ -366,32 +367,32 @@
 										</div>
 									</div>
 
-									{!reconResult.ok && (
-										<div className="row g-2">
-											<div className="col-12">
-												<div className="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
-													<div className="btn-group btn-group-sm" role="group" aria-label="Recon view">
+									<div className="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
+										<div className="btn-group btn-group-sm" role="group" aria-label="Recon view">
 														<button
 															type="button"
-															className={`btn ${reconView === 'all' ? 'btn-dark' : 'btn-outline-dark'}`}
-															onClick={() => setReconView('all')}
-														>Tất cả</button>
+															className={`btn ${reconView === 'matches' ? 'btn-success' : 'btn-outline-success'}`}
+															disabled={!Array.isArray(reconResult.matches) || reconResult.matches.length === 0}
+															onClick={() => setReconView('matches')}
+														>Khớp ({Array.isArray(reconResult.matches) ? reconResult.matches.length : 0})</button>
 														<button
 															type="button"
 															className={`btn ${reconView === 'systemOnly' ? 'btn-warning' : 'btn-outline-warning'}`}
+															disabled={!Array.isArray(reconResult.systemOnly) || reconResult.systemOnly.length === 0}
 															onClick={() => setReconView('systemOnly')}
-														>Hệ thống thiếu Excel</button>
+														>Thiếu Excel ({Array.isArray(reconResult.systemOnly) ? reconResult.systemOnly.length : 0})</button>
 														<button
 															type="button"
-																	className={`btn ${reconView === 'moneyMismatch' ? 'btn-danger' : 'btn-outline-danger'}`}
-																	onClick={() => setReconView('moneyMismatch')}
-														>Sai lệch tiền</button>
+															className={`btn ${reconView === 'moneyMismatch' ? 'btn-danger' : 'btn-outline-danger'}`}
+															disabled={!Array.isArray(reconResult.moneyMismatch) || reconResult.moneyMismatch.length === 0}
+															onClick={() => setReconView('moneyMismatch')}
+														>Sai tiền ({Array.isArray(reconResult.moneyMismatch) ? reconResult.moneyMismatch.length : 0})</button>
 													</div>
 
 													<div className="d-flex flex-wrap gap-2 align-items-center">
 														<input
 															type="text"
-																		className="form-control form-control-sm recon-phone-input"
+															className="form-control form-control-sm recon-phone-input"
 															placeholder="Lọc theo SĐT..."
 															value={reconPhoneFilter}
 															onChange={(e) => setReconPhoneFilter(e.target.value)}
@@ -439,8 +440,8 @@
 													</div>
 												</div>
 
-																			{Array.isArray(reconResult.moneyMismatch) && reconResult.moneyMismatch.length > 0 && (
-																				<div className="card border-0 shadow-sm mb-2" style={{ display: (reconView === 'all' || reconView === 'moneyMismatch') ? 'block' : 'none' }}>
+												{Array.isArray(reconResult.moneyMismatch) && reconResult.moneyMismatch.length > 0 && reconView === 'moneyMismatch' && (
+													<div className="card border-0 shadow-sm mb-2">
 																					<div className="card-body">
 																						<div className="fw-semibold mb-2 text-danger">Sai lệch số tiền</div>
 

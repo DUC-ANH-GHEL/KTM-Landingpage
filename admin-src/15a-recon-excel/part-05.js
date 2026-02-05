@@ -80,8 +80,8 @@
 																		)}
 
 
-												{Array.isArray(reconResult.systemOnly) && reconResult.systemOnly.length > 0 && (
-													<div className="card border-0 shadow-sm mb-2" style={{ display: (reconView === 'all' || reconView === 'systemOnly') ? 'block' : 'none' }}>
+															{Array.isArray(reconResult.systemOnly) && reconResult.systemOnly.length > 0 && reconView === 'systemOnly' && (
+																<div className="card border-0 shadow-sm mb-2">
 														<div className="card-body">
 															<div className="fw-semibold mb-2 text-warning">Có trong hệ thống nhưng thiếu trong Excel</div>
 
@@ -176,12 +176,8 @@
 													</div>
 												)}
 
-											</div>
-										</div>
-									)}
-
-									{Array.isArray(reconResult.matches) && reconResult.matches.length > 0 && (
-										<div className="card border-0 shadow-sm mt-3">
+											{reconView === 'matches' && Array.isArray(reconResult.matches) && reconResult.matches.length > 0 && (
+										<div className="card border-0 shadow-sm mb-2">
 											<div className="card-body">
 												<div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
 													<div className="fw-semibold">Đơn đã khớp</div>
