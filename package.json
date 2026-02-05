@@ -3,6 +3,7 @@
       "_dev_disabled": "vercel dev",
     "_start_disabled": "vercel dev",
     "build:jsx": "node scripts/build-jsx.mjs",
+    "build:api": "node scripts/build-api.mjs",
     "serve": "npx serve -p 8000"
   },
   "dependencies": {

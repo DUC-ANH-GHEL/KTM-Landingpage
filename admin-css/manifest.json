@@ -3,7 +3,10 @@
   "partsDir": "admin-css/parts",
   "parts": [
     "00-base.css",
-    "10-mobile-ui.css",
+    "10-mobile-ui/part-01.css",
+    "10-mobile-ui/part-02.css",
+    "10-mobile-ui/part-03.css",
+    "10-mobile-ui/part-04.css",
     "20-legacy-ops.css",
     "30-premium-shell.css",
     "40-ops-drawer.css",

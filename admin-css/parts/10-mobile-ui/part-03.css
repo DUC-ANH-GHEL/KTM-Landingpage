@@ -1,0 +1,480 @@
+        margin: 0;
+        width: 100%;
+        max-width: 100%;
+        height: 100dvh;
+        display: flex;
+        align-items: flex-end;
+      }
+
+      .order-modal .modal-content {
+        width: 100%;
+        border-radius: 16px 16px 0 0 !important;
+        max-height: calc(100dvh - 12px);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* modal-body is inside a <form>, so the form must also participate in flex layout */
+      .order-modal .modal-content > form {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+
+      .order-modal .modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      }
+
+      .order-modal .modal-footer {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      }
+    }
+
+    /* ========== MOBILE QUICK ACTION SHEET (ORDERS) ========== */
+    body.admin-sheet-open {
+      overflow: hidden;
+    }
+
+    .admin-sheet-root {
+      position: fixed;
+      inset: 0;
+      z-index: 1700;
+      background: rgba(2, 6, 23, 0.40);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    }
+
+    .admin-sheet {
+      width: min(720px, 100%);
+      background: #fff;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -18px 60px rgba(2, 6, 23, 0.24);
+      border: 1px solid rgba(15, 23, 42, 0.10);
+      max-height: min(78vh, 640px);
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      transform: translateY(0);
+      animation: adminSheetUp 160ms ease-out;
+    }
+
+    @keyframes adminSheetUp {
+      from { transform: translateY(12px); opacity: 0.96; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .admin-sheet-handle {
+      width: 44px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.16);
+      margin: 10px auto 6px;
+    }
+
+    .admin-sheet-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .admin-sheet-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    @media (max-width: 420px) {
+      .admin-sheet-actions {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .admin-sheet-section-title {
+      padding: 0 12px 8px;
+      font-weight: 800;
+      color: rgba(15, 23, 42, 0.75);
+      letter-spacing: 0.2px;
+    }
+
+    .orders-status-grid {
+      padding: 0 12px 14px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .orders-status-chip {
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      background: rgba(15, 23, 42, 0.03);
+      color: var(--ktm-admin-text);
+      border-radius: 14px;
+      padding: 12px 12px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .orders-status-chip.active {
+      background: rgba(255, 193, 7, 0.18);
+      border-color: rgba(255, 193, 7, 0.55);
+    }
+
+    .orders-status-chip:disabled {
+      opacity: 0.6;
+    }
+
+    /* Mobile orders action button */
+    .orders-mobile-action {
+      border-radius: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .order-card-mobile .order-phone {
+      display: inline-block;
+      border-radius: 10px;
+      padding: 2px 8px;
+      background: rgba(15, 23, 42, 0.04);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      user-select: none;
+      white-space: nowrap;
+      max-width: 100%;
+      font-size: clamp(12px, 4.6vw, 16px);
+      line-height: 1.2;
+      transition: transform 120ms ease, background 140ms ease;
+    }
+
+    .order-card-mobile .order-phone:active {
+      transform: scale(0.985);
+      background: rgba(15, 23, 42, 0.06);
+    }
+
+    .order-card-mobile .order-customer-name {
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.2;
+    }
+
+    .admin-sheet-title {
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.2;
+    }
+
+    @media (max-width: 380px) {
+      .order-card-mobile .order-phone {
+        padding: 2px 6px;
+        border-radius: 9px;
+        font-size: clamp(11px, 4.4vw, 15px);
+      }
+    }
+
+    .order-card-mobile .order-address,
+    .order-card-mobile .order-note {
+      white-space: normal;
+      word-break: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .order-card-mobile .order-text-collapsed {
+      display: -webkit-box;
+      line-clamp: 2;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .order-card-mobile .order-expand-btn {
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .order-recent-updated {
+      border-color: rgba(255, 193, 7, 0.55) !important;
+      box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.14);
+      transition: box-shadow 180ms ease, border-color 180ms ease;
+      animation: orderUpdatedPulse 720ms ease-out;
+    }
+
+    @keyframes orderUpdatedPulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.0); }
+      35% { box-shadow: 0 0 0 5px rgba(255, 193, 7, 0.20); }
+      100% { box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.14); }
+    }
+
+    .orders-mobile-sentinel {
+      height: 1px;
+    }
+
+    .orders-mobile-swipe-shell {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--bs-border-radius-lg, 0.75rem);
+      touch-action: pan-y;
+      --swipe-x: 0px;
+      --swipe-p: 0;
+      --swipe-l: 0;
+      --swipe-r: 0;
+    }
+
+    .orders-mobile-swipe-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: flex;
+      pointer-events: none;
+    }
+
+    .orders-mobile-swipe-bg-left,
+    .orders-mobile-swipe-bg-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+
+    .orders-mobile-swipe-bg-left {
+      justify-content: flex-start;
+      padding-left: 14px;
+    }
+
+    .orders-mobile-swipe-bg-left::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.22), rgba(245, 158, 11, 0.0));
+      opacity: var(--swipe-l);
+      pointer-events: none;
+    }
+
+    .orders-mobile-swipe-bg-right {
+      justify-content: flex-end;
+      padding-right: 14px;
+    }
+
+    .orders-mobile-swipe-bg-right::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(270deg, rgba(34, 197, 94, 0.22), rgba(34, 197, 94, 0.0));
+      opacity: var(--swipe-r);
+      pointer-events: none;
+    }
+
+    .orders-mobile-swipe-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      z-index: 1;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(15, 23, 42, 0.10);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 10px 24px rgba(2, 6, 23, 0.12);
+      transform: translate3d(0, 0, 0) scale(0.96);
+      opacity: 0;
+      transition: opacity 120ms ease, transform 120ms ease;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      white-space: nowrap;
+    }
+
+    .orders-mobile-swipe-bg-left .orders-mobile-swipe-label {
+      color: rgba(180, 83, 9, 1);
+      opacity: var(--swipe-l);
+      transform: translate3d(calc((1 - var(--swipe-l)) * -8px), 0, 0) scale(calc(0.96 + var(--swipe-l) * 0.04));
+    }
+
+    .orders-mobile-swipe-bg-right .orders-mobile-swipe-label {
+      color: rgba(21, 128, 61, 1);
+      opacity: var(--swipe-r);
+      transform: translate3d(calc((1 - var(--swipe-r)) * 8px), 0, 0) scale(calc(0.96 + var(--swipe-r) * 0.04));
+    }
+
+    .orders-mobile-card {
+      position: relative;
+      z-index: 2;
+      transform: translate3d(var(--swipe-x), 0, 0);
+      transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      will-change: transform;
+      touch-action: pan-y;
+    }
+
+    .orders-mobile-swipe-shell.swiping .orders-mobile-card {
+      transition: none;
+    }
+
+    .orders-mobile-swipe-shell.swipe-preview::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 120ms ease;
+      z-index: 1;
+    }
+
+    .orders-mobile-swipe-shell.swipe-preview.swipe-left::before {
+      opacity: 1;
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.02));
+    }
+
+    .orders-mobile-swipe-shell.swipe-preview.swipe-right::before {
+      opacity: 1;
+      background: linear-gradient(270deg, rgba(34, 197, 94, 0.18), rgba(34, 197, 94, 0.02));
+    }
+
+    /* Inline status popover */
+    .orders-status-popover-root {
+      position: fixed;
+      inset: 0;
+      z-index: 1750;
+      background: rgba(2, 6, 23, 0.12);
+    }
+
+    .orders-status-popover {
+      position: fixed;
+      width: 230px;
+      max-width: calc(100vw - 20px);
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 14px;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      box-shadow: 0 18px 55px rgba(2, 6, 23, 0.22);
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      animation: ordersPopoverIn 140ms ease-out;
+    }
+
+    @keyframes ordersPopoverIn {
+      from { transform: translateY(6px); opacity: 0.92; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .orders-status-popover-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 10px 8px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .orders-status-popover-grid {
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .orders-status-popover-footer {
+      padding: 0 10px 10px;
+    }
+
+    .orders-status-popover-footer .btn {
+      width: 100%;
+      border-radius: 12px;
+      font-weight: 900;
+    }
+
+    .orders-filter-chip-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .orders-filter-chip {
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      background: rgba(15, 23, 42, 0.03);
+      color: var(--ktm-admin-text);
+      border-radius: 14px;
+      padding: 10px 10px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .orders-filter-chip.active {
+      background: rgba(255, 193, 7, 0.18);
+      border-color: rgba(255, 193, 7, 0.55);
+    }
+
+    /* Sticky mini-toolbar for mobile one-hand reach */
+    .orders-mobile-toolbar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--ktm-visual-inset-bottom, 0px) + var(--ktm-mobile-bottom-nav-h, 0px));
+      z-index: 1650;
+      display: flex;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.94);
+      border-top: 1px solid rgba(15, 23, 42, 0.10);
+      backdrop-filter: blur(10px);
+      transform: translateY(110%);
+      opacity: 0;
+      visibility: hidden;
+      transition: transform 180ms ease, opacity 140ms ease;
+      pointer-events: none;
+    }
+
+    .orders-mobile-toolbar.visible {
+      transform: translateY(0);
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    body.admin-sheet-open .orders-mobile-toolbar {
+      display: none;
+    }
+
+    .orders-mobile-toolbar .btn {
+      border-radius: 14px;
+      font-weight: 900;
+      flex: 1;
+      white-space: nowrap;
+    }
+
+    /* Search palette overlay (mobile) */
+    .orders-search-palette-root {
+      position: fixed;
+      inset: 0;
+      z-index: 1800;
+      background: rgba(2, 6, 23, 0.42);
+      backdrop-filter: blur(6px);
+      padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .orders-search-palette {
+      width: min(720px, 100%);
+      max-height: min(86vh, 760px);
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 16px 16px 12px 12px;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      box-shadow: 0 -24px 70px rgba(2, 6, 23, 0.35);
+      animation: adminSheetUp 160ms ease-out;
+    }

@@ -1,0 +1,480 @@
+
+/* styles.css - Thiết kế thân thiện nhà nông, kỹ thuật, tối ưu mobile */
+
+/* Cho khu vực filter cho phép tràn để dropdown không bị cắt */
+.filter-card,
+.filter-card .card,
+.filter-card .card-body,
+.col-md-6,
+.input-group {
+  overflow: visible !important;
+}
+
+/* Wrapper cho ô tìm kiếm để dropdown bám theo */
+.search-wrapper {
+  position: relative;   /* thay cho inline style cũ */
+  z-index: 20;          /* nổi lên trên grid bên dưới */
+}
+
+/* Dropdown bám ngay dưới input, không dùng fixed */
+.suggestions-dropdown {
+  position: absolute !important;   /* ghi đè nếu trước đây dùng fixed */
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+
+  /* style sẵn có của bạn, gom về CSS luôn */
+  background: #fff;
+  border: 2px solid rgb(0, 123, 255);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  z-index: 99999 !important;
+
+  /* hiển thị đầy đủ không bị cắt */
+  max-height: none !important;
+  overflow: visible !important;
+  height: auto !important;
+}
+
+/* Đảm bảo tất cả container cho phép dropdown hiển thị */
+.row,
+.col-12,
+.card,
+.card-body {
+  overflow: visible !important;
+}
+
+/* ================== KTM DESIGN SYSTEM (Premium UI) ================== */
+:root {
+  --ktm-bg: #0b1020;
+  --ktm-surface: #ffffff;
+  --ktm-surface-2: #f8fafc;
+  --ktm-text: #0f172a;
+  --ktm-muted: #475569;
+  --ktm-border: rgba(15, 23, 42, 0.10);
+
+  --ktm-primary: #0d6efd;
+  --ktm-primary-2: #2563eb;
+  --ktm-accent: #fbbf24;
+  --ktm-accent-2: #f59e0b;
+
+  --ktm-radius-sm: 10px;
+  --ktm-radius-md: 14px;
+  --ktm-radius-lg: 18px;
+
+  --ktm-shadow-sm: 0 8px 20px rgba(2, 6, 23, 0.08);
+  --ktm-shadow-md: 0 18px 45px rgba(2, 6, 23, 0.14);
+  --ktm-ring: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: 'Noto Sans', sans-serif;
+  line-height: 1.6;
+  color: var(--ktm-text);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(37, 99, 235, 0.18), transparent 60%),
+    radial-gradient(1200px 600px at 90% 0%, rgba(251, 191, 36, 0.14), transparent 55%),
+    #ffffff;
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+a {
+  color: var(--ktm-primary-2);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: var(--ktm-primary);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ktm-ring) !important;
+  border-radius: 10px;
+}
+
+/* NOTE: body base styles are defined in KTM DESIGN SYSTEM above */
+  
+  img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+  
+  h1, h2, h3 {
+    font-weight: 700;
+  }
+  
+  section {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+  
+  .hero-section {
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      color: #fff;
+      text-align: center;
+  }
+
+  /* Hero (premium) */
+  .ktm-hero {
+    background-image: var(--hero-bg);
+    padding: 5.5rem 0;
+    border-bottom: 1px solid rgba(2, 6, 23, 0.10);
+    overflow: hidden;
+  }
+
+  .ktm-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(2, 6, 23, 0.70) 0%, rgba(2, 6, 23, 0.45) 45%, rgba(2, 6, 23, 0.75) 100%),
+      radial-gradient(900px 480px at 20% 10%, rgba(37, 99, 235, 0.25), transparent 60%),
+      radial-gradient(900px 480px at 80% 30%, rgba(251, 191, 36, 0.18), transparent 60%);
+  }
+
+  .ktm-hero-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 980px;
+  }
+
+  .ktm-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(8px);
+    font-weight: 600;
+  }
+
+  .ktm-hero-title {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-top: 16px;
+    margin-bottom: 12px;
+    font-size: clamp(1.75rem, 3.4vw, 3rem);
+  }
+
+  .ktm-hero-subtitle {
+    color: rgba(255, 255, 255, 0.92);
+    font-size: clamp(1rem, 1.5vw, 1.2rem);
+    margin: 0;
+  }
+  
+  .btn {
+    border-radius: 30px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+
+  /* KTM buttons (only applied when ktm-btn class is present) */
+  .ktm-btn {
+    border-radius: 999px !important;
+    padding: 0.7rem 1.05rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em;
+    border: 1px solid transparent;
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.14);
+  }
+
+  .ktm-btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .ktm-btn:active {
+    transform: translateY(0);
+  }
+
+  .ktm-btn-primary {
+    color: #fff !important;
+    background: linear-gradient(135deg, #2563eb, #0d6efd) !important;
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+
+  .ktm-btn-accent {
+    color: #111827 !important;
+    background: linear-gradient(135deg, var(--ktm-accent), var(--ktm-accent-2)) !important;
+    border-color: rgba(17, 24, 39, 0.12);
+  }
+
+  .ktm-btn-ghost {
+    color: var(--ktm-primary-2) !important;
+    background: rgba(37, 99, 235, 0.08) !important;
+    border-color: rgba(37, 99, 235, 0.18) !important;
+    box-shadow: none;
+  }
+
+  .ktm-btn-ghost-on-dark {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.20) !important;
+    box-shadow: none;
+  }
+
+  .ktm-btn-icon {
+    width: 44px;
+    height: 44px;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px !important;
+    color: var(--ktm-primary-2) !important;
+    background: rgba(37, 99, 235, 0.08) !important;
+    border-color: rgba(37, 99, 235, 0.18) !important;
+    box-shadow: none;
+  }
+  
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .btn-zalo {
+    background-color: #0068ff;
+    color: #fff;
+  }
+  
+  .btn-messenger {
+    background-color: #0084ff;
+    color: #fff;
+  }
+  
+  .btn-warning {
+    background-color: #ffc107;
+    color: #000;
+  }
+  
+  .btn-primary {
+    background-color: #0d6efd;
+    color: #fff;
+  }
+  
+  .btn-success {
+    background-color: #28a745;
+    color: #fff;
+  }
+  
+  .card {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  /* Give cards a more premium feel, without breaking Bootstrap */
+  .card {
+    background: var(--ktm-surface);
+    border: 1px solid var(--ktm-border);
+    box-shadow: var(--ktm-shadow-sm);
+  }
+
+  .card:hover {
+    box-shadow: var(--ktm-shadow-md);
+  }
+  
+  .card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+  
+  .card-body {
+    padding: 1rem;
+  }
+  
+  .floating-social {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .social-button {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Animation fade-up */
+  .fade-up {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  
+  .visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  /* Zoom effect on hover */
+  .zoom-on-hover {
+    transition: transform 0.3s ease;
+  }
+  
+  .zoom-on-hover:hover {
+    transform: scale(1.05);
+  }
+  
+  /* Clickable cursor */
+  .clickable {
+    cursor: pointer;
+  }
+  
+  /* Modal overlay */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+  }
+  
+  
+  
+  /* Video modal */
+  .video-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1050;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .video-modal-content {
+    position: relative;
+    width: 90%;
+    max-width: 800px;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+  }
+  
+  .video-thumb img {
+    transition: transform 0.3s;
+  }
+  
+  .video-thumb:hover img {
+    transform: scale(1.03);
+  }
+  
+  .modal-overlay-full {
+    position: fixed;
+    z-index: 9999;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  /* Modal box */
+  .modal-box {
+    background: white;
+    border-radius: 12px;
+    max-width: 90%;
+    max-height: 90%;
+    overflow-y: auto;
+    position: relative;
+    z-index: 10000;
+  }
+  
+  /* Button close margin */
+  .button-close-margin {
+    margin: 10px;
+  }
+  
+  /* Fire icon animation */
+  .fire-icon {
+    animation: flicker 1.5s infinite alternate;
+  }
+  
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .hero-section {
+      padding: 2rem 0;
+    }
+    
+    .floating-social {
+      bottom: 20px;
+      right: 20px;
+    }
+    
+    .social-button {
+      width: 50px;
+      height: 50px;
+    }
+    
+    section {
+      padding-top: 2rem;
+      padding-bottom: 2rem;
+    }
+  }
+  
+  /* Fix horizontal scroll on mobile */
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  .container, .row, .btn-group, .table-responsive {
+    overflow-x: hidden;
+  }
+  
+  /* Optimize for performance */
+  * {
+    box-sizing: border-box;
+  }
+  
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }

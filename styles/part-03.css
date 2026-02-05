@@ -1,0 +1,428 @@
+.ktm-brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.14);
+}
+
+.ktm-brand-title {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+
+.ktm-brand-sub {
+  font-size: 12.5px;
+  color: var(--ktm-muted);
+  line-height: 1.15;
+}
+
+/* Thanh search nằm ngay dưới header, cũng on top */
+.global-search-bar-section {
+  position: fixed !important;
+  top: 68px; /* tương ứng chiều cao header, cần thì chỉnh 60–72px */
+  left: 0;
+  right: 0;
+  z-index: 1190;
+  background: rgba(248, 250, 252, 0.92);
+  border-bottom: 1px solid rgba(2, 6, 23, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+/* Mobile chỉnh top nhỏ hơn chút cho dễ thở */
+@media (max-width: 768px) {
+  .global-search-bar-section {
+    top: 60px;
+  }
+}
+
+
+/* Đệm nội dung xuống dưới header + thanh search */
+body {
+  padding-top: 150px; /* nếu thấy thừa/thiếu thì chỉnh 140–170px */
+}
+
+/* Footer (premium) */
+.ktm-footer {
+  margin-top: 32px;
+}
+
+.ktm-footer-top {
+  padding: 44px 0;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border-top: 1px solid rgba(2, 6, 23, 0.08);
+}
+
+.ktm-footer-brand-title {
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #0f172a;
+}
+
+.ktm-footer-brand-sub {
+  color: var(--ktm-muted);
+  margin-top: 8px;
+}
+
+.ktm-footer-col-title {
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+
+.ktm-footer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  color: #0f172a;
+}
+
+.ktm-footer-label {
+  font-weight: 800;
+  color: var(--ktm-primary-2);
+}
+
+.ktm-footer-cta {
+  font-weight: 700;
+}
+
+.ktm-footer-hotline {
+  margin-left: 8px;
+  color: #dc2626;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.ktm-footer-hotline:hover {
+  color: #b91c1c;
+}
+
+.ktm-footer-hotline-note {
+  margin-left: 6px;
+  color: var(--ktm-muted);
+  font-weight: 600;
+}
+
+.ktm-footer-link {
+  color: var(--ktm-primary-2);
+  font-weight: 700;
+}
+
+.ktm-footer-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  color: var(--ktm-primary-2);
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.ktm-footer-pill:hover {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.ktm-footer-bottom {
+  padding: 18px 0;
+  background: #0b1020;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.ktm-footer-bottom-link {
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.ktm-footer-bottom-link:hover {
+  text-decoration: underline;
+}
+
+.ktm-footer-bottom-center {
+  text-align: center;
+}
+
+.ktm-footer-badge img {
+  height: 46px;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.35));
+}
+
+/* Khung ảnh trong dropdown autosuggest (global search) */
+.suggestion-thumb {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
+
+.suggestion-thumb-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  display: block;
+  object-fit: contain; /* giữ nguyên tỉ lệ, không cắt ảnh */
+}
+
+
+/* Đưa tất cả overlay modal lên cao hơn header + thanh search */
+.modal-overlay,
+.video-modal-overlay,
+.modal-overlay-full {
+  z-index: 100000 !important;
+}
+
+/* ================== AI CHAT WIDGET ================== */
+
+/* Nút chat AI (bubble trên Zalo) */
+.btn-ai-chat {
+  background: linear-gradient(135deg, #6a11cb, #2575fc);
+  color: #fff;
+  border: none;
+}
+
+.btn-ai-chat i {
+  color: #fff;
+}
+
+/* Widget chat AI */
+.ai-chat-widget {
+  position: fixed;
+  bottom: 90px;          /* cao hơn cụm icon Zalo/Messenger */
+  right: 20px;
+  width: 320px;
+  max-width: 95vw;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  z-index: 1100;         /* cao hơn .floating-social (999) */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 0.9rem;
+}
+
+/* Header chat */
+.ai-chat-header {
+  background: linear-gradient(135deg, #6a11cb, #2575fc);
+  color: #fff;
+}
+
+.ai-chat-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Body chat */
+.ai-chat-body {
+  max-height: 260px;
+  overflow-y: auto;
+  padding-bottom: 8px;
+  background: #f8f9fa;
+}
+
+/* Bố cục tin nhắn */
+.ai-chat-message {
+  display: flex;
+  margin-bottom: 6px;
+}
+
+.ai-chat-message-assistant {
+  justify-content: flex-start;
+}
+
+.ai-chat-message-user {
+  justify-content: flex-end;
+}
+
+.ai-chat-bubble {
+  border-radius: 12px;
+  padding: 6px 10px;
+  max-width: 90%;
+  line-height: 1.4;
+  font-size: 0.88rem;
+  white-space: pre-wrap;
+}
+
+.ai-chat-message-assistant .ai-chat-bubble {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.ai-chat-message-user .ai-chat-bubble {
+  background: #0d6efd;
+  color: #ffffff;
+}
+
+/* Khu nhập liệu */
+.ai-chat-input textarea {
+  resize: none;
+  max-height: 80px;
+  font-size: 16px; /* Ngăn mobile auto-zoom khi focus */
+}
+
+/* Mobile tối ưu */
+@media (max-width: 768px) {
+  .ai-chat-widget {
+    width: 95vw;
+    right: 2.5vw;
+    bottom: 80px;
+  }
+  
+  /* Fix mobile zoom khi focus input */
+  .ai-chat-input textarea,
+  .ai-chat-input input {
+    font-size: 16px !important;
+  }
+}
+
+/* ================== IMAGE MODAL ================== */
+
+.image-modal-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 90vw;
+  max-height: 85vh;
+}
+
+.image-modal-img {
+  max-width: 90vw;
+  max-height: 80vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  /* Cho phép iOS native long-press menu (Save Image, Copy, etc.) */
+  -webkit-touch-callout: default;
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+
+.image-modal-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: all 0.2s;
+}
+
+.image-modal-close:hover {
+  background: #fff;
+  transform: scale(1.1);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .image-modal-close {
+    top: -45px;
+    right: 5px;
+  }
+}
+
+/* AlbumGallery styles */
+.album-preview { cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+.album-preview:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+
+/* Folder card in modal */
+.album-folder-card { cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+.album-folder-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.12); border-color: #ffc107; }
+
+.album-modal-overlay {
+  position: fixed;
+  z-index: 2000;
+  left: 0; top: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.album-modal-content {
+  width: 95%;
+  max-width: 1100px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+}
+
+@media (max-width: 576px) {
+  .album-modal-overlay {
+    padding: 10px;
+    align-items: flex-start;
+  }
+  .album-modal-content {
+    width: 100%;
+    max-height: none;
+    min-height: auto;
+    padding: 12px;
+    border-radius: 8px;
+  }
+}
+
+/* Masonry-like columns */
+.album-masonry {
+  column-count: 3;
+  column-gap: 12px;
+}
+@media (max-width: 992px) { .album-masonry { column-count: 2; } }
+@media (max-width: 576px) { 
+  .album-masonry { 
+    column-count: 1; 
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  } 
+}
+
+.album-masonry-item {
+  break-inside: avoid;
+  margin-bottom: 12px;
+  background: #fff;
+  padding: 0;
+}
+.album-masonry-item img { width: 100%; display: block; border-radius: 8px; cursor: zoom-in; }
+
+/* image fallback modal */
+.image-fallback-modal {
+  position: fixed; inset: 0; display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.7);z-index:2100;
+}
+.image-fallback-modal img { max-width: 95%; max-height: 85%; }
+.image-fallback-modal .btn-close { position:absolute; top:12px; right:12px; background:#fff; border-radius:20px; padding:6px 10px; border:0; font-size:20px; cursor:pointer; }
+
+
+
+
