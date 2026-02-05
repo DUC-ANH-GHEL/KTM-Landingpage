@@ -4,6 +4,7 @@
     "_start_disabled": "vercel dev",
     "build:jsx": "node scripts/build-jsx.mjs",
     "build:api": "node scripts/build-api.mjs",
+    "check:maxlines": "node scripts/check-max-lines.mjs",
     "serve": "npx serve -p 8000"
   },
   "dependencies": {

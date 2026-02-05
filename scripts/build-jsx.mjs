@@ -95,6 +95,14 @@ async function loadSourceOverrideForInput(input) {
     return await loadAdminSourceFromManifest();
   }
 
+  // Admin helpers: allow splitting admin-helpers.js into admin-helpers-src/manifest.json
+  if (input === 'admin-helpers.js') {
+    return await loadSourceFromManifest({
+      manifestAbs: path.join(root, 'admin-helpers-src', 'manifest.json'),
+      partsBaseAbs: path.join(root, 'admin-helpers-src'),
+    });
+  }
+
   // App: allow splitting app.js into app-src/manifest.json
   if (input === 'app.js') {
     return await loadSourceFromManifest({
