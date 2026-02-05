@@ -1831,8 +1831,7 @@
 													<div className="d-flex flex-wrap gap-2 align-items-center">
 														<input
 															type="text"
-															className="form-control form-control-sm"
-															style={{ width: 220 }}
+																		className="form-control form-control-sm recon-phone-input"
 															placeholder="Lọc theo SĐT..."
 															value={reconPhoneFilter}
 															onChange={(e) => setReconPhoneFilter(e.target.value)}
@@ -1884,60 +1883,118 @@
 																				<div className="card border-0 shadow-sm mb-2" style={{ display: (reconView === 'all' || reconView === 'moneyMismatch') ? 'block' : 'none' }}>
 																					<div className="card-body">
 																						<div className="fw-semibold mb-2 text-danger">Sai lệch số tiền</div>
-																						<div className="table-responsive">
-																							<table className="table table-sm align-middle mb-0">
-																								<thead>
-																									<tr>
-																										<th>Excel (dòng)</th>
-																										<th>SĐT</th>
-																										<th>Tên sản phẩm (Excel)</th>
-																										<th className="text-end">Thu hộ (Excel)</th>
-																										<th>Order ID</th>
-																										<th>Tên SP (Hệ thống)</th>
-																										<th className="text-end">Thu hộ (Hệ thống)</th>
-																										<th className="text-end">Lệch</th>
-																										<th>Lý do</th>
-																									</tr>
-																								</thead>
-																								<tbody>
-																									{reconResult.moneyMismatch
-																										.filter((x) => {
-																											const pf = normalizePhoneDigits(reconPhoneFilter);
-																											if (!pf) return true;
-																											return String(x?.group?.phoneNorm || '').includes(pf);
-																										})
-																										.slice(0, 30)
-																										.map((x) => (
-																											<tr key={`mm-${String(x?.group?.key || x?.order?.id || Math.random())}`} className="table-danger">
-																												<td>
-																													{x?.group?.rowIndexFirst || '—'}
-																													{Number(x?.group?.rowCount || 0) > 1 ? ` (+${Number(x.group.rowCount) - 1})` : ''}
-																												</td>
-																												<td className="text-muted">{x?.group?.phone || '—'}</td>
-																												<td style={{ minWidth: 260 }}>{x?.group?.productDisplay || '—'}</td>
-																												<td className="text-end fw-semibold">{window.KTM.money.formatNumber(Number(x?.group?.cod || 0))}</td>
-																												<td>
+
+																						<div className="d-none d-md-block">
+																							<div className="table-responsive">
+																								<table className="table table-sm align-middle mb-0">
+																									<thead>
+																										<tr>
+																											<th>Excel (dòng)</th>
+																											<th>SĐT</th>
+																											<th>Tên sản phẩm (Excel)</th>
+																											<th className="text-end">Thu hộ (Excel)</th>
+																											<th>Order ID</th>
+																											<th>Tên SP (Hệ thống)</th>
+																											<th className="text-end">Thu hộ (Hệ thống)</th>
+																											<th className="text-end">Lệch</th>
+																											<th>Lý do</th>
+																										</tr>
+																									</thead>
+																									<tbody>
+																										{reconResult.moneyMismatch
+																											.filter((x) => {
+																													const pf = normalizePhoneDigits(reconPhoneFilter);
+																													if (!pf) return true;
+																													return String(x?.group?.phoneNorm || '').includes(pf);
+																											})
+																											.slice(0, 30)
+																											.map((x) => (
+																													<tr key={`mm-${String(x?.group?.key || x?.order?.id || Math.random())}`} className="table-danger">
+																														<td>
+																																{x?.group?.rowIndexFirst || '—'}
+																																{Number(x?.group?.rowCount || 0) > 1 ? ` (+${Number(x.group.rowCount) - 1})` : ''}
+																														</td>
+																														<td className="text-muted">{x?.group?.phone || '—'}</td>
+																														<td style={{ minWidth: 260 }}>{x?.group?.productDisplay || '—'}</td>
+																														<td className="text-end fw-semibold">{window.KTM.money.formatNumber(Number(x?.group?.cod || 0))}</td>
+																														<td>
+																															<button
+																																type="button"
+																																	className="btn btn-link btn-sm p-0 text-decoration-none"
+																																	onClick={() => {
+																																		setReconDrawerOrder(x?.order || null);
+																																		setReconDrawerOpen(true);
+																																	}}
+																																>{x?.order?.id}</button>
+																														</td>
+																														<td style={{ minWidth: 240 }}>{x?.order?.productSummary}</td>
+																														<td className="text-end fw-semibold">{window.KTM.money.formatNumber(x?.order?.cod)}</td>
+																														<td className="text-end fw-semibold">{window.KTM.money.formatNumber(x?.diff)}</td>
+																														<td className="text-muted" style={{ minWidth: 220 }}>{x?.reason || ''}</td>
+																													</tr>
+																											))}
+																									</tbody>
+																								</table>
+																							</div>
+																							{reconResult.moneyMismatch.length > 30 && (
+																								<div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.moneyMismatch.length} dòng.</div>
+																							)}
+																						</div>
+
+																						<div className="d-md-none">
+																							{reconResult.moneyMismatch
+																								.filter((x) => {
+																									const pf = normalizePhoneDigits(reconPhoneFilter);
+																									if (!pf) return true;
+																									return String(x?.group?.phoneNorm || '').includes(pf);
+																								})
+																								.slice(0, 30)
+																								.map((x) => {
+																									const rowInfo = `${x?.group?.rowIndexFirst || '—'}${Number(x?.group?.rowCount || 0) > 1 ? ` (+${Number(x.group.rowCount) - 1})` : ''}`;
+																									const dateInfo = String(x?.group?.dateRaw || x?.group?.dayKey || '').trim();
+																									return (
+																										<div key={`mm-m-${String(x?.group?.key || x?.order?.id || Math.random())}`} className="recon-mobile-card recon-mobile-card-danger">
+																											<div className="d-flex justify-content-between align-items-start gap-2">
+																												<div className="fw-semibold text-truncate" style={{ maxWidth: '70%' }}>{x?.group?.phone || '—'}</div>
+																												<div className="fw-semibold text-danger">{window.KTM.money.formatNumber(x?.diff)}</div>
+																											</div>
+																											<div className="small text-muted mt-1">Excel dòng {rowInfo}{dateInfo ? ` • ${dateInfo}` : ''}</div>
+
+																											<div className="mt-2">
+																												<div className="recon-mobile-kv">
+																													<span className="text-muted">Thu hộ (Excel)</span>
+																													<span className="fw-semibold">{window.KTM.money.formatNumber(Number(x?.group?.cod || 0))}</span>
+																												</div>
+																												<div className="recon-mobile-value mt-1">{x?.group?.productDisplay || '—'}</div>
+																											</div>
+
+																											<div className="mt-2 pt-2 border-top">
+																												<div className="recon-mobile-kv">
+																													<span className="text-muted">Order</span>
 																													<button
 																														type="button"
 																															className="btn btn-link btn-sm p-0 text-decoration-none"
 																															onClick={() => {
 																																setReconDrawerOrder(x?.order || null);
 																																setReconDrawerOpen(true);
-																														}}
-																														>{x?.order?.id}</button>
-																												</td>
-																												<td style={{ minWidth: 240 }}>{x?.order?.productSummary}</td>
-																												<td className="text-end fw-semibold">{window.KTM.money.formatNumber(x?.order?.cod)}</td>
-																												<td className="text-end fw-semibold">{window.KTM.money.formatNumber(x?.diff)}</td>
-																												<td className="text-muted" style={{ minWidth: 220 }}>{x?.reason || ''}</td>
-																												</tr>
-																										))}
-																								</tbody>
-																						</table>
+																															}}
+																														>{x?.order?.id || '—'}</button>
+																												</div>
+																												<div className="recon-mobile-value mt-1">{x?.order?.productSummary || '—'}</div>
+																												<div className="recon-mobile-kv mt-1">
+																													<span className="text-muted">Thu hộ (Hệ thống)</span>
+																													<span className="fw-semibold">{window.KTM.money.formatNumber(Number(x?.order?.cod || 0))}</span>
+																												</div>
+																											</div>
+
+																										{x?.reason ? <div className="small text-muted mt-2">Lý do: {x.reason}</div> : null}
+																									</div>
+																								);
+																							})}
+																						{reconResult.moneyMismatch.length > 30 && (
+																								<div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.moneyMismatch.length} dòng.</div>
+																						)}
 																					</div>
-																					{reconResult.moneyMismatch.length > 30 && (
-																						<div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.moneyMismatch.length} dòng.</div>
-																					)}
 																				</div>
 																			</div>
 																		)}
@@ -1947,8 +2004,10 @@
 													<div className="card border-0 shadow-sm mb-2" style={{ display: (reconView === 'all' || reconView === 'systemOnly') ? 'block' : 'none' }}>
 														<div className="card-body">
 															<div className="fw-semibold mb-2 text-warning">Có trong hệ thống nhưng thiếu trong Excel</div>
-															<div className="table-responsive">
-																<table className="table table-sm align-middle mb-0">
+
+																			<div className="d-none d-md-block">
+																				<div className="table-responsive">
+																					<table className="table table-sm align-middle mb-0">
 																	<thead>
 																		<tr>
 																			<th>Order ID</th>
@@ -1983,18 +2042,56 @@
 																				<td className="text-muted">{o.phone || '—'}</td>
 																				<td style={{ minWidth: 280 }}>{o.productSummary}</td>
 																				<td className="text-end fw-semibold">{window.KTM.money.formatNumber(o.cod)}</td>
-																				<td className="text-muted">{o.status}</td>
-																				{o?.excelOutsideHintText ? (
-																					<div className="small text-muted mt-1">{o.excelOutsideHintText}</div>
-																				) : null}
+																									<td className="text-muted">
+																										{o.status}
+																										{o?.excelOutsideHintText ? (
+																											<div className="small text-muted mt-1">{o.excelOutsideHintText}</div>
+																										) : null}
+																									</td>
 																			</tr>
 																		))}
 																	</tbody>
 																</table>
 															</div>
-															{reconResult.systemOnly.length > 30 && (
-																<div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.systemOnly.length} đơn.</div>
-															)}
+																				{reconResult.systemOnly.length > 30 && (
+																					<div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.systemOnly.length} đơn.</div>
+																				)}
+																			</div>
+
+																			<div className="d-md-none">
+																				{reconResult.systemOnly
+																					.filter((o) => {
+																						const pf = normalizePhoneDigits(reconPhoneFilter);
+																						if (!pf) return true;
+																						return String(o?.phoneNorm || '').includes(pf);
+																					})
+																					.slice(0, 30)
+																					.map((o) => (
+																						<div key={`so-m-${o.id}`} className="recon-mobile-card recon-mobile-card-warning">
+																							<div className="d-flex justify-content-between align-items-start gap-2">
+																								<button
+																									type="button"
+																										className="btn btn-link btn-sm p-0 text-decoration-none"
+																										onClick={() => {
+																											setReconDrawerOrder(o || null);
+																											setReconDrawerOpen(true);
+																										}}
+																									>{o.id}</button>
+																								<span className="badge bg-secondary">{o.status || '—'}</span>
+																							</div>
+																							<div className="small text-muted mt-1">{window.KTM.date.formatDateTime(o.created_at)}{o.phone ? ` • ${o.phone}` : ''}</div>
+																							<div className="recon-mobile-value mt-2">{o.productSummary || '—'}</div>
+																							<div className="recon-mobile-kv mt-2">
+																								<span className="text-muted">Thu hộ</span>
+																								<span className="fw-semibold">{window.KTM.money.formatNumber(o.cod)}</span>
+																							</div>
+																							{o?.excelOutsideHintText ? <div className="small text-muted mt-2">{o.excelOutsideHintText}</div> : null}
+																						</div>
+																					))}
+																			{reconResult.systemOnly.length > 30 && (
+																					<div className="text-muted small mt-2">Đang hiển thị 30/{reconResult.systemOnly.length} đơn.</div>
+																			)}
+																		</div>
 														</div>
 													</div>
 												)}
@@ -2020,123 +2117,185 @@
 														</button>
 													</div>
 												</div>
-												<div className="table-responsive">
-													<table className="table table-sm align-middle mb-0">
-														<thead>
-															<tr>
-																<th style={{ width: 34 }}>
-																	<input
-																		type="checkbox"
-																		checked={(() => {
-																			const pf = normalizePhoneDigits(reconPhoneFilter);
-																			const visible = (reconResult.matches || []).filter((m) => {
+																		<div className="d-none d-md-block">
+																			<div className="table-responsive">
+																				<table className="table table-sm align-middle mb-0">
+																					<thead>
+																						<tr>
+																							<th style={{ width: 34 }}>
+																								<input
+																									type="checkbox"
+																									checked={(() => {
+																										const pf = normalizePhoneDigits(reconPhoneFilter);
+																										const visible = (reconResult.matches || []).filter((m) => {
+																												const o = m?.order;
+																												if (!o?.id) return false;
+																												const st = String(o?.status || o?.raw?.status || '').toLowerCase();
+																												if (reconExcludePaid && st === 'paid') return false;
+																												if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
+																												return true;
+																										});
+																										if (!visible.length) return false;
+																										for (const m of visible) {
+																												if (!reconSelectedMatchIds.has(String(m?.order?.id || ''))) return false;
+																										}
+																										return true;
+																									})()}
+																									onChange={(e) => {
+																										const checked = Boolean(e.target.checked);
+																										setReconSelectedMatchIds((prev) => {
+																												const next = new Set(prev);
+																												const pf = normalizePhoneDigits(reconPhoneFilter);
+																												const visible = (reconResult.matches || []).filter((m) => {
+																													const o = m?.order;
+																													if (!o?.id) return false;
+																													const st = String(o?.status || o?.raw?.status || '').toLowerCase();
+																													if (reconExcludePaid && st === 'paid') return false;
+																													if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
+																													return true;
+																												});
+																												for (const m of visible) {
+																													const id = String(m?.order?.id || '').trim();
+																													if (!id) continue;
+																													if (checked) next.add(id);
+																													else next.delete(id);
+																												}
+																												return next;
+																												});
+																									}}
+																							/>
+																						</th>
+																						<th>Order ID</th>
+																						<th>Ngày</th>
+																						<th>SĐT</th>
+																						<th>Excel</th>
+																						<th>Hệ thống</th>
+																						<th className="text-end">Thu hộ</th>
+																				<th>Trạng thái</th>
+																			</tr>
+																		</thead>
+																		<tbody>
+																			{(reconResult.matches || [])
+																				.filter((m) => {
+																						const o = m?.order;
+																						if (!o?.id) return false;
+																						const st = String(o?.status || o?.raw?.status || '').toLowerCase();
+																						if (reconExcludePaid && st === 'paid') return false;
+																						const pf = normalizePhoneDigits(reconPhoneFilter);
+																						if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
+																						return true;
+																				})
+																				.slice(0, 50)
+																				.map((m) => {
+																					const o = m.order;
+																					const id = String(o.id);
+																					return (
+																						<tr key={`match-${id}`}>
+																							<td>
+																								<input
+																									type="checkbox"
+																										checked={reconSelectedMatchIds.has(id)}
+																										onChange={(e) => {
+																											const checked = Boolean(e.target.checked);
+																											setReconSelectedMatchIds((prev) => {
+																												const next = new Set(prev);
+																												if (checked) next.add(id);
+																												else next.delete(id);
+																												return next;
+																											});
+																									}}
+																								/>
+																						</td>
+																						<td>
+																								<button
+																									type="button"
+																										className="btn btn-link btn-sm p-0 text-decoration-none"
+																										onClick={() => {
+																											setReconDrawerOrder(o || null);
+																											setReconDrawerOpen(true);
+																										}}
+																								>
+																										{id}
+																									</button>
+																								</td>
+																						<td className="text-muted">{window.KTM.date.formatDateTime(o.created_at)}</td>
+																						<td className="text-muted">{o.phone || '—'}</td>
+																						<td style={{ minWidth: 240 }}>{m?.group?.productDisplay || '—'}</td>
+																						<td style={{ minWidth: 240 }}>{o.productSummary || '—'}</td>
+																						<td className="text-end fw-semibold">{window.KTM.money.formatNumber(o.cod)}</td>
+																						<td>
+																							<span className={`badge ${String(o?.status || o?.raw?.status || '').toLowerCase() === 'paid' ? 'bg-primary' : 'bg-secondary'}`}>
+																									{String(o?.status || o?.raw?.status || '').toLowerCase() === 'paid' ? 'Đã nhận tiền' : (o?.status || o?.raw?.status || '—')}
+																								</span>
+																						</td>
+																					</tr>
+																					);
+																				})}
+																		</tbody>
+																	</table>
+																</div>
+																<div className="text-muted small mt-2">Hiển thị tối đa 50 đơn. Dùng lọc SĐT để thu hẹp.</div>
+															</div>
+
+															<div className="d-md-none">
+																	{(reconResult.matches || [])
+																		.filter((m) => {
 																				const o = m?.order;
 																				if (!o?.id) return false;
 																				const st = String(o?.status || o?.raw?.status || '').toLowerCase();
 																				if (reconExcludePaid && st === 'paid') return false;
+																				const pf = normalizePhoneDigits(reconPhoneFilter);
 																				if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
 																				return true;
-																			});
-																			if (!visible.length) return false;
-																			for (const m of visible) {
-																				if (!reconSelectedMatchIds.has(String(m?.order?.id || ''))) return false;
-																			}
-																			return true;
-																		})()}
-																		onChange={(e) => {
-																			const checked = Boolean(e.target.checked);
-																			setReconSelectedMatchIds((prev) => {
-																				const next = new Set(prev);
-																				const pf = normalizePhoneDigits(reconPhoneFilter);
-																				const visible = (reconResult.matches || []).filter((m) => {
-																					const o = m?.order;
-																					if (!o?.id) return false;
-																					const st = String(o?.status || o?.raw?.status || '').toLowerCase();
-																					if (reconExcludePaid && st === 'paid') return false;
-																					if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
-																					return true;
-																				});
-																				for (const m of visible) {
-																					const id = String(m?.order?.id || '').trim();
-																					if (!id) continue;
-																					if (checked) next.add(id);
-																					else next.delete(id);
-																				}
-																				return next;
-																			});
-																		}}
-																	/>
-																</th>
-																<th>Order ID</th>
-																<th>Ngày</th>
-																<th>SĐT</th>
-																<th>Excel</th>
-																<th>Hệ thống</th>
-																<th className="text-end">Thu hộ</th>
-															<th>Trạng thái</th>
-														</tr>
-													</thead>
-													<tbody>
-														{(reconResult.matches || [])
-															.filter((m) => {
-																const o = m?.order;
-																if (!o?.id) return false;
-																const st = String(o?.status || o?.raw?.status || '').toLowerCase();
-																if (reconExcludePaid && st === 'paid') return false;
-																const pf = normalizePhoneDigits(reconPhoneFilter);
-																if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
-																return true;
-														})
-														.slice(0, 50)
-														.map((m) => {
-															const o = m.order;
-															const id = String(o.id);
-															return (
-																<tr key={`match-${id}`}>
-																	<td>
-																		<input
-																			type="checkbox"
-																				checked={reconSelectedMatchIds.has(id)}
-																				onChange={(e) => {
-																					const checked = Boolean(e.target.checked);
-																					setReconSelectedMatchIds((prev) => {
-																						const next = new Set(prev);
-																						if (checked) next.add(id);
-																						else next.delete(id);
-																						return next;
-																					});
-																		}}
-																		/>
-																	</td>
-																	<td>
-																		<button
-																			type="button"
-																			className="btn btn-link btn-sm p-0 text-decoration-none"
-																			onClick={() => {
-																				setReconDrawerOrder(o || null);
-																				setReconDrawerOpen(true);
-																			}}
-																		>
-																			{id}
-																		</button>
-																	</td>
-																	<td className="text-muted">{window.KTM.date.formatDateTime(o.created_at)}</td>
-																	<td className="text-muted">{o.phone || '—'}</td>
-																	<td style={{ minWidth: 240 }}>{m?.group?.productDisplay || '—'}</td>
-																	<td style={{ minWidth: 240 }}>{o.productSummary || '—'}</td>
-																	<td className="text-end fw-semibold">{window.KTM.money.formatNumber(o.cod)}</td>
-																	<td>
-																		<span className={`badge ${String(o?.status || o?.raw?.status || '').toLowerCase() === 'paid' ? 'bg-primary' : 'bg-secondary'}`}>
-																			{String(o?.status || o?.raw?.status || '').toLowerCase() === 'paid' ? 'Đã nhận tiền' : (o?.status || o?.raw?.status || '—')}
-																		</span>
-																	</td>
-																</tr>
-															);
-														})}
-													</tbody>
-												</table>
-											</div>
-											<div className="text-muted small mt-2">Hiển thị tối đa 50 đơn. Dùng lọc SĐT để thu hẹp.</div>
+																		})
+																		.slice(0, 50)
+																		.map((m) => {
+																			const o = m?.order;
+																			const id = String(o?.id || '').trim();
+																			const stLower = String(o?.status || o?.raw?.status || '').toLowerCase();
+																			return (
+																				<div key={`match-m-${id || String(o?.created_at || '')}`} className="recon-mobile-card recon-mobile-card-success">
+																					<div className="d-flex justify-content-between align-items-start gap-2">
+																							<div className="d-flex align-items-center gap-2" style={{ minWidth: 0 }}>
+																								<input
+																									type="checkbox"
+																										checked={Boolean(id) && reconSelectedMatchIds.has(id)}
+																										onChange={(e) => {
+																											const checked = Boolean(e.target.checked);
+																											setReconSelectedMatchIds((prev) => {
+																												const next = new Set(prev);
+																												if (!id) return next;
+																												if (checked) next.add(id);
+																												else next.delete(id);
+																												return next;
+																											});
+																										}}
+																								/>
+																								<button
+																									type="button"
+																										className="btn btn-link btn-sm p-0 text-decoration-none text-truncate"
+																										onClick={() => {
+																											setReconDrawerOrder(o || null);
+																											setReconDrawerOpen(true);
+																										}}
+																									>{id || '—'}</button>
+																								</div>
+																								<span className={`badge ${stLower === 'paid' ? 'bg-primary' : 'bg-secondary'}`}>
+																									{stLower === 'paid' ? 'Đã nhận tiền' : (o?.status || o?.raw?.status || '—')}
+																							</span>
+																						</div>
+																						<div className="small text-muted mt-1">{window.KTM.date.formatDateTime(o?.created_at)}{o?.phone ? ` • ${o.phone}` : ''}</div>
+																						<div className="recon-mobile-kv mt-2">
+																								<span className="text-muted">Thu hộ</span>
+																								<span className="fw-semibold">{window.KTM.money.formatNumber(o?.cod)}</span>
+																							</div>
+																						<div className="recon-mobile-value mt-2"><span className="text-muted">Excel:</span> {m?.group?.productDisplay || '—'}</div>
+																						<div className="recon-mobile-value mt-1"><span className="text-muted">Hệ thống:</span> {o?.productSummary || '—'}</div>
+																					</div>
+																				);
+																			})}
+																		<div className="text-muted small mt-2">Hiển thị tối đa 50 đơn. Dùng lọc SĐT để thu hẹp.</div>
+																	</div>
 										</div>
 									</div>
 									)}

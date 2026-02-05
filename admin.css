@@ -3153,3 +3153,50 @@
         max-height: 60vh;
       }
     }
+
+    /* ========== RECON EXCEL (MOBILE UI) ========== */
+
+    .recon-phone-input {
+      width: 220px;
+      max-width: 100%;
+    }
+
+    @media (max-width: 768px) {
+      .recon-phone-input {
+        width: 100%;
+      }
+    }
+
+    .recon-mobile-card {
+      background: var(--ktm-admin-surface-solid);
+      border: 1px solid var(--ktm-admin-border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+      overflow: hidden;
+    }
+
+    .recon-mobile-card-danger {
+      border-left: 4px solid var(--danger);
+    }
+
+    .recon-mobile-card-warning {
+      border-left: 4px solid var(--primary);
+    }
+
+    .recon-mobile-card-success {
+      border-left: 4px solid var(--success);
+    }
+
+    .recon-mobile-kv {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .recon-mobile-value {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
