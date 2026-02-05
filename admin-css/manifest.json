@@ -1,0 +1,23 @@
+{
+  "source": "admin.css",
+  "partsDir": "admin-css/parts",
+  "parts": [
+    "00-base.css",
+    "10-mobile-ui.css",
+    "20-legacy-ops.css",
+    "30-premium-shell.css",
+    "40-ops-drawer.css",
+    "50-sidebar-layout.css",
+    "60-command-palette.css",
+    "70-recon.css"
+  ],
+  "markers": {
+    "mobileFirst": "/* ========== MOBILE FIRST ========== */",
+    "oldStyles": "/* ========== OLD STYLES KEPT FOR COMPATIBILITY ========== */",
+    "premiumShell": "/* ========== PREMIUM ADMIN SHELL (OVERRIDES) ========== */",
+    "opsDrawer": "/* ========== OPS DRAWER (RIGHT INSPECTOR) ========== */",
+    "sidebarMain": "/* ========== SIDEBAR & MAIN CONTENT ========== */",
+    "commandPalette": "/* ========== B: COMMAND PALETTE ========== */",
+    "reconExcel": "/* ========== RECON EXCEL (MOBILE UI) ========== */"
+  }
+}

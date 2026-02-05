@@ -1,0 +1,330 @@
+/* ========== SIDEBAR & MAIN CONTENT ========== */
+    
+    .sidebar {
+      background: var(--dark);
+      min-height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 250px;
+      padding-top: 20px;
+      z-index: 1040;
+    }
+    
+    .sidebar .logo {
+      color: var(--primary);
+      font-weight: bold;
+      font-size: 1.5rem;
+      padding: 0 20px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .sidebar .nav-link {
+      color: rgba(255,255,255,0.7);
+      padding: 12px 20px;
+      border-left: 3px solid transparent;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .sidebar .nav-link:hover,
+    .sidebar .nav-link.active {
+      color: #fff;
+      background: rgba(255,255,255,0.05);
+      border-left-color: var(--primary);
+    }
+    
+    .sidebar .nav-link i {
+      width: 25px;
+    }
+    
+    .main-content {
+      margin-left: 250px;
+      padding: 20px;
+      padding-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+      .main-content {
+        margin-left: 0;
+      }
+    }
+
+    /* Mobile: keep enough bottom space for fixed bottom navigation */
+    @media (max-width: 768px) {
+      .main-content {
+        padding: 0 !important;
+        padding-bottom: calc(140px + env(safe-area-inset-bottom)) !important;
+      }
+
+      /* Full width content sections - except product-manager which has its own padding */
+      .main-content > div:not(.product-manager) {
+        padding: 12px;
+      }
+    }
+
+    /* Login Page Styles */
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      padding: 20px;
+    }
+
+    .login-box {
+      background: #fff;
+      border-radius: 15px;
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .login-box .input-group-text {
+      background: #f8f9fa;
+      border-right: none;
+    }
+
+    .login-box .form-control {
+      border-left: none;
+    }
+
+    .login-box .form-control:focus {
+      box-shadow: none;
+      border-color: #ced4da;
+    }
+
+    .login-box .input-group:focus-within .input-group-text,
+    .login-box .input-group:focus-within .form-control {
+      border-color: var(--primary);
+    }
+
+    /* --- PRODUCT LIST STYLES - BEAUTIFUL & SOFT DESIGN (ADMIN) --- */
+    .product-manager {
+      background: #f5f7fa;
+      border-radius: 0;
+      padding: 12px;
+      margin: 0;
+      min-height: calc(100vh - 140px);
+      position: relative;
+    }
+
+    /* Mobile: reserve space for fixed bottom navigation (override must be AFTER base .product-manager rule) */
+    @media (max-width: 768px) {
+      .product-manager {
+        padding-bottom: calc(240px + env(safe-area-inset-bottom)) !important;
+      }
+    }
+    .product-header {
+      background: linear-gradient(135deg, #ffc107 0%, #ffca2c 100%);
+      border-radius: 16px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 6px 20px rgba(255,193,7,0.25);
+    }
+    .product-header h5 {
+      color: #1a1a2e;
+      font-weight: 700;
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .product-search {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .product-search input,
+    .product-search select {
+      background: #fff !important;
+      border: 1.5px solid #e9ecef !important;
+      border-radius: 10px !important;
+      color: #333 !important;
+      padding: 10px 14px !important;
+    }
+    .product-search input:focus,
+    .product-search select:focus {
+      border-color: #ffc107 !important;
+      box-shadow: 0 0 0 4px rgba(255,193,7,0.15) !important;
+    }
+    .product-search input::placeholder {
+      color: #aaa !important;
+    }
+
+    /* Orders filter + rounded buttons (Orders screen) */
+    .product-manager .btn {
+      border-radius: 12px !important;
+    }
+    .product-search .input-group-text {
+      background: #fff;
+      border: 1.5px solid #e9ecef;
+      border-right: none;
+      border-radius: 10px 0 0 10px;
+      color: #6c757d;
+    }
+    .product-search .input-group .form-control {
+      border-left: none !important;
+      border-radius: 0 !important;
+    }
+    .product-search .input-group .btn {
+      border-radius: 0 10px 10px 0 !important;
+      border: 1.5px solid #e9ecef;
+      border-left: none;
+    }
+    .product-search .input-group:focus-within .input-group-text,
+    .product-search .input-group:focus-within .form-control,
+    .product-search .input-group:focus-within .btn {
+      border-color: #ffc107 !important;
+    }
+    .product-item {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border: none;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .product-item:hover {
+      background: linear-gradient(135deg, #fffdf5 0%, #fff9e6 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255,193,7,0.12);
+    }
+    .product-item:active {
+      transform: scale(0.985);
+    }
+    .product-img {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      object-fit: cover;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+    }
+    .product-img-placeholder {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .product-name {
+      font-weight: 600;
+      color: #2d3436;
+      font-size: 0.9rem;
+      line-height: 1.35;
+      margin-bottom: 5px;
+    }
+    .product-price {
+      color: #e17055;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .product-badge {
+      font-size: 0.65rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    .product-badge.bg-info {
+      background: linear-gradient(135deg, #e8f4fd 0%, #d6ebfa 100%) !important;
+      color: #0984e3 !important;
+    }
+    .product-badge.bg-secondary {
+      background: #f1f2f6 !important;
+      color: #636e72 !important;
+    }
+    .product-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .product-actions .btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      font-size: 0.85rem;
+    }
+    .product-actions .btn-edit {
+      background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+      border: none;
+      color: #fff;
+    }
+    .product-actions .btn-edit:hover, .product-actions .btn-edit:active {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(9,132,227,0.35);
+    }
+    .product-actions .btn-delete {
+      background: linear-gradient(135deg, #fab1a0 0%, #e17055 100%);
+      border: none;
+      color: #fff;
+    }
+    .product-actions .btn-delete:hover, .product-actions .btn-delete:active {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(225,112,85,0.35);
+    }
+    .product-count {
+      background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 3px 10px rgba(108,92,231,0.25);
+    }
+    .btn-add-product {
+      background: #2d3436;
+      color: #ffeaa7;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+    }
+    .btn-add-product:hover, .btn-add-product:active {
+      background: #1a1a2e;
+      color: #ffeaa7;
+      transform: scale(1.03);
+    }
+    .min-width-0 {
+      min-width: 0;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 50px 20px;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    }
+    .empty-state i {
+      font-size: 3.5rem;
+      color: #ffc107;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .empty-state p {
+      color: #636e72;
+      margin-bottom: 20px;
+      font-size: 0.95rem;
+    }
+    

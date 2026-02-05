@@ -1,0 +1,71 @@
+﻿:root {
+      --primary: #ffc107;
+      --dark: #1a1a2e;
+      --success: #28a745;
+      --danger: #dc3545;
+      --info: #17a2b8;
+
+  /* Premium admin tokens */
+  --ktm-admin-bg: #f5f7fb;
+  --ktm-admin-surface: rgba(255, 255, 255, 0.86);
+  --ktm-admin-surface-solid: #ffffff;
+  --ktm-admin-text: #0f172a;
+  --ktm-admin-muted: #64748b;
+  --ktm-admin-border: rgba(15, 23, 42, 0.10);
+  --ktm-admin-shadow-sm: 0 10px 30px rgba(15, 23, 42, 0.07);
+  --ktm-admin-shadow-md: 0 24px 80px rgba(15, 23, 42, 0.14);
+  --ktm-admin-radius: 16px;
+  --ktm-admin-radius-sm: 12px;
+  --ktm-admin-focus: rgba(255, 193, 7, 0.35);
+  --ktm-admin-sidebar-bg: #0b1324;
+  --ktm-admin-sidebar-bg2: #111b33;
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      overflow-x: hidden;
+      max-width: 100vw;
+      width: 100%;
+    }
+    
+    /* Fix mobile horizontal scroll */
+    #root, .app-container, main, section, div {
+      max-width: 100%;
+    }
+    
+    body {
+      background:
+        radial-gradient(1200px 600px at 15% 0%, rgba(255, 193, 7, 0.12), transparent 55%),
+        radial-gradient(900px 500px at 85% 10%, rgba(23, 162, 184, 0.10), transparent 55%),
+        linear-gradient(180deg, #f8fafc 0%, #f2f4f8 60%, #f5f7fb 100%);
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+      color: var(--ktm-admin-text);
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    :focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 4px var(--ktm-admin-focus);
+      border-radius: 10px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+    
+    /* Prevent iOS zoom on input focus */
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+    
+    

@@ -1,0 +1,272 @@
+/* ========== PREMIUM ADMIN SHELL (OVERRIDES) ========== */
+
+    .sidebar {
+      background: linear-gradient(180deg, var(--ktm-admin-sidebar-bg) 0%, var(--ktm-admin-sidebar-bg2) 100%);
+      width: 260px;
+      padding-top: 18px;
+      border-right: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow: 18px 0 50px rgba(2, 6, 23, 0.20);
+    }
+
+    .sidebar .logo {
+      color: #fff;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      padding: 0 18px 14px;
+    }
+
+    .sidebar-user {
+      margin: 14px 14px 8px;
+      padding: 12px 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 193, 7, 0.16);
+      color: #ffd24d;
+      flex: 0 0 auto;
+    }
+
+    .sidebar-user-name {
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      line-height: 1.1;
+    }
+
+    .sidebar-user-sub {
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 0.78rem;
+      margin-top: 2px;
+    }
+
+    .sidebar .nav-link {
+      margin: 4px 10px;
+      border-radius: 12px;
+      border-left: none;
+      padding: 10px 12px;
+      padding-right: 44px;
+      position: relative;
+      color: rgba(255, 255, 255, 0.72);
+      background: transparent;
+      transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+
+    .sidebar-section-title {
+      margin: 14px 16px 6px;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.50);
+      user-select: none;
+    }
+
+    .sidebar-quicklist {
+      margin-bottom: 6px;
+    }
+
+    .sidebar-pin-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 28px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      background: rgba(255, 255, 255, 0.04);
+      color: rgba(255, 255, 255, 0.70);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.12s ease, transform 0.12s ease, background 0.12s ease, color 0.12s ease;
+    }
+
+    .sidebar .nav-link:hover .sidebar-pin-btn {
+      opacity: 1;
+      transform: translateY(-50%) scale(1.02);
+    }
+
+    .sidebar-pin-btn.pinned {
+      opacity: 1;
+      background: rgba(255, 193, 7, 0.14);
+      border-color: rgba(255, 193, 7, 0.28);
+      color: #ffd24d;
+    }
+
+    .sidebar-pin-btn:active {
+      transform: translateY(-50%) scale(0.98);
+    }
+
+    .sidebar .nav-link:hover {
+      background: rgba(255, 255, 255, 0.06);
+      transform: translateY(-1px);
+      color: #fff;
+    }
+
+    .sidebar .nav-link.active {
+      background: rgba(255, 193, 7, 0.14);
+      color: #fff;
+      box-shadow: 0 10px 26px rgba(255, 193, 7, 0.10);
+    }
+
+    .main-content {
+      margin-left: 260px;
+      padding: 18px;
+      padding-bottom: 20px;
+      min-height: 100vh;
+    }
+
+    .admin-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 1030;
+      margin-bottom: 16px;
+    }
+
+    .admin-topbar-inner {
+      background: var(--ktm-admin-surface);
+      border: 1px solid var(--ktm-admin-border);
+      border-radius: 18px;
+      box-shadow: var(--ktm-admin-shadow-sm);
+      backdrop-filter: blur(12px);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .admin-topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .admin-page-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 193, 7, 0.16);
+      color: #b77900;
+      flex: 0 0 auto;
+    }
+
+    .admin-page-title {
+      min-width: 0;
+    }
+
+    .admin-page-heading {
+      font-weight: 800;
+      letter-spacing: -0.2px;
+      font-size: 1.05rem;
+      line-height: 1.1;
+      color: var(--ktm-admin-text);
+    }
+
+    .admin-page-subtitle {
+      color: var(--ktm-admin-muted);
+      font-size: 0.82rem;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 62vw;
+    }
+
+    .admin-topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .admin-user-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.04);
+      border: 1px solid var(--ktm-admin-border);
+      color: var(--ktm-admin-text);
+      max-width: 220px;
+    }
+
+    .admin-user-chip-name {
+      font-weight: 700;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .admin-page-body {
+      min-height: 0;
+    }
+
+    /* Bootstrap polish */
+    .btn {
+      border-radius: 12px;
+    }
+
+    .btn-warning {
+      box-shadow: 0 10px 26px rgba(255, 193, 7, 0.18);
+    }
+
+    .form-control, .form-select, .input-group-text {
+      border-radius: 12px;
+    }
+
+    .card {
+      border-radius: 16px;
+      border: 1px solid var(--ktm-admin-border);
+      box-shadow: var(--ktm-admin-shadow-sm);
+    }
+
+    .table {
+      border-color: rgba(15, 23, 42, 0.10);
+    }
+
+    .table thead th {
+      background: rgba(15, 23, 42, 0.03);
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        margin-left: 0;
+        padding: 0;
+        padding-bottom: calc(140px + env(safe-area-inset-bottom));
+      }
+
+      .admin-topbar {
+        padding: 10px 12px 0;
+      }
+
+      .admin-page-subtitle {
+        max-width: 70vw;
+      }
+
+      .admin-user-chip {
+        max-width: 150px;
+      }
+    }
+
+    
