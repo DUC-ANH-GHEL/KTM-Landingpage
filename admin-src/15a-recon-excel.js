@@ -2238,39 +2238,92 @@
 															</div>
 
 															<div className="d-md-none">
-																	{(reconResult.matches || [])
-																		.filter((m) => {
-																				const o = m?.order;
-																				if (!o?.id) return false;
-																				const st = String(o?.status || o?.raw?.status || '').toLowerCase();
-																				if (reconExcludePaid && st === 'paid') return false;
-																				const pf = normalizePhoneDigits(reconPhoneFilter);
-																				if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
-																				return true;
-																		})
-																		.slice(0, 50)
-																		.map((m) => {
-																			const o = m?.order;
-																			const id = String(o?.id || '').trim();
-																			const stLower = String(o?.status || o?.raw?.status || '').toLowerCase();
-																			return (
-																				<div key={`match-m-${id || String(o?.created_at || '')}`} className="recon-mobile-card recon-mobile-card-success">
-																					<div className="d-flex justify-content-between align-items-start gap-2">
-																							<div className="d-flex align-items-center gap-2" style={{ minWidth: 0 }}>
-																								<input
-																									type="checkbox"
-																										checked={Boolean(id) && reconSelectedMatchIds.has(id)}
+																				{(() => {
+																					const visibleMatches = (reconResult.matches || [])
+																						.filter((m) => {
+																							const o = m?.order;
+																							if (!o?.id) return false;
+																							const st = String(o?.status || o?.raw?.status || '').toLowerCase();
+																							if (reconExcludePaid && st === 'paid') return false;
+																							const pf = normalizePhoneDigits(reconPhoneFilter);
+																							if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
+																							return true;
+																						})
+																						.slice(0, 50);
+
+																					const visibleIds = visibleMatches
+																						.map((m) => String(m?.order?.id || '').trim())
+																						.filter(Boolean);
+
+																					const allChecked = (() => {
+																						if (!visibleIds.length) return false;
+																						for (const id of visibleIds) {
+																							if (!reconSelectedMatchIds.has(id)) return false;
+																						}
+																						return true;
+																					})();
+
+																					return (
+																						<>
+																							<div className="d-flex align-items-center justify-content-between mb-2">
+																								<label className="d-flex align-items-center gap-2 small mb-0">
+																									<input
+																										type="checkbox"
+																										checked={allChecked}
+																										disabled={!visibleIds.length}
 																										onChange={(e) => {
 																											const checked = Boolean(e.target.checked);
 																											setReconSelectedMatchIds((prev) => {
 																												const next = new Set(prev);
-																												if (!id) return next;
-																												if (checked) next.add(id);
-																												else next.delete(id);
+																												for (const id of visibleIds) {
+																														if (checked) next.add(id);
+																														else next.delete(id);
+																													}
+																												return next;
+																												});
+																										}}
+																								/>
+																								<span>Chọn tất cả (đang hiển thị)</span>
+																							</label>
+
+																								<button
+																									type="button"
+																										className="btn btn-link btn-sm p-0 text-decoration-none"
+																										disabled={!visibleIds.length}
+																										onClick={() => {
+																											setReconSelectedMatchIds((prev) => {
+																												const next = new Set(prev);
+																												for (const id of visibleIds) next.delete(id);
 																												return next;
 																											});
 																										}}
-																								/>
+																								>
+																										Bỏ chọn
+																								</button>
+																							</div>
+
+																							{visibleMatches.map((m) => {
+																							const o = m?.order;
+																							const id = String(o?.id || '').trim();
+																							const stLower = String(o?.status || o?.raw?.status || '').toLowerCase();
+																							return (
+																								<div key={`match-m-${id || String(o?.created_at || '')}`} className="recon-mobile-card recon-mobile-card-success">
+																									<div className="d-flex justify-content-between align-items-start gap-2">
+																										<div className="d-flex align-items-center gap-2" style={{ minWidth: 0 }}>
+																											<input
+																											type="checkbox"
+																												checked={Boolean(id) && reconSelectedMatchIds.has(id)}
+																												onChange={(e) => {
+																													const checked = Boolean(e.target.checked);
+																													setReconSelectedMatchIds((prev) => {
+																															const next = new Set(prev);
+																														if (!id) return next;
+																															if (checked) next.add(id);
+																															else next.delete(id);
+																															return next;
+																														});
+																													}}
+																											/>
 																								<button
 																									type="button"
 																										className="btn btn-link btn-sm p-0 text-decoration-none text-truncate"
@@ -2281,7 +2334,7 @@
 																									>{id || '—'}</button>
 																								</div>
 																								<span className={`badge ${stLower === 'paid' ? 'bg-primary' : 'bg-secondary'}`}>
-																									{stLower === 'paid' ? 'Đã nhận tiền' : (o?.status || o?.raw?.status || '—')}
+																											{stLower === 'paid' ? 'Đã nhận tiền' : (o?.status || o?.raw?.status || '—')}
 																							</span>
 																						</div>
 																						<div className="small text-muted mt-1">{window.KTM.date.formatDateTime(o?.created_at)}{o?.phone ? ` • ${o.phone}` : ''}</div>
@@ -2293,7 +2346,10 @@
 																						<div className="recon-mobile-value mt-1"><span className="text-muted">Hệ thống:</span> {o?.productSummary || '—'}</div>
 																					</div>
 																				);
-																			})}
+																					})}
+																						</>
+																					);
+																				})()}
 																		<div className="text-muted small mt-2">Hiển thị tối đa 50 đơn. Dùng lọc SĐT để thu hẹp.</div>
 																	</div>
 										</div>
