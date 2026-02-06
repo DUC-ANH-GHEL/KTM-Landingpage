@@ -67,7 +67,7 @@
         .filter((id) => id !== activeMenu)
         .map((id) => menuById.get(id))
         .filter(Boolean)
-        .slice(0, 5);
+        .slice(0, 2);
 
       const isPinned = (id) => pinned.includes(id);
 
@@ -87,7 +87,7 @@
             </div>
           </div>
 
-          <nav className="nav flex-column mt-3">
+          <nav className="nav flex-column mt-3 sidebar-nav">
             {pinnedItems.length > 0 && (
               <>
                 <div className="sidebar-section-title">Pinned</div>
@@ -134,34 +134,36 @@
             )}
 
             <div className="sidebar-section-title">Menu</div>
-            {menus.map(menu => (
-              <a
-                key={menu.id}
-                href="#"
-                className={`nav-link ${activeMenu === menu.id ? 'active' : ''} ${menu.disabled ? 'opacity-50' : ''} ${menu.highlight ? 'text-warning' : ''}`}
-                onClick={(e) => { e.preventDefault(); if (!menu.disabled) onMenuChange(menu.id); }}
-              >
-                <i className={`fas ${menu.icon}`}></i> {menu.label}
-                {menu.disabled && <span className="badge bg-secondary ms-2">Soon</span>}
-                {menu.highlight && <span className="badge bg-warning text-dark ms-2">HOT</span>}
-
-                <button
-                  type="button"
-                  className={`sidebar-pin-btn ${isPinned(menu.id) ? 'pinned' : ''}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onTogglePin && onTogglePin(menu.id);
-                  }}
-                  title={isPinned(menu.id) ? 'Bỏ ghim' : 'Ghim'}
-                  aria-label={isPinned(menu.id) ? 'Bỏ ghim' : 'Ghim'}
+            <div className="sidebar-menu-scroll" aria-label="Danh sách menu">
+              {menus.map(menu => (
+                <a
+                  key={menu.id}
+                  href="#"
+                  className={`nav-link ${activeMenu === menu.id ? 'active' : ''} ${menu.disabled ? 'opacity-50' : ''} ${menu.highlight ? 'text-warning' : ''}`}
+                  onClick={(e) => { e.preventDefault(); if (!menu.disabled) onMenuChange(menu.id); }}
                 >
-                  <i className="fas fa-thumbtack"></i>
-                </button>
-              </a>
-            ))}
+                  <i className={`fas ${menu.icon}`}></i> {menu.label}
+                  {menu.disabled && <span className="badge bg-secondary ms-2">Soon</span>}
+                  {menu.highlight && <span className="badge bg-warning text-dark ms-2">HOT</span>}
+
+                  <button
+                    type="button"
+                    className={`sidebar-pin-btn ${isPinned(menu.id) ? 'pinned' : ''}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onTogglePin && onTogglePin(menu.id);
+                    }}
+                    title={isPinned(menu.id) ? 'Bỏ ghim' : 'Ghim'}
+                    aria-label={isPinned(menu.id) ? 'Bỏ ghim' : 'Ghim'}
+                  >
+                    <i className="fas fa-thumbtack"></i>
+                  </button>
+                </a>
+              ))}
+            </div>
           </nav>
-          <div className="position-absolute bottom-0 w-100 p-3 border-top border-secondary">
+          <div className="sidebar-footer w-100 p-3 border-top border-secondary">
             <div className="d-flex justify-content-between align-items-center">
               <a href="/" className="text-white-50 text-decoration-none small">
                 <i className="fas fa-home me-1"></i> Trang chủ
