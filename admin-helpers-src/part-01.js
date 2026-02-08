@@ -114,9 +114,14 @@
     const nav = typeof navigator !== 'undefined' ? navigator : null;
 
     // Modern API (preferred) — but Safari/iOS may expose it and still block.
-    if (nav?.clipboard?.writeText) {
+    if (nav?.clipboard?.writeText && typeof window !== 'undefined' && window.isSecureContext) {
       try {
-        await nav.clipboard.writeText(raw);
+        // If it stalls (permission prompt / webview quirks), don't wait forever.
+        const timeoutMs = 280;
+        await Promise.race([
+          nav.clipboard.writeText(raw),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('clipboard_timeout')), timeoutMs)),
+        ]);
         return;
       } catch {
         // Fall through to legacy copy.
