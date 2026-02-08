@@ -231,9 +231,10 @@
                               tabIndex={0}
                               onPointerDown={(e) => startPhoneLongPress(e, order.phone)}
                               onPointerMove={cancelPhoneLongPress}
-                              onPointerUp={cancelPhoneLongPress}
+                              onPointerUp={(e) => finishPhoneLongPress(e, order.phone)}
                               onPointerCancel={cancelPhoneLongPress}
                               onPointerLeave={cancelPhoneLongPress}
+                              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (phoneLongPressFiredRef.current) {
@@ -477,4 +478,4 @@
                                 updateOrderStatus(statusPopoverOrder, opt.value);
                                 closeStatusPopover();
                               }}
-                              disabled={busy}
+                              disabled={busy}

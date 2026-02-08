@@ -110,22 +110,39 @@
   const clipboard = KTM.clipboard || (KTM.clipboard = {});
 
   clipboard.writeText = clipboard.writeText || async function writeText(text) {
+    const raw = String(text ?? '');
     const nav = typeof navigator !== 'undefined' ? navigator : null;
+
+    // Modern API (preferred) — but Safari/iOS may expose it and still block.
     if (nav?.clipboard?.writeText) {
-      await nav.clipboard.writeText(String(text ?? ''));
-      return;
+      try {
+        await nav.clipboard.writeText(raw);
+        return;
+      } catch {
+        // Fall through to legacy copy.
+      }
     }
 
+    // Legacy fallback — tuned to work better on iOS Safari.
     const ta = document.createElement('textarea');
-    ta.value = String(text ?? '');
+    ta.value = raw;
     ta.setAttribute('readonly', '');
+    ta.setAttribute('aria-hidden', 'true');
     ta.style.position = 'fixed';
+    ta.style.top = '0';
     ta.style.left = '-9999px';
+    ta.style.opacity = '0';
     document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand('copy');
-    document.body.removeChild(ta);
-    if (!ok) throw new Error('copy_failed');
+    try {
+      // Some iOS versions require focus before selection.
+      try { ta.focus({ preventScroll: true }); } catch { ta.focus(); }
+      ta.select();
+      try { ta.setSelectionRange(0, ta.value.length); } catch {}
+      const ok = document.execCommand('copy');
+      if (!ok) throw new Error('copy_failed');
+    } finally {
+      try { document.body.removeChild(ta); } catch {}
+    }
   };
 
   clipboard.writeImageFromUrl = clipboard.writeImageFromUrl || async function writeImageFromUrl(url) {
@@ -477,4 +494,4 @@
     let found = false;
     let maxFee = 0;
     for (const it of arr) {
-      const pid = String(it?.product_id || '');
+      const pid = String(it?.product_id || '');

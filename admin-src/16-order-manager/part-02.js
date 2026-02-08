@@ -106,25 +106,27 @@
         e?.stopPropagation?.();
         phoneLongPressFiredRef.current = false;
         maybeShowPhoneTip();
-        try {
-          if (phonePressTimerRef.current) clearTimeout(phonePressTimerRef.current);
-        } catch {
-          // ignore
-        }
-        phonePressTimerRef.current = setTimeout(() => {
-          phoneLongPressFiredRef.current = true;
-          handlePhoneCopy(phoneRaw);
-        }, 520);
+        // NOTE: Avoid copying inside setTimeout (loses user gesture -> clipboard blocked).
+        // We record the press start and perform copy on pointerup if held long enough.
+        phonePressTimerRef.current = { t0: Date.now(), phoneRaw };
       };
 
       const cancelPhoneLongPress = (e) => {
         e?.stopPropagation?.();
-        try {
-          if (phonePressTimerRef.current) clearTimeout(phonePressTimerRef.current);
-        } catch {
-          // ignore
-        }
         phonePressTimerRef.current = null;
+      };
+
+      const finishPhoneLongPress = (e, phoneRaw) => {
+        e?.stopPropagation?.();
+        const meta = phonePressTimerRef.current;
+        phonePressTimerRef.current = null;
+
+        const t0 = Number(meta?.t0) || 0;
+        const heldMs = t0 ? (Date.now() - t0) : 0;
+        if (heldMs >= 520) {
+          phoneLongPressFiredRef.current = true;
+          handlePhoneCopy(phoneRaw ?? meta?.phoneRaw);
+        }
       };
 
       const markOrderRecentlyUpdated = (orderId) => {
@@ -477,4 +479,4 @@
 
           const name = String(rawName || '').trim();
           const address = String(rawAddress || '').trim();
-
+

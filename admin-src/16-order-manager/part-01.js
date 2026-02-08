@@ -472,9 +472,13 @@
         const phone = normalizePhone(String(phoneRaw || '')).replace(/[^0-9+]/g, '');
         if (!phone) return;
         try {
-          await (navigator.clipboard?.writeText?.(phone) ?? Promise.reject(new Error('Clipboard not available')));
+          if (window?.KTM?.clipboard?.writeText) {
+            await window.KTM.clipboard.writeText(phone);
+          } else {
+            await (navigator.clipboard?.writeText?.(phone) ?? Promise.reject(new Error('Clipboard not available')));
+          }
           if (typeof showToast === 'function') showToast('Đã copy SĐT', 'success');
         } catch {
           if (typeof showToast === 'function') showToast('Không copy được SĐT', 'danger');
         }
-      };
+      };
