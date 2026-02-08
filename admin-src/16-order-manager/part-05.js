@@ -426,13 +426,24 @@
         return parts.filter(Boolean).join('\n');
       };
 
-      const handleCopyOrder = async (order) => {
+      const handleCopyOrder = (order) => {
+        // IMPORTANT for iOS Safari/WebViews: copy must be invoked synchronously from the user gesture.
+        // Do not await network/cache fills before calling clipboard.
         try {
-          const fullOrder = await ensureFullOrder(order);
-          const text = getOrderCopyText(fullOrder);
-          await window.KTM.clipboard.writeText(text);
-          if (typeof showToast === 'function') showToast('Đã copy thông tin đơn hàng', 'success');
-          else alert('Đã copy thông tin đơn hàng');
+          const text = getOrderCopyText(order);
+          Promise.resolve(window.KTM.clipboard.writeText(text))
+            .then(() => {
+              if (typeof showToast === 'function') showToast('Đã copy thông tin đơn hàng', 'success');
+              else alert('Đã copy thông tin đơn hàng');
+            })
+            .catch((err) => {
+              console.error(err);
+              if (typeof showToast === 'function') showToast('Copy thất bại (trình duyệt chặn clipboard)', 'danger');
+              else alert('Copy thất bại (trình duyệt chặn clipboard)');
+            });
+
+          // Prefetch full order for later use (non-blocking).
+          try { ensureFullOrder(order); } catch {}
         } catch (err) {
           console.error(err);
           if (typeof showToast === 'function') showToast('Copy thất bại (trình duyệt chặn clipboard)', 'danger');
@@ -477,4 +488,4 @@
           .filter((it) => it.product_id && Number.isFinite(it.quantity) && it.quantity > 0)
           .sort((a, b) => {
             if (a.product_id < b.product_id) return -1;
-            if (a.product_id > b.product_id) return 1;
+            if (a.product_id > b.product_id) return 1;
