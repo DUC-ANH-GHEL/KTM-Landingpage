@@ -113,41 +113,46 @@
     const raw = String(text ?? '');
     const nav = typeof navigator !== 'undefined' ? navigator : null;
 
+    const tryLegacyCopy = () => {
+      // Legacy fallback — tuned to work better on iOS Safari.
+      const ta = document.createElement('textarea');
+      ta.value = raw;
+      ta.setAttribute('readonly', '');
+      ta.setAttribute('aria-hidden', 'true');
+      ta.style.position = 'fixed';
+      ta.style.top = '0';
+      ta.style.left = '-9999px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      try {
+        try { ta.focus({ preventScroll: true }); } catch { ta.focus(); }
+        ta.select();
+        try { ta.setSelectionRange(0, ta.value.length); } catch {}
+        return !!document.execCommand('copy');
+      } catch {
+        return false;
+      } finally {
+        try { document.body.removeChild(ta); } catch {}
+      }
+    };
+
+    // IMPORTANT (iOS/Safari/WebViews): do NOT await before attempting legacy copy.
+    // Awaiting can lose user activation, making both clipboard API and execCommand fail.
+    if (tryLegacyCopy()) return;
+
     // Modern API (preferred) — but Safari/iOS may expose it and still block.
     if (nav?.clipboard?.writeText && typeof window !== 'undefined' && window.isSecureContext) {
       try {
-        // If it stalls (permission prompt / webview quirks), don't wait forever.
-        const timeoutMs = 280;
-        await Promise.race([
-          nav.clipboard.writeText(raw),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('clipboard_timeout')), timeoutMs)),
-        ]);
+        await nav.clipboard.writeText(raw);
         return;
       } catch {
-        // Fall through to legacy copy.
+        // Fall through
       }
     }
 
-    // Legacy fallback — tuned to work better on iOS Safari.
-    const ta = document.createElement('textarea');
-    ta.value = raw;
-    ta.setAttribute('readonly', '');
-    ta.setAttribute('aria-hidden', 'true');
-    ta.style.position = 'fixed';
-    ta.style.top = '0';
-    ta.style.left = '-9999px';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    try {
-      // Some iOS versions require focus before selection.
-      try { ta.focus({ preventScroll: true }); } catch { ta.focus(); }
-      ta.select();
-      try { ta.setSelectionRange(0, ta.value.length); } catch {}
-      const ok = document.execCommand('copy');
-      if (!ok) throw new Error('copy_failed');
-    } finally {
-      try { document.body.removeChild(ta); } catch {}
-    }
+    // Last try: legacy again (e.g. if called outside secure context)
+    if (tryLegacyCopy()) return;
+    throw new Error('copy_failed');
   };
 
   clipboard.writeImageFromUrl = clipboard.writeImageFromUrl || async function writeImageFromUrl(url) {
