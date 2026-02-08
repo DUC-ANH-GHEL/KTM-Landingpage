@@ -106,8 +106,7 @@
         e?.stopPropagation?.();
         phoneLongPressFiredRef.current = false;
         maybeShowPhoneTip();
-        // NOTE: Avoid copying inside setTimeout (loses user gesture -> clipboard blocked).
-        // We record the press start and perform copy on pointerup if held long enough.
+        // Hold-to-call: record press start and perform call on pointerup if held long enough.
         phonePressTimerRef.current = { t0: Date.now(), phoneRaw };
       };
 
@@ -125,7 +124,7 @@
         const heldMs = t0 ? (Date.now() - t0) : 0;
         if (heldMs >= 520) {
           phoneLongPressFiredRef.current = true;
-          handlePhoneCopy(phoneRaw ?? meta?.phoneRaw);
+          handlePhoneCall(phoneRaw ?? meta?.phoneRaw);
         }
       };
 

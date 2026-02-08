@@ -241,16 +241,16 @@
                                   phoneLongPressFiredRef.current = false;
                                   return;
                                 }
-                                handlePhoneCall(order.phone);
+                                handlePhoneCopy(order.phone);
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  handlePhoneCall(order.phone);
+                                  handlePhoneCopy(order.phone);
                                 }
                               }}
-                              title="Chạm để gọi • Giữ để copy"
+                              title="Chạm để copy • Giữ để gọi"
                             >
                               {order.phone}
                             </div>

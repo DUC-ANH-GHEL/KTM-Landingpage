@@ -437,7 +437,7 @@
           if (localStorage.getItem(PHONE_TIP_STORAGE_KEY)) return;
           localStorage.setItem(PHONE_TIP_STORAGE_KEY, '1');
           if (typeof showToast === 'function') {
-            showToast('Tip: Chạm SĐT để gọi • Giữ để copy', 'info', { durationMs: 7000 });
+            showToast('Tip: Chạm SĐT để copy • Giữ để gọi', 'info', { durationMs: 7000 });
           }
         } catch {
           // ignore
