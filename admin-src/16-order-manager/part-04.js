@@ -398,6 +398,8 @@
             adjustment_items: cleanAdjItems,
             status: 'processing',
             items: selected,
+            // Keep created_at identical to the original order.
+            created_at_from_order_id: String(editingId),
             // Back-compat fields
             product_id: selected[0].product_id,
             quantity: selected[0].quantity,

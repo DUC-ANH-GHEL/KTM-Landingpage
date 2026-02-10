@@ -324,8 +324,28 @@
         if (todayOnly) {
           list = (Array.isArray(list) ? list : []).filter((o) => isOrderTodayNeedsAttention(o));
         }
+
+        // Safety: month view must be based on created_at (not updated_at).
+        // Server already filters by created_at when month is provided, but keep a client-side guard
+        // to avoid any accidental mixing when lists are merged/updated locally.
+        const mk = String(filterMonth || '').trim();
+        if (mk) {
+          const getCreatedMonthKey = (order) => {
+            try {
+              const d = new Date(order?.created_at);
+              if (!d || Number.isNaN(d.getTime())) return '';
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              return `${y}-${m}`;
+            } catch {
+              return '';
+            }
+          };
+          list = (Array.isArray(list) ? list : []).filter((o) => getCreatedMonthKey(o) === mk);
+        }
+
         return list;
-      }, [overdueOnly, overduePendingOrdersAll, sortedOrders, pinnedOnly, pinnedOrderIds, todayOnly]);
+      }, [overdueOnly, overduePendingOrdersAll, sortedOrders, pinnedOnly, pinnedOrderIds, todayOnly, filterMonth]);
 
       const filteredOrders = React.useMemo(() => {
         // When overdueOnly is enabled, we show the overdue-pending list regardless of other filters.
@@ -477,4 +497,4 @@
           return;
         }
 
-        if (presetId === 'draftExpiring') {
+        if (presetId === 'draftExpiring') {

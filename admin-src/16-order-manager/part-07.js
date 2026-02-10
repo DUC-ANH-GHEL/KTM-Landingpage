@@ -3,17 +3,51 @@
 
           await window.KTM.api.putJSON(`${API_BASE}/api/orders/${orderId}`, payload, 'Lỗi cập nhật trạng thái');
 
+          const key = String(orderId);
+          const patchStatus = (o) => ({ ...(o || {}), status: nextStatus });
+          const nextNorm = normalizeOrderStatus(nextStatus);
+
           setOrders((prev) => (
             Array.isArray(prev)
-              ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
+              ? prev.map((o) => (String(o?.id) === key ? patchStatus(o) : o))
               : prev
           ));
 
+          // allOrders is the overdue snapshot (pending only). If status changes away from pending, remove it.
           setAllOrders((prev) => (
             Array.isArray(prev)
-              ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
+              ? prev.flatMap((o) => {
+                  if (String(o?.id) !== key) return [o];
+                  if (nextNorm === 'pending') return [patchStatus(o)];
+                  return [];
+                })
               : prev
           ));
+
+          setDraftExpiringOrders((prev) => (
+            Array.isArray(prev)
+              ? (nextNorm === 'draft'
+                  ? prev.map((o) => (String(o?.id) === key ? patchStatus(o) : o))
+                  : prev.filter((o) => String(o?.id) !== key)
+                )
+              : prev
+          ));
+
+          setOrderSearchResults((prev) => (
+            Array.isArray(prev)
+              ? prev.map((o) => (String(o?.id) === key ? patchStatus(o) : o))
+              : prev
+          ));
+
+          setPhoneHistoryOrders((prev) => (
+            Array.isArray(prev)
+              ? prev.map((o) => (String(o?.id) === key ? patchStatus(o) : o))
+              : prev
+          ));
+
+          setInspectorOrder((prev) => (String(prev?.id) === key ? patchStatus(prev) : prev));
+          setMobileSheetOrder((prev) => (String(prev?.id) === key ? patchStatus(prev) : prev));
+          setStatusPopoverOrder((prev) => (String(prev?.id) === key ? patchStatus(prev) : prev));
 
           // If this order was in the offline sync queue, clear its syncing badge.
           setSyncingFor(orderId, false);
@@ -34,16 +68,45 @@
           const isNetErr = !navigator.onLine || err?.name === 'TypeError' || String(err?.message || '').toLowerCase().includes('failed to fetch');
           if (isNetErr && !options?.fromSync) {
             // Optimistic UI + queue for retry
+            const key = String(orderId);
+            const patchStatus = (o) => ({ ...(o || {}), status: nextStatus });
+            const nextNorm = normalizeOrderStatus(nextStatus);
+
             setOrders((prev) => (
               Array.isArray(prev)
-                ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
+                ? prev.map((o) => (String(o?.id) === key ? patchStatus(o) : o))
                 : prev
             ));
             setAllOrders((prev) => (
               Array.isArray(prev)
-                ? prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus } : o))
+                ? prev.flatMap((o) => {
+                    if (String(o?.id) !== key) return [o];
+                    if (nextNorm === 'pending') return [patchStatus(o)];
+                    return [];
+                  })
                 : prev
             ));
+            setDraftExpiringOrders((prev) => (
+              Array.isArray(prev)
+                ? (nextNorm === 'draft'
+                    ? prev.map((o) => (String(o?.id) === key ? patchStatus(o) : o))
+                    : prev.filter((o) => String(o?.id) !== key)
+                  )
+                : prev
+            ));
+            setOrderSearchResults((prev) => (
+              Array.isArray(prev)
+                ? prev.map((o) => (String(o?.id) === key ? patchStatus(o) : o))
+                : prev
+            ));
+            setPhoneHistoryOrders((prev) => (
+              Array.isArray(prev)
+                ? prev.map((o) => (String(o?.id) === key ? patchStatus(o) : o))
+                : prev
+            ));
+            setInspectorOrder((prev) => (String(prev?.id) === key ? patchStatus(prev) : prev));
+            setMobileSheetOrder((prev) => (String(prev?.id) === key ? patchStatus(prev) : prev));
+            setStatusPopoverOrder((prev) => (String(prev?.id) === key ? patchStatus(prev) : prev));
             enqueueStatusSync(orderId, nextStatus, prevStatus);
             if (typeof showToast === 'function') showToast('Mất mạng/timeout • Đã xếp hàng đồng bộ', 'info', { durationMs: 6500 });
             return;
@@ -477,4 +540,4 @@
                       return (
                         <div className="mt-2 d-grid gap-2">
                           {groups.map((g, gi) => {
-                            const groupName = String(g?.name || `Biến thể ${gi + 1}`).trim();
+                            const groupName = String(g?.name || `Biến thể ${gi + 1}`).trim();

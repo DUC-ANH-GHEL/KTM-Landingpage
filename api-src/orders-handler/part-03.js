@@ -182,7 +182,7 @@
       if (id) {
         return res.status(400).json({ error: 'Use /api/orders for creating orders (no id in URL)' });
       }
-      const { customer_name, phone, address, product_id, quantity, status, items, adjustment_amount, adjustment_note, note, parent_order_id, split_seq } = req.body;
+      const { customer_name, phone, address, product_id, quantity, status, items, adjustment_amount, adjustment_note, note, parent_order_id, split_seq, created_at, created_at_from_order_id } = req.body;
 
       const normalizedPhone = normalizePhone(phone);
       if (!normalizedPhone) {
@@ -205,6 +205,27 @@
       const adjAmount = Number.isFinite(adj) ? Math.trunc(adj) : 0;
       const adjNote = adjustment_note != null && String(adjustment_note).trim() ? String(adjustment_note).trim() : null;
       const orderNote = note != null && String(note).trim() ? String(note).trim() : null;
+
+      // Optional: preserve created_at for split orders.
+      // Prefer copying from an existing order to avoid timezone/format pitfalls.
+      let createdAtOverride = null;
+      const copyFromId = created_at_from_order_id != null && String(created_at_from_order_id).trim()
+        ? String(created_at_from_order_id).trim()
+        : null;
+      if (copyFromId) {
+        const src = await sql`SELECT created_at FROM orders WHERE id = ${copyFromId} LIMIT 1`;
+        if (!src.length) {
+          return res.status(400).json({ error: 'created_at_from_order_id not found' });
+        }
+        createdAtOverride = src[0]?.created_at ?? null;
+      } else if (created_at != null && String(created_at).trim()) {
+        const raw = String(created_at).trim();
+        const t = new Date(raw);
+        if (!Number.isFinite(t.getTime())) {
+          return res.status(400).json({ error: 'created_at is invalid' });
+        }
+        createdAtOverride = raw;
+      }
 
       let parentOrderId = parent_order_id != null && String(parent_order_id).trim() ? String(parent_order_id).trim() : null;
       let splitSeq = 0;
@@ -240,11 +261,17 @@
         if (splitSeq < 2) splitSeq = 2;
       }
 
-      const created = await sql`
-        INSERT INTO orders (customer_id, parent_order_id, split_seq, product_id, quantity, status, status_updated_at, adjustment_amount, adjustment_note, note)
-        VALUES (${customer.id}, ${parentOrderId}, ${splitSeq}, ${primary.product_id}, ${primary.quantity}, ${status}, NOW(), ${adjAmount}, ${adjNote}, ${orderNote})
-        RETURNING id
-      `;
+      const created = createdAtOverride == null
+        ? await sql`
+            INSERT INTO orders (customer_id, parent_order_id, split_seq, product_id, quantity, status, status_updated_at, adjustment_amount, adjustment_note, note)
+            VALUES (${customer.id}, ${parentOrderId}, ${splitSeq}, ${primary.product_id}, ${primary.quantity}, ${status}, NOW(), ${adjAmount}, ${adjNote}, ${orderNote})
+            RETURNING id
+          `
+        : await sql`
+            INSERT INTO orders (customer_id, parent_order_id, split_seq, product_id, quantity, status, status_updated_at, adjustment_amount, adjustment_note, note, created_at)
+            VALUES (${customer.id}, ${parentOrderId}, ${splitSeq}, ${primary.product_id}, ${primary.quantity}, ${status}, NOW(), ${adjAmount}, ${adjNote}, ${orderNote}, ${createdAtOverride}::timestamp)
+            RETURNING id
+          `;
 
       const orderId = created?.[0]?.id;
       if (orderId == null) return res.status(500).json({ error: 'Failed to create order' });
