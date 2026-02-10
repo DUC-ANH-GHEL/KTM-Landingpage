@@ -110,6 +110,15 @@
                       >
                         <i className="fas fa-pen me-2"></i>Sửa
                       </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => inspectorOrder && deleteOrder(inspectorOrder.id)}
+                        disabled={!inspectorOrder || inspectorLoading || saving || !!deletingId}
+                      >
+                        <i className="fas fa-trash me-2"></i>Xóa
+                      </button>
                     </div>
                     <div className="d-flex flex-wrap gap-2 align-items-center">
                       <select
@@ -477,4 +486,4 @@
                                     value={adj.note}
                                     onChange={(e) => {
                                       const nextNote = e.target.value;
-                                      setForm((prev) => {
+                                      setForm((prev) => {

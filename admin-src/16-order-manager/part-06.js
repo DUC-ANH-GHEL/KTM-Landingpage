@@ -354,6 +354,31 @@
         setDeletingId(id);
         try {
           await window.KTM.api.deleteJSON(`${API_BASE}/api/orders/${id}`, 'Lỗi xóa đơn hàng');
+
+          // Immediate UI feedback (search/results may be showing cached lists)
+          try {
+            const key = String(id);
+            setOrders((prev) => (Array.isArray(prev) ? prev.filter((o) => String(o?.id) !== key) : prev));
+            setAllOrders((prev) => (Array.isArray(prev) ? prev.filter((o) => String(o?.id) !== key) : prev));
+            setDraftExpiringOrders((prev) => (Array.isArray(prev) ? prev.filter((o) => String(o?.id) !== key) : prev));
+            setOrderSearchResults((prev) => (Array.isArray(prev) ? prev.filter((o) => String(o?.id) !== key) : prev));
+            setPhoneHistoryOrders((prev) => (Array.isArray(prev) ? prev.filter((o) => String(o?.id) !== key) : prev));
+          } catch {
+            // ignore
+          }
+
+          // Close detail surfaces if user deleted the currently open order
+          try {
+            if (inspectorOpen && String(inspectorOrder?.id) === String(id)) {
+              closeOrderInspector();
+            }
+          } catch {}
+          try {
+            if (mobileSheetOpen && String(mobileSheetOrder?.id) === String(id)) {
+              closeMobileSheet();
+            }
+          } catch {}
+
           loadOrders();
           loadAllOrdersForAlerts();
         } catch (err) {
@@ -477,4 +502,4 @@
             // Back-compat fields
             product_id: primary.product_id,
             quantity: primary.quantity,
-            status: nextStatus,
+            status: nextStatus,

@@ -61,6 +61,15 @@
                         >
                           <i className="fas fa-eye me-2"></i>Mở chi tiết
                         </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-outline-danger"
+                          onClick={() => deleteOrder(mobileSheetOrder.id)}
+                          disabled={saving || !!deletingId || updatingId === mobileSheetOrder.id}
+                        >
+                          <i className="fas fa-trash me-2"></i>Xóa
+                        </button>
                       </div>
 
                       <div className="admin-sheet-section-title">Đổi trạng thái</div>
@@ -477,4 +486,4 @@
                             </div>
                           </td>
                         </tr>
-                      ))}
+                      ))}

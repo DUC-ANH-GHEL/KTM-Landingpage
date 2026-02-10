@@ -434,8 +434,36 @@
 
           await window.KTM.api.putJSON(`${API_BASE}/api/orders/${editingId}`, updatePayload, 'Lỗi tách đơn (cập nhật phần chờ hàng)');
 
-          closeModal();
+          // Post-split UI handling depends on where the user initiated the action.
+          if (inspectorOpen) {
+            // Drawer edit mode: keep drawer open, exit edit mode, and switch inspector to the new root order.
+            setInspectorEditMode(false);
+            setEditingId(null);
+            resetOrderForm('');
+            setShowPhoneHistory(false);
+            setSplitDeliverNow([]);
+            setInspectorError('');
+            setInspectorLoading(true);
+            try {
+              const refreshed = await fetchOrderById(newId);
+              if (refreshed && typeof refreshed === 'object') {
+                setInspectorOrder(refreshed);
+              } else {
+                setInspectorOrder(null);
+                setInspectorError('Không tải được đơn giao ngay sau khi tách');
+              }
+            } catch (e) {
+              setInspectorError(e?.message || 'Không tải được đơn giao ngay sau khi tách');
+            } finally {
+              setInspectorLoading(false);
+            }
+          } else {
+            // Modal edit: close modal after splitting.
+            closeModal();
+          }
+
           loadOrders();
+          loadAllOrdersForAlerts();
 
           const msg = newId ? `Đã tách đơn. Đơn giao ngay: #${newId}` : 'Đã tách đơn.';
           if (typeof showToast === 'function') showToast(msg, 'success');
@@ -477,4 +505,4 @@
         const cleanedQuery = tokens.join(' ');
         return { contentTokens: tokens, cleanedQuery };
       };
-
+
