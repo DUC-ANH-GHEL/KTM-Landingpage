@@ -462,14 +462,9 @@ export default async function handler(req, res) {
 
     // GET /api/orders and GET /api/orders/:id
     if (req.method === 'GET') {
+      // IMPORTANT: Do not auto-advance orders to 'done' by time.
+      // Order completion is handled explicitly (e.g. via recon flow), not implicitly.
       let autoAdvanceMs = null;
-      if (debug) {
-        const t = Date.now();
-        await autoAdvanceOrderStatuses();
-        autoAdvanceMs = Date.now() - t;
-      } else {
-        await autoAdvanceOrderStatuses();
-      }
 
       // ==================== STATS ====================
       // GET /api/orders?resource=stats&month=YYYY-MM[&ship_percent=1.64]
@@ -477,4 +472,4 @@ export default async function handler(req, res) {
         const monthKey = String(req.query.month ?? '').trim();
         const monthStartDate = parseMonthStartDate(monthKey);
         if (!monthStartDate) {
-          return res.status(400).json({ error: 'month is required (YYYY-MM)' });
+          return res.status(400).json({ error: 'month is required (YYYY-MM)' });

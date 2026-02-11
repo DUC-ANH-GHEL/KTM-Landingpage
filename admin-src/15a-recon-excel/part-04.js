@@ -1,4 +1,4 @@
-							continue;
+﻿							continue;
 						}
 
 						// Same phone exists in Excel but COD differs => money mismatch.
@@ -127,7 +127,7 @@
 				if (!reconResult || reconPayRunning) return;
 				const ids = Array.from(reconSelectedMatchIds.values()).map((x) => String(x || '').trim()).filter(Boolean);
 				if (!ids.length) return;
-				if (!confirm(`Đánh dấu đã nhận tiền cho ${ids.length} đơn?`)) return;
+				if (!confirm(`Đánh dấu Hoàn thành cho ${ids.length} đơn khớp?`)) return;
 
 				setReconPayRunning(true);
 				setReconPayProgress('Đang cập nhật trạng thái...');
@@ -138,7 +138,7 @@
 						const id = ids[i];
 						setReconPayProgress(`Đang cập nhật (${i + 1}/${ids.length})...`);
 						const match = (Array.isArray(reconResult?.matches) ? reconResult.matches : []).find((m) => String(m?.order?.id || '') === id);
-						const payload = buildUpdateStatusPayload(match?.order, 'paid');
+						const payload = buildUpdateStatusPayload(match?.order, 'done');
 						if (!payload) {
 							failed.push({ id, error: 'Thiếu dữ liệu (phone/items)' });
 							continue;
@@ -156,14 +156,14 @@
 				}
 
 				if (okCount > 0) {
-					toast(`Đã cập nhật ${okCount} đơn sang Đã nhận tiền`, 'success');
+					toast(`Đã cập nhật ${okCount} đơn sang Hoàn thành`, 'success');
 					const idSet = new Set(ids);
 					setReconResult((prev) => {
 						if (!prev) return prev;
 						const patchOrder = (o) => {
 							if (!o || !idSet.has(String(o.id))) return o;
-							const raw = o.raw ? { ...o.raw, status: 'paid' } : o.raw;
-							return { ...o, status: 'paid', raw };
+							const raw = o.raw ? { ...o.raw, status: 'done' } : o.raw;
+							return { ...o, status: 'done', raw };
 						};
 						return {
 							...prev,
@@ -298,7 +298,7 @@
 												disabled={reconRunning}
 												onChange={(e) => setReconExcludePaid(Boolean(e.target.checked))}
 											/>
-											<label className="form-check-label small" htmlFor="recon-exc-paid">Bỏ đã nhận tiền</label>
+											<label className="form-check-label small" htmlFor="recon-exc-paid">Bỏ đã hoàn thành/đã nhận tiền</label>
 										</div>
 
 										<div className="d-flex align-items-center gap-2">

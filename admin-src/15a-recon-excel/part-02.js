@@ -1,4 +1,4 @@
-
+﻿
 				const findHeaderRow = () => {
 					const maxScan = Math.min(30, rows.length);
 					for (let r = 0; r < maxScan; r++) {
@@ -310,7 +310,7 @@
 					const st = normalizeStatus(o?.status);
 					if (reconExcludeDraft && st === 'draft') return false;
 					if (reconExcludeCanceled && st === 'canceled') return false;
-					if (reconExcludePaid && st === 'paid') return false;
+					if (reconExcludePaid && (st === 'paid' || st === 'done')) return false;
 					return true;
 				});
 

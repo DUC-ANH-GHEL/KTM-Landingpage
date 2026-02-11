@@ -1,4 +1,4 @@
-																															<button
+﻿																															<button
 																																type="button"
 																																	className="btn btn-link btn-sm p-0 text-decoration-none"
 																																	onClick={() => {
@@ -207,7 +207,7 @@
 																												const o = m?.order;
 																												if (!o?.id) return false;
 																												const st = String(o?.status || o?.raw?.status || '').toLowerCase();
-																												if (reconExcludePaid && st === 'paid') return false;
+																												if (reconExcludePaid && (st === 'paid' || st === 'done')) return false;
 																												if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
 																												return true;
 																										});
@@ -226,7 +226,7 @@
 																													const o = m?.order;
 																													if (!o?.id) return false;
 																													const st = String(o?.status || o?.raw?.status || '').toLowerCase();
-																													if (reconExcludePaid && st === 'paid') return false;
+																													if (reconExcludePaid && (st === 'paid' || st === 'done')) return false;
 																													if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
 																													return true;
 																												});
@@ -256,7 +256,7 @@
 																						const o = m?.order;
 																						if (!o?.id) return false;
 																						const st = String(o?.status || o?.raw?.status || '').toLowerCase();
-																						if (reconExcludePaid && st === 'paid') return false;
+																						if (reconExcludePaid && (st === 'paid' || st === 'done')) return false;
 																						const pf = normalizePhoneDigits(reconPhoneFilter);
 																						if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
 																						return true;
@@ -300,7 +300,7 @@
 																						<td style={{ minWidth: 240 }}>{o.productSummary || '—'}</td>
 																						<td className="text-end fw-semibold">{window.KTM.money.formatNumber(o.cod)}</td>
 																						<td>
-																							<span className={`badge ${String(o?.status || o?.raw?.status || '').toLowerCase() === 'paid' ? 'bg-primary' : 'bg-secondary'}`}>
+																							<span className={`badge ${(String(o?.status || o?.raw?.status || '').toLowerCase() === 'paid' || String(o?.status || o?.raw?.status || '').toLowerCase() === 'done') ? 'bg-primary' : 'bg-secondary'}`}>
 																									{String(o?.status || o?.raw?.status || '').toLowerCase() === 'paid' ? 'Đã nhận tiền' : (o?.status || o?.raw?.status || '—')}
 																								</span>
 																						</td>
@@ -320,7 +320,7 @@
 																							const o = m?.order;
 																							if (!o?.id) return false;
 																							const st = String(o?.status || o?.raw?.status || '').toLowerCase();
-																							if (reconExcludePaid && st === 'paid') return false;
+																							if (reconExcludePaid && (st === 'paid' || st === 'done')) return false;
 																							const pf = normalizePhoneDigits(reconPhoneFilter);
 																							if (pf && !String(o?.phoneNorm || '').includes(pf)) return false;
 																							return true;
@@ -409,7 +409,7 @@
 																										}}
 																									>{id || '—'}</button>
 																								</div>
-																								<span className={`badge ${stLower === 'paid' ? 'bg-primary' : 'bg-secondary'}`}>
+																								<span className={`badge ${(stLower === 'paid' || stLower === 'done') ? 'bg-primary' : 'bg-secondary'}`}>
 																											{stLower === 'paid' ? 'Đã nhận tiền' : (o?.status || o?.raw?.status || '—')}
 																							</span>
 																						</div>
