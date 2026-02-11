@@ -99,6 +99,41 @@
               </div>
             )}
 
+            {selectedOrderIds?.size > 0 && (
+              <div className="alert alert-secondary d-flex align-items-center justify-content-between gap-2 mt-3 mb-0" role="alert">
+                <div style={{ minWidth: 0 }}>
+                  <i className="fas fa-check-square me-2"></i>
+                  Đã chọn <strong>{selectedOrderIds.size}</strong> đơn
+                </div>
+                <div className="d-flex flex-wrap gap-2 justify-content-end">
+                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => clearSelectedOrders()} disabled={bulkBusy}>
+                    Bỏ chọn
+                  </button>
+                  <select
+                    className="form-select form-select-sm"
+                    style={{ width: 170 }}
+                    defaultValue=""
+                    onChange={(e) => {
+                      const v = String(e.target.value || '').trim();
+                      e.target.value = '';
+                      if (!v) return;
+                      bulkUpdateSelectedStatus(v);
+                    }}
+                    disabled={bulkBusy}
+                    aria-label="Đổi trạng thái hàng loạt"
+                  >
+                    <option value="">Đổi status…</option>
+                    {ORDER_STATUS_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => bulkDeleteSelectedOrders()} disabled={bulkBusy || saving || !!deletingId}>
+                    <i className="fas fa-trash me-2"></i>Xóa
+                  </button>
+                </div>
+              </div>
+            )}
+
             {(isSearchActive ? orderSearchLoading : loading) ? (
               <div className="orders-skeleton-wrap mt-3">
                 <div className="d-md-none">
@@ -117,6 +152,7 @@
                     <table className="table orders-table align-middle mb-0">
                       <thead>
                         <tr>
+                          <th style={{ width: 40 }}></th>
                           <th>Khách hàng</th>
                           <th>SĐT</th>
                           <th>Sản phẩm</th>
@@ -130,6 +166,7 @@
                       <tbody>
                         {new Array(10).fill(0).map((_, idx) => (
                           <tr key={idx}>
+                            <td><div className="admin-skeleton-line w-30"></div></td>
                             <td><div className="admin-skeleton-line w-60"></div></td>
                             <td><div className="admin-skeleton-line w-70"></div></td>
                             <td><div className="admin-skeleton-line w-85"></div></td>

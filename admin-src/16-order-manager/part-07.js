@@ -53,16 +53,17 @@
           setSyncingFor(orderId, false);
           markOrderRecentlyUpdated(orderId);
 
-          if (options?.silentToast) return;
+          if (options?.silentToast) return true;
           if (options?.skipToastBatch) {
             if (typeof showToast === 'function') showToast('Đã cập nhật trạng thái', 'success', { durationMs: 4500 });
-            return;
+            return true;
           }
           queueStatusToastEvent({
             orderId,
             prevStatus,
             nextStatus: normalizeOrderStatus(nextStatus),
           });
+          return true;
         } catch (err) {
           console.error(err);
           const isNetErr = !navigator.onLine || err?.name === 'TypeError' || String(err?.message || '').toLowerCase().includes('failed to fetch');
@@ -109,11 +110,12 @@
             setStatusPopoverOrder((prev) => (String(prev?.id) === key ? patchStatus(prev) : prev));
             enqueueStatusSync(orderId, nextStatus, prevStatus);
             if (typeof showToast === 'function') showToast('Mất mạng/timeout • Đã xếp hàng đồng bộ', 'info', { durationMs: 6500 });
-            return;
+            return true;
           }
 
           if (typeof showToast === 'function') showToast(err.message, 'danger');
           else alert(err.message);
+          return false;
         } finally {
           setUpdatingId(null);
         }

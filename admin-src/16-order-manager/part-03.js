@@ -363,11 +363,46 @@
         return isSearchActive ? sortedSearchResults : filteredOrders;
       }, [filteredOrders, isSearchActive, sortedSearchResults]);
 
+      const desktopVisibleOrderIds = React.useMemo(() => {
+        return (Array.isArray(ordersToRender) ? ordersToRender : [])
+          .map((o) => String(o?.id ?? '').trim())
+          .filter(Boolean);
+      }, [ordersToRender]);
+
+      const desktopAllSelected = React.useMemo(() => {
+        if (!desktopVisibleOrderIds.length) return false;
+        const sel = selectedOrderIds;
+        if (!sel || typeof sel.has !== 'function') return false;
+        return desktopVisibleOrderIds.every((id) => sel.has(id));
+      }, [desktopVisibleOrderIds, selectedOrderIds]);
+
+      const desktopSomeSelected = React.useMemo(() => {
+        if (!desktopVisibleOrderIds.length) return false;
+        const sel = selectedOrderIds;
+        if (!sel || typeof sel.has !== 'function') return false;
+        return desktopVisibleOrderIds.some((id) => sel.has(id));
+      }, [desktopVisibleOrderIds, selectedOrderIds]);
+
       const mobileOrdersToRender = React.useMemo(() => {
         const list = Array.isArray(ordersToRender) ? ordersToRender : [];
         if (!isMobileViewport) return list;
         return list.slice(0, Math.max(0, Number(mobileRenderLimit) || 0));
       }, [isMobileViewport, mobileRenderLimit, ordersToRender]);
+
+      useEffect(() => {
+        try {
+          const el = selectAllDesktopRef?.current;
+          if (!el) return;
+          el.indeterminate = !desktopAllSelected && desktopSomeSelected;
+        } catch {
+          // ignore
+        }
+      }, [desktopAllSelected, desktopSomeSelected]);
+
+      useEffect(() => {
+        // Clear selection when user changes the list context.
+        setSelectedOrderIds(new Set());
+      }, [filterStatus, overdueOnly, filterMonth, orderSearchQuery, pinnedOnly, todayOnly]);
 
       useEffect(() => {
         // Reset virtualization window when filters/search changes.

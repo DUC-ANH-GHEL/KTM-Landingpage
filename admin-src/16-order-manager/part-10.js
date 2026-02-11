@@ -392,6 +392,22 @@
                     <table className="table orders-table table-hover align-middle mb-0">
                       <thead>
                       <tr>
+                        <th style={{ width: 40 }}>
+                          <input
+                            ref={selectAllDesktopRef}
+                            className="form-check-input"
+                            type="checkbox"
+                            checked={desktopAllSelected}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleSelectAllVisibleOrders(ordersToRender, !!e.target.checked);
+                            }}
+                            disabled={bulkBusy || saving || !!deletingId}
+                            aria-label="Chọn tất cả"
+                            title="Chọn tất cả"
+                          />
+                        </th>
                         <th>Khách hàng</th>
                         <th>SĐT</th>
                         <th>Sản phẩm</th>
@@ -410,6 +426,21 @@
                           onClick={() => openOrderInspector(order)}
                           title="Xem chi tiết"
                         >
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              checked={selectedOrderIds?.has?.(String(order.id))}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setOrderSelected(order.id, !!e.target.checked);
+                              }}
+                              disabled={bulkBusy || saving || !!deletingId}
+                              aria-label="Chọn đơn"
+                              title="Chọn đơn"
+                            />
+                          </td>
                           <td>
                             <div className="fw-semibold">{order.customer_name}</div>
                             {(order?.note || '').trim() && (

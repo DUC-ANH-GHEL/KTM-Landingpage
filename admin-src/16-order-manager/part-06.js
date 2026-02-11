@@ -349,6 +349,123 @@
 
       const getOrderTotalMoney = (order) => window.KTM.orders.getOrderTotalMoney(order, getProductById);
 
+      const clearSelectedOrders = () => {
+        setSelectedOrderIds(new Set());
+      };
+
+      const setOrderSelected = (orderId, checked) => {
+        const key = String(orderId ?? '').trim();
+        if (!key) return;
+        setSelectedOrderIds((prev) => {
+          const next = new Set(prev);
+          if (checked) next.add(key);
+          else next.delete(key);
+          return next;
+        });
+      };
+
+      const toggleSelectAllVisibleOrders = (list, checked) => {
+        const arr = Array.isArray(list) ? list : [];
+        if (!arr.length) return;
+        setSelectedOrderIds((prev) => {
+          const next = new Set(prev);
+          for (const o of arr) {
+            const key = String(o?.id ?? '').trim();
+            if (!key) continue;
+            if (checked) next.add(key);
+            else next.delete(key);
+          }
+          return next;
+        });
+      };
+
+      const bulkUpdateSelectedStatus = async (nextStatus) => {
+        const next = String(nextStatus || '').trim();
+        if (!next) return;
+        if (bulkBusy) return;
+
+        const ids = Array.from(selectedOrderIds || []).map((x) => String(x).trim()).filter(Boolean);
+        if (!ids.length) return;
+
+        setBulkBusy(true);
+        try {
+          const lookup = new Map((Array.isArray(ordersToRender) ? ordersToRender : []).map((o) => [String(o?.id ?? '').trim(), o]));
+          let ok = 0;
+          let fail = 0;
+
+          for (const id of ids) {
+            const order = lookup.get(id) || { id };
+            const res = await updateOrderStatus(order, next, { silentToast: true, skipToastBatch: true });
+            if (res) ok += 1;
+            else fail += 1;
+          }
+
+          if (typeof showToast === 'function') {
+            if (fail === 0) showToast(`Đã cập nhật ${ok} đơn`, 'success', { durationMs: 4500 });
+            else showToast(`Đã cập nhật ${ok}/${ids.length} đơn (${fail} lỗi)`, 'warning', { durationMs: 6500 });
+          }
+        } finally {
+          setBulkBusy(false);
+        }
+      };
+
+      const bulkDeleteSelectedOrders = async () => {
+        if (bulkBusy) return;
+
+        const ids = Array.from(selectedOrderIds || []).map((x) => String(x).trim()).filter(Boolean);
+        if (!ids.length) return;
+
+        if (!confirm(`Xóa ${ids.length} đơn đã chọn?`)) return;
+
+        setBulkBusy(true);
+        setDeletingId('__bulk__');
+        try {
+          let ok = 0;
+          let fail = 0;
+
+          for (const id of ids) {
+            try {
+              await window.KTM.api.deleteJSON(`${API_BASE}/api/orders/${id}`, 'Lỗi xóa đơn hàng');
+              ok += 1;
+
+              // Immediate UI feedback
+              try {
+                const key = String(id);
+                setOrders((prev) => (Array.isArray(prev) ? prev.filter((o) => String(o?.id) !== key) : prev));
+                setAllOrders((prev) => (Array.isArray(prev) ? prev.filter((o) => String(o?.id) !== key) : prev));
+                setDraftExpiringOrders((prev) => (Array.isArray(prev) ? prev.filter((o) => String(o?.id) !== key) : prev));
+                setOrderSearchResults((prev) => (Array.isArray(prev) ? prev.filter((o) => String(o?.id) !== key) : prev));
+                setPhoneHistoryOrders((prev) => (Array.isArray(prev) ? prev.filter((o) => String(o?.id) !== key) : prev));
+              } catch {
+                // ignore
+              }
+
+              // Close detail surfaces if needed
+              try {
+                if (inspectorOpen && String(inspectorOrder?.id) === String(id)) closeOrderInspector();
+              } catch {}
+              try {
+                if (mobileSheetOpen && String(mobileSheetOrder?.id) === String(id)) closeMobileSheet();
+              } catch {}
+            } catch {
+              fail += 1;
+            }
+          }
+
+          clearSelectedOrders();
+          loadOrders();
+          loadAllOrdersForAlerts();
+
+          if (typeof showToast === 'function') {
+            if (fail === 0) showToast(`Đã xóa ${ok} đơn`, 'success', { durationMs: 4500 });
+            else showToast(`Đã xóa ${ok}/${ids.length} đơn (${fail} lỗi)`, 'warning', { durationMs: 6500 });
+          }
+        } finally {
+          setDeletingId(null);
+          setBulkBusy(false);
+        }
+      };
+
       const deleteOrder = async (id) => {
         if (!confirm("Xóa đơn hàng này?")) return;
         setDeletingId(id);

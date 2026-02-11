@@ -304,6 +304,21 @@
                             })()}
                           </div>
                           <div className="d-flex align-items-start gap-1 flex-shrink-0">
+                                <div className="form-check m-0" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    checked={selectedOrderIds?.has?.(String(order.id))}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      setOrderSelected(order.id, !!e.target.checked);
+                                    }}
+                                    disabled={bulkBusy || saving || !!deletingId}
+                                    aria-label="Chọn đơn"
+                                    title="Chọn đơn"
+                                  />
+                                </div>
                             <button
                               type="button"
                               className={`btn btn-sm btn-link order-pin-btn ${pinnedOrderIds.has(String(order.id)) ? 'active' : ''}`}

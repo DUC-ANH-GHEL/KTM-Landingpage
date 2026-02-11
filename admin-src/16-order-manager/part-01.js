@@ -16,6 +16,8 @@
       const [saving, setSaving] = useState(false);
       const [deletingId, setDeletingId] = useState(null);
       const [updatingId, setUpdatingId] = useState(null);
+      const [bulkBusy, setBulkBusy] = useState(false);
+      const [selectedOrderIds, setSelectedOrderIds] = useState(() => new Set());
       const [splitting, setSplitting] = useState(false);
       const [filterMonth, setFilterMonth] = useState(() => {
         const d = new Date();
@@ -100,6 +102,7 @@
       const recentUpdateTimersRef = useRef(new Map());
       const statusToastBatchRef = useRef({ timer: null, events: [] });
       const scrollRafRef = useRef(null);
+      const selectAllDesktopRef = useRef(null);
 
       const PHONE_TIP_STORAGE_KEY = 'ktm_orders_phone_tip_v1';
       const ORDER_SEARCH_HISTORY_KEY = 'ktm_orders_search_history_v1';
