@@ -33,7 +33,7 @@
         try {
           const params = new URLSearchParams();
           if (filterMonth) params.set('month', String(filterMonth));
-          params.set('includeItems', '0');
+          params.set('includeItems', '1');
           params.set('meta', '1');
           params.set('limit', String(ORDERS_PAGE_SIZE));
           params.set('offset', '0');
@@ -70,7 +70,7 @@
         try {
           const params = new URLSearchParams();
           if (filterMonth) params.set('month', String(filterMonth));
-          params.set('includeItems', '0');
+          params.set('includeItems', '1');
           params.set('meta', '1');
           params.set('limit', String(ORDERS_PAGE_SIZE));
           params.set('offset', String(ordersPageOffset));

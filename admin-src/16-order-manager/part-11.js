@@ -311,7 +311,6 @@
                             className="form-control"
                             type="tel"
                             inputMode="numeric"
-                            pattern="[0-9+\s-]*"
                             id="order-phone-input"
                             value={form.phone}
                             onChange={e => handlePhoneChange(e.target.value)}
