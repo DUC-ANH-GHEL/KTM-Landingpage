@@ -189,7 +189,7 @@
 															disabled={reconPayRunning || !(reconSelectedMatchIds && reconSelectedMatchIds.size)}
 															onClick={markSelectedMatchesAsPaid}
 														>
-															Đánh dấu đã nhận tiền
+															Đánh dấu hoàn thành
 														</button>
 													</div>
 												</div>
