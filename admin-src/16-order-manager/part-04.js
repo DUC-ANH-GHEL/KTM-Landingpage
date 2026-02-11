@@ -289,8 +289,9 @@
         }
       };
 
-      const closeOrderInspector = () => {
-        if (saving || splitting) return;
+      const closeOrderInspector = (opts = {}) => {
+        const force = !!opts?.force;
+        if (!force && (saving || splitting)) return;
         setInspectorOpen(false);
         setInspectorLoading(false);
         setInspectorError('');
@@ -313,8 +314,9 @@
         setShowModal(true);
       }
 
-      const closeModal = () => {
-        if (saving || splitting) return;
+      const closeModal = (opts = {}) => {
+        const force = !!opts?.force;
+        if (!force && (saving || splitting)) return;
         setShowModal(false);
         setEditingId(null);
         resetOrderForm('');
@@ -322,9 +324,13 @@
         setSplitDeliverNow([]);
       };
 
-      const splitOrderDeliverNow = async () => {
+      const splitOrderDeliverNow = async (origin) => {
         if (!editingId) return;
         if (splitting || saving) return;
+
+        // This action can be triggered from either the inspector drawer or the modal.
+        // Relying on inspectorOpen alone is brittle because both surfaces can be open.
+        const uiOrigin = origin || (showModal ? 'modal' : (inspectorOpen ? 'drawer' : 'modal'));
 
         const currentOrder = (Array.isArray(orders) ? orders : []).find((o) => String(o?.id) === String(editingId)) || null;
         const currentStatus = String(currentOrder?.status || form?.status || '').trim();
@@ -437,7 +443,7 @@
           await window.KTM.api.putJSON(`${API_BASE}/api/orders/${editingId}`, updatePayload, 'Lỗi tách đơn (cập nhật phần chờ hàng)');
 
           // Post-split UI handling depends on where the user initiated the action.
-          if (inspectorOpen) {
+          if (uiOrigin === 'drawer') {
             // Drawer edit mode: keep drawer open, exit edit mode, and switch inspector to the new root order.
             setInspectorEditMode(false);
             setEditingId(null);
@@ -461,7 +467,7 @@
             }
           } else {
             // Modal edit: close modal after splitting.
-            closeModal();
+            closeModal({ force: true });
           }
 
           loadOrders();

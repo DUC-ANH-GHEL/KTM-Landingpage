@@ -383,7 +383,7 @@
                         <button
                           type="button"
                           className="btn btn-outline-primary fw-semibold"
-                          onClick={splitOrderDeliverNow}
+                          onClick={() => splitOrderDeliverNow('modal')}
                           disabled={saving || splitting}
                           style={{ borderRadius: 10 }}
                           title="Chọn sản phẩm giao đợt 1 và tách phần còn lại sang đơn chờ hàng"

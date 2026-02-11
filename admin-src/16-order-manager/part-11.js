@@ -63,7 +63,7 @@
                         <button
                           type="button"
                           className="btn btn-sm btn-outline-primary fw-semibold"
-                          onClick={splitOrderDeliverNow}
+                          onClick={() => splitOrderDeliverNow('drawer')}
                           disabled={saving || splitting}
                           title="Chọn sản phẩm giao đợt 1 và tách phần còn lại sang đơn chờ hàng"
                         >
