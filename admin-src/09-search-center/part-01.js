@@ -287,7 +287,7 @@
       const [productForm, setProductForm] = useState({
         name: '', code: '', price: '', image: '', category: '', note: '', commission_percent: ''
       });
-      const productCategories = ['Ty xy lanh', 'Combo Van 1 tay', 'Combo Van 2 tay', 'Combo Van 3 tay', 'Combo Van 4 tay', 'Combo Van 5 tay', 'Trang gạt', 'Phụ kiện', 'Van điều khiển', 'Sàn đa năng KTM - Móc lật'];
+      const productCategories = ['Ty xy lanh', 'Combo van tay', 'Trang gạt', 'Phụ kiện', 'Van điều khiển', 'Sàn đa năng KTM - Móc lật'];
       
       // Quick Edit Product
       const handleQuickEdit = (item) => {
