@@ -162,7 +162,7 @@
               </div>
               {/* Mobile: card list */}
               <div className="d-md-none mt-2">
-                {stats.days.map((d) => (
+                {[...(stats.days||[])].sort((a, b) => String(b.day).localeCompare(String(a.day))).map((d) => (
                   <div key={d.day} className="card mb-2 p-2 border-0 shadow-sm border-start border-4 border-success">
                     <div className="d-flex justify-content-between align-items-start gap-2">
                       <div style={{ minWidth: 0, flex: 1 }}>
@@ -197,7 +197,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    {stats.days.map((d) => (
+                    {[...(stats.days||[])].sort((a, b) => String(b.day).localeCompare(String(a.day))).map((d) => (
                       <tr key={d.day}>
                         <td>{d.day}</td>
                         <td>{formatNumber(d.orders)}</td>
