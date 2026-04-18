@@ -154,6 +154,65 @@
               </div>
             </div>
 
+
+            <div className="card p-3 mt-3 mb-4">
+              <div className="d-flex align-items-center justify-content-between">
+                <h6 className="mb-0"><i className="fas fa-calendar-day me-2 text-success"></i>Theo ngày</h6>
+                <span className="badge rounded-pill bg-success bg-opacity-10 text-dark">DT (tạm tính) & hoàn thành</span>
+              </div>
+              {/* Mobile: card list */}
+              <div className="d-md-none mt-2">
+                {stats.days.map((d) => (
+                  <div key={d.day} className="card mb-2 p-2 border-0 shadow-sm border-start border-4 border-success">
+                    <div className="d-flex justify-content-between align-items-start gap-2">
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className="fw-semibold">{d.day}</div>
+                        <div className="text-muted small">
+                          {formatNumber(d.orders)} đơn • {formatNumber(d.quantity)} SL
+                        </div>
+                        <div className="text-muted small">
+                          Hoàn thành: {formatNumber(d.doneOrders)} • {formatVND(d.doneRevenue)}
+                        </div>
+                        <div className="text-muted small">
+                          Hoa hồng: <span className="fw-semibold">{formatVND(d.commission)}</span>
+                        </div>
+                      </div>
+                      <div className="fw-semibold text-nowrap">{formatVND(d.revenue)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="d-none d-md-block table-responsive mt-2">
+                <table className="table table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th>Ngày</th>
+                      <th>Đơn</th>
+                      <th>SL</th>
+                      <th>DT (tạm tính)</th>
+                      <th>Đơn hoàn thành</th>
+                      <th>DT hoàn thành</th>
+                      <th>Hoa hồng (trừ ship)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.days.map((d) => (
+                      <tr key={d.day}>
+                        <td>{d.day}</td>
+                        <td>{formatNumber(d.orders)}</td>
+                        <td>{formatNumber(d.quantity)}</td>
+                        <td className="fw-semibold">{formatVND(d.revenue)}</td>
+                        <td>{formatNumber(d.doneOrders)}</td>
+                        <td className="fw-semibold">{formatVND(d.doneRevenue)}</td>
+                        <td className="fw-semibold">{formatVND(d.commission)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div className="card p-3 mt-3">
               <div className="d-flex align-items-center justify-content-between">
                 <h6 className="mb-0"><i className="fas fa-box me-2 text-info"></i>Top sản phẩm</h6>
@@ -167,7 +226,7 @@
                       <div className="fw-semibold" style={{ minWidth: 0, flex: 1 }}>
                         <div className="text-truncate">{p.product_name}</div>
                         <div className="text-muted small text-truncate">
-                          {p.product_code ? `#${p.product_code} • ` : ''}
+                          {p.product_code ? `#{p.product_code} • ` : ''}
                           {formatNumber(p.orders)} đơn • {formatNumber(p.quantity)} SL
                         </div>
                       </div>
@@ -244,59 +303,6 @@
                         <td>{formatNumber(c.orders)}</td>
                         <td>{formatNumber(c.quantity)}</td>
                         <td className="fw-semibold">{formatVND(c.revenue)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="card p-3 mt-3 mb-4">
-              <div className="d-flex align-items-center justify-content-between">
-                <h6 className="mb-0"><i className="fas fa-calendar-day me-2 text-success"></i>Theo ngày</h6>
-                <span className="badge rounded-pill bg-success bg-opacity-10 text-dark">DT (tạm tính) & hoàn thành</span>
-              </div>
-              {/* Mobile: card list */}
-              <div className="d-md-none mt-2">
-                {stats.days.map((d) => (
-                  <div key={d.day} className="card mb-2 p-2 border-0 shadow-sm border-start border-4 border-success">
-                    <div className="d-flex justify-content-between align-items-start gap-2">
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div className="fw-semibold">{d.day}</div>
-                        <div className="text-muted small">
-                          {formatNumber(d.orders)} đơn • {formatNumber(d.quantity)} SL
-                        </div>
-                        <div className="text-muted small">
-                          Hoàn thành: {formatNumber(d.doneOrders)} • {formatVND(d.doneRevenue)}
-                        </div>
-                      </div>
-                      <div className="fw-semibold text-nowrap">{formatVND(d.revenue)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="d-none d-md-block table-responsive mt-2">
-                <table className="table table-bordered mb-0">
-                  <thead>
-                    <tr>
-                      <th>Ngày</th>
-                      <th>Đơn</th>
-                      <th>SL</th>
-                      <th>DT (tạm tính)</th>
-                      <th>Đơn hoàn thành</th>
-                      <th>DT hoàn thành</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.days.map((d) => (
-                      <tr key={d.day}>
-                        <td>{d.day}</td>
-                        <td>{formatNumber(d.orders)}</td>
-                        <td>{formatNumber(d.quantity)}</td>
-                        <td className="fw-semibold">{formatVND(d.revenue)}</td>
-                        <td>{formatNumber(d.doneOrders)}</td>
-                        <td className="fw-semibold">{formatVND(d.doneRevenue)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -477,4 +483,4 @@
               {activeMenu === 'products' && (
                 <ProductManager showToast={showToast} settings={settings} />
               )}
-              {activeMenu === 'orders' && (
+              {activeMenu === 'orders' && (

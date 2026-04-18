@@ -288,10 +288,12 @@
             const day = o.created_at ? new Date(o.created_at) : null;
             if (day && !Number.isNaN(day.getTime())) {
               const k = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-              const d = byDay.get(k) || { day: k, orders: 0, quantity: 0, revenue: 0, doneOrders: 0, doneRevenue: 0 };
+              const d = byDay.get(k) || { day: k, orders: 0, quantity: 0, revenue: 0, doneOrders: 0, doneRevenue: 0, commission: 0 };
               d.orders += 1;
               d.quantity += orderQty;
               d.revenue += orderRevenue;
+              // Tính tổng hoa hồng đã trừ ship ước tính cho ngày đó
+              d.commission += orderCommissionNoShip;
               if (isCompleted) {
                 d.doneOrders += 1;
                 d.doneRevenue += orderRevenue;
@@ -477,4 +479,4 @@
             query += ` OR (c.phone = $${params.length + 1} OR o.phone = $${params.length + 1})`;
             params.push(searchDigits);
           }
-          // Also support partial digits search
+          // Also support partial digits search
