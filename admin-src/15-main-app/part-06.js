@@ -191,8 +191,8 @@
                       <th>Đơn</th>
                       <th>SL</th>
                       <th>DT (tạm tính)</th>
-                      <th>Đơn hoàn thành</th>
-                      <th>DT hoàn thành</th>
+                      {/* <th>Đơn hoàn thành</th> */}
+                      {/* <th>DT hoàn thành</th> */}
                       <th>Hoa hồng (trừ ship)</th>
                     </tr>
                   </thead>
@@ -203,8 +203,8 @@
                         <td>{formatNumber(d.orders)}</td>
                         <td>{formatNumber(d.quantity)}</td>
                         <td className="fw-semibold">{formatVND(d.revenue)}</td>
-                        <td>{formatNumber(d.doneOrders)}</td>
-                        <td className="fw-semibold">{formatVND(d.doneRevenue)}</td>
+                        {/* <td>{formatNumber(d.doneOrders)}</td> */}
+                        {/* <td className="fw-semibold">{formatVND(d.doneRevenue)}</td> */}
                         <td className="fw-semibold">{formatVND(d.commission)}</td>
                       </tr>
                     ))}
