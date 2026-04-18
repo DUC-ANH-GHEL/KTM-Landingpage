@@ -15,7 +15,7 @@
 
       const { parseMoney, formatVND } = window.KTM.money;
 
-      const categories = ['Ty xy lanh', 'Combo Van 1 tay', 'Combo Van 2 tay', 'Combo Van 3 tay', 'Combo Van 4 tay', 'Combo Van 5 tay', 'Trang gạt', 'Phụ kiện', 'Van điều khiển'];
+      const categories = ['Ty xy lanh', 'Combo Van 1 tay', 'Combo Van 2 tay', 'Combo Van 3 tay', 'Combo Van 4 tay', 'Combo Van 5 tay', 'Trang gạt', 'Phụ kiện', 'Van điều khiển', 'Sàn đa năng KTM - Móc lật'];
 
       useEffect(() => { loadProducts(); }, []);
 
