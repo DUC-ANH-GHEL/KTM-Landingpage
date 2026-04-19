@@ -257,8 +257,10 @@
             doneRevenueNoShip += orderRevenueNoShip;
             paidCommissionNoShip += orderCommissionNoShip;
           } else {
-            // Tất cả đơn chưa paid, không tính hủy/nháp
-            unpaidCommissionNoShip += orderCommissionNoShip;
+            // Hoa hồng chưa nhận: tất cả đơn ngoại trừ paid, canceled, draft
+            if (status !== 'paid' && status !== 'canceled' && status !== 'draft') {
+              unpaidCommissionNoShip += orderCommissionNoShip;
+            }
             if (status === 'done') {
               statusCounts.done += 1;
               doneRevenue += orderRevenue;
