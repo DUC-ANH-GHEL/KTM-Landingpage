@@ -48,13 +48,24 @@
                   <div className="fs-4 fw-semibold text-dark">{formatVND(stats.doneRevenue)}</div>
                 </div>
               </div>
+
               <div className="col-6 col-md-3">
                 <div className="card p-3 border-0 shadow-sm bg-info bg-opacity-10">
                   <div className="d-flex align-items-center justify-content-between">
-                    <div className="text-muted small">Hoa hồng sẽ nhận (theo % SP - trừ ship ước tính)</div>
-                    <i className="fas fa-chart-line text-info"></i>
+                    <div className="text-muted small">Hoa hồng chưa nhận (đơn done/chờ trả)</div>
+                    <i className="fas fa-hourglass-half text-info"></i>
                   </div>
-                  <div className="fs-4 fw-semibold text-dark">{formatVND(stats.tempCommission)}</div>
+                  <div className="fs-4 fw-semibold text-dark">{formatVND((stats.tempCommission||0)-(stats.commissionPaid||0))}</div>
+                </div>
+              </div>
+
+              <div className="col-6 col-md-3">
+                <div className="card p-3 border-0 shadow-sm bg-success bg-opacity-10">
+                  <div className="d-flex align-items-center justify-content-between">
+                    <div className="text-muted small">Hoa hồng đã nhận (đơn paid)</div>
+                    <i className="fas fa-money-bill-wave text-success"></i>
+                  </div>
+                  <div className="fs-4 fw-semibold text-dark">{formatVND(stats.commissionPaid)}</div>
                 </div>
               </div>
 

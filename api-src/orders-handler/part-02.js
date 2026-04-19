@@ -1,3 +1,8 @@
+          // Hoa hồng đã nhận (chỉ đơn paid)
+          let commissionPaid = 0;
+                  if (status === 'paid') {
+                    commissionPaid += orderCommissionNoShip;
+                  }
         }
 
         const shipPercent = normalizeShipPercent(req.query.ship_percent ?? req.query.shipPercent);
@@ -310,8 +315,9 @@
 
         const avgOrderValue = activeOrders ? Math.round(totalRevenue / activeOrders) : 0;
         const avgQtyPerOrder = activeOrders ? (totalQty / activeOrders) : 0;
-        const tempCommission = Math.round(doneCommissionNoShip);
+        const tempCommission = Math.round(doneCommissionNoShip); // Hoa hồng chưa nhận (done + paid)
         const tempCommissionAll = Math.round(totalCommissionNoShip);
+        const commissionPaidRounded = Math.round(commissionPaid); // Hoa hồng đã nhận (paid)
 
         const payload = {
           statusCounts,
@@ -321,6 +327,7 @@
           doneRevenue,
           tempCommission,
           tempCommissionAll,
+          commissionPaid: commissionPaidRounded,
           products: topProducts,
           customers,
           days,
