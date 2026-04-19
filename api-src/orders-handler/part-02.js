@@ -266,6 +266,17 @@
 
           // Hoa hồng chưa nhận: tất cả đơn ngoại trừ paid, canceled, draft
           if (status !== 'paid' && status !== 'canceled' && status !== 'draft') {
+            console.log('[DEBUG][UNPAID COMM]', {
+              orderId: o?.id,
+              status,
+              orderCommissionProducts,
+              adj,
+              effectiveCommissionRate,
+              estimatedShipCost,
+              orderCommissionNoShip,
+              unpaidCommissionNoShip_before: unpaidCommissionNoShip,
+              unpaidCommissionNoShip_after: unpaidCommissionNoShip + orderCommissionNoShip,
+            });
             unpaidCommissionNoShip += orderCommissionNoShip;
           }
 
