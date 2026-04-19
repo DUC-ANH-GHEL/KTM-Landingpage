@@ -177,7 +177,8 @@
         let totalRevenueNoShip = 0;
         let doneRevenueNoShip = 0;
         let totalCommissionNoShip = 0;
-        let doneCommissionNoShip = 0;
+        let unpaidCommissionNoShip = 0; // Hoa hồng chờ nhận (chưa paid)
+        let paidCommissionNoShip = 0;   // Hoa hồng đã nhận (paid)
 
         const revenueByProduct = new Map();
         const revenueByCustomer = new Map();
@@ -254,13 +255,16 @@
             statusCounts.done += 1;
             doneRevenue += orderRevenue;
             doneRevenueNoShip += orderRevenueNoShip;
-            doneCommissionNoShip += orderCommissionNoShip;
-          } else if (status === 'done') {
-            statusCounts.done += 1;
-            doneRevenue += orderRevenue;
-            doneRevenueNoShip += orderRevenueNoShip;
-            doneCommissionNoShip += orderCommissionNoShip;
-          } else statusCounts.other += 1;
+            paidCommissionNoShip += orderCommissionNoShip;
+          } else {
+            // Tất cả đơn chưa paid, không tính hủy/nháp
+            unpaidCommissionNoShip += orderCommissionNoShip;
+            if (status === 'done') {
+              statusCounts.done += 1;
+              doneRevenue += orderRevenue;
+              doneRevenueNoShip += orderRevenueNoShip;
+            } else statusCounts.other += 1;
+          }
 
           if (!isExcludedFromTotals) {
             activeOrders += 1;
@@ -310,8 +314,9 @@
 
         const avgOrderValue = activeOrders ? Math.round(totalRevenue / activeOrders) : 0;
         const avgQtyPerOrder = activeOrders ? (totalQty / activeOrders) : 0;
-        const tempCommission = Math.round(doneCommissionNoShip); // Hoa hồng chưa nhận (done + paid)
+        const tempCommission = Math.round(unpaidCommissionNoShip); // Hoa hồng chờ nhận (chưa paid)
         const tempCommissionAll = Math.round(totalCommissionNoShip);
+        const commissionPaid = Math.round(paidCommissionNoShip); // Hoa hồng đã nhận (paid)
 
         const payload = {
           statusCounts,
@@ -321,6 +326,7 @@
           doneRevenue,
           tempCommission,
           tempCommissionAll,
+          commissionPaid,
           products: topProducts,
           customers,
           days,
