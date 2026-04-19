@@ -323,6 +323,7 @@
         const tempCommission = Math.round(commissionUnpaid); // Hoa hồng chưa nhận (chỉ đơn chưa paid)
         const tempCommissionAll = Math.round(totalCommissionNoShip);
         const commissionPaidRounded = Math.round(commissionPaid); // Hoa hồng đã nhận (paid)
+        const commissionUnpaidRounded = Math.round(commissionUnpaid); // Hoa hồng chưa nhận (đơn chưa paid)
 
         const payload = {
           statusCounts,
@@ -333,6 +334,7 @@
           tempCommission,
           tempCommissionAll,
           commissionPaid: commissionPaidRounded,
+          commissionUnpaid: commissionUnpaidRounded,
           products: topProducts,
           customers,
           days,
