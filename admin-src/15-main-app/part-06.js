@@ -67,6 +67,26 @@
                   <div className="fs-4 fw-semibold text-dark">{formatVND(stats.tempCommissionAll)}</div>
                 </div>
               </div>
+
+              {/* Hoa hồng hôm nay */}
+              {(() => {
+                const today = new Date();
+                const pad = n => n.toString().padStart(2, '0');
+                const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+                const todayStat = (stats.days||[]).find(d => d.day === todayStr);
+                if (!todayStat) return null;
+                return (
+                  <div className="col-6 col-md-3">
+                    <div className="card p-3 border-0 shadow-sm bg-info bg-opacity-10">
+                      <div className="d-flex align-items-center justify-content-between">
+                        <div className="text-muted small">Hoa hồng hôm nay ({todayStr})</div>
+                        <i className="fas fa-calendar-day text-info"></i>
+                      </div>
+                      <div className="fs-4 fw-semibold text-dark">{formatVND(todayStat.commission)}</div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="card p-3 mt-3">
