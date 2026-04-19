@@ -55,7 +55,7 @@
                     <div className="text-muted small">Hoa hồng chưa nhận (đơn done/chờ trả)</div>
                     <i className="fas fa-hourglass-half text-info"></i>
                   </div>
-                  <div className="fs-4 fw-semibold text-dark">{formatVND((stats.tempCommission||0)-(stats.commissionPaid||0))}</div>
+                    <div className="fs-4 fw-semibold text-dark">{formatVND(stats.tempCommission||0)}</div>
                 </div>
               </div>
 
