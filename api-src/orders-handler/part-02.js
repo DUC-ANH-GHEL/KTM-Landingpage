@@ -1,5 +1,10 @@
           // Hoa hồng đã nhận (chỉ đơn paid)
           let commissionPaid = 0;
+          // Hoa hồng chưa nhận (chỉ đơn chưa paid, không tính hủy/nháp)
+          let commissionUnpaid = 0;
+                  if (!isCanceled && !isDraft && status !== 'paid') {
+                    commissionUnpaid += orderCommissionNoShip;
+                  }
                   if (status === 'paid') {
                     commissionPaid += orderCommissionNoShip;
                   }
@@ -315,7 +320,7 @@
 
         const avgOrderValue = activeOrders ? Math.round(totalRevenue / activeOrders) : 0;
         const avgQtyPerOrder = activeOrders ? (totalQty / activeOrders) : 0;
-        const tempCommission = Math.round(doneCommissionNoShip); // Hoa hồng chưa nhận (done + paid)
+        const tempCommission = Math.round(commissionUnpaid); // Hoa hồng chưa nhận (chỉ đơn chưa paid)
         const tempCommissionAll = Math.round(totalCommissionNoShip);
         const commissionPaidRounded = Math.round(commissionPaid); // Hoa hồng đã nhận (paid)
 
