@@ -187,11 +187,28 @@
                 </div>
                 {previewImage.note && <div className="mb-2" style={{fontSize: 14, color: '#17a2b8'}}>{previewImage.note}</div>}
                 <button
-                  className="btn btn-outline-primary btn-sm mt-2"
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(90deg,#007bff,#00c6ff)',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: 18,
+                    padding: '14px 0',
+                    border: 'none',
+                    borderRadius: 12,
+                    marginTop: 16,
+                    boxShadow: '0 2px 12px rgba(0,123,255,0.15)',
+                    letterSpacing: 0.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    zIndex: 10
+                  }}
                   onClick={async () => {
                     const el = window._ktmScreenshotRef;
                     if (!el) return;
-                    const {{ captureElementAsImage }} = await import('../../utils/captureElementAsImage');
+                    const { captureElementAsImage } = await import('../../utils/captureElementAsImage');
                     const dataUrl = await captureElementAsImage(el);
                     // Tạo link tải ảnh
                     const link = document.createElement('a');
@@ -200,7 +217,8 @@
                     link.click();
                   }}
                 >
-                  <i className="fas fa-camera me-1"></i>Chụp màn hình khu vực này
+                  <i className="fas fa-camera" style={{fontSize: 22, marginRight: 8}}></i>
+                  <span>CHỤP MÀN HÌNH KHU VỰC TÊN + GIÁ</span>
                 </button>
               </div>
             </div>
