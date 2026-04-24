@@ -181,11 +181,27 @@
               </div>
               
               <div className="preview-footer" onClick={(e) => e.stopPropagation()}>
-                <div className="name">{previewImage.name}</div>
-                {previewImage.price && <div className="price">{previewImage.price.replace(/[đ\s]/g, '')}đ</div>}
+                <div ref={screenshotRef => window._ktmScreenshotRef = screenshotRef} style={{display: 'inline-block'}}>
+                  <div className="name">{previewImage.name}</div>
+                  {previewImage.price && <div className="price">{previewImage.price.replace(/[đ\s]/g, '')}đ</div>}
+                </div>
                 {previewImage.note && <div className="mb-2" style={{fontSize: 14, color: '#17a2b8'}}>{previewImage.note}</div>}
-                
-                {/* Đã xoá nút Copy ảnh và Copy giá */}
+                <button
+                  className="btn btn-outline-primary btn-sm mt-2"
+                  onClick={async () => {
+                    const el = window._ktmScreenshotRef;
+                    if (!el) return;
+                    const {{ captureElementAsImage }} = await import('../../utils/captureElementAsImage');
+                    const dataUrl = await captureElementAsImage(el);
+                    // Tạo link tải ảnh
+                    const link = document.createElement('a');
+                    link.href = dataUrl;
+                    link.download = `${previewImage.name || 'screenshot'}.png`;
+                    link.click();
+                  }}
+                >
+                  <i className="fas fa-camera me-1"></i>Chụp màn hình khu vực này
+                </button>
               </div>
             </div>
           )}

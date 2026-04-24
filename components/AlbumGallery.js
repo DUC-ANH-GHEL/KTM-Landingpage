@@ -284,9 +284,9 @@ function AlbumGallery() {
             </div>
 
             {/* Lightbox sử dụng ImageModal component hiện có (nằm ở components/ImageModal.js) */}
-            {lightboxSrc && typeof ImageModal === "function" ? (
-              <ImageModal src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
-            ) : lightboxSrc ? (
+            {lightboxSrc ? (
+              <ImageModalWithInfo src={lightboxSrc} name={currentAlbum?.title} price={null} onClose={() => setLightboxSrc(null)} />
+            ) : null}
               // fallback simple modal
               <div className="image-fallback-modal" onClick={() => setLightboxSrc(null)}>
                 <img src={lightboxSrc} alt={lightboxCaption} className="img-fluid rounded" />

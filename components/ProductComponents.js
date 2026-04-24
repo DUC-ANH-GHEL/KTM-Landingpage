@@ -298,7 +298,12 @@ function ProductList() {
       </div>
 
       {modalImage && (
-        <ImageModal src={modalImage} onClose={() => setModalImage(null)} />
+        <ImageModalWithInfo 
+          src={modalImage} 
+          name={Object.values(productGroups).flatMap(g => g.products).find(p => p.img === modalImage)?.name} 
+          price={Object.values(productGroups).flatMap(g => g.products).find(p => p.img === modalImage)?.price} 
+          onClose={() => setModalImage(null)} 
+        />
       )}
     </section>
   );

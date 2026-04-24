@@ -387,8 +387,13 @@ function GlobalSearchBar() {
             )}
 
             {/* Modal phóng to ảnh */}
-            {modalImage && (
-              <ImageModal src={modalImage} onClose={() => setModalImage(null)} />
+            {modalImage && selectedProduct && (
+              <ImageModalWithInfo 
+                src={modalImage} 
+                name={selectedProduct.name} 
+                price={selectedProduct.price} 
+                onClose={() => setModalImage(null)} 
+              />
             )}
           </div>
         </div>

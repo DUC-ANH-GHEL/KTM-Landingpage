@@ -56,7 +56,7 @@ function ProductShowcaseTabs() {
         </div>
 
         {modalImage && (
-          <ImageModal src={modalImage} onClose={() => setModalImage(null)} />
+          <ImageModalWithInfo src={modalImage} name={products.find(p => p.image === modalImage)?.title} price={products.find(p => p.image === modalImage)?.price} onClose={() => setModalImage(null)} />
         )}
       </div>
     </section>
