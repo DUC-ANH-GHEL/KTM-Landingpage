@@ -185,25 +185,7 @@
                 {previewImage.price && <div className="price">{previewImage.price.replace(/[đ\s]/g, '')}đ</div>}
                 {previewImage.note && <div className="mb-2" style={{fontSize: 14, color: '#17a2b8'}}>{previewImage.note}</div>}
                 
-                <div className="action-btns">
-                  <button 
-                    className={copiedId === 'preview-img' ? 'btn-success text-white' : 'btn-outline-light text-white'}
-                    style={{background: copiedId === 'preview-img' ? '#28a745' : 'rgba(255,255,255,0.2)'}}
-                    onClick={() => copyImage(previewImage.url, 'preview')}
-                  >
-                    <i className={`fas ${copiedId === 'preview-img' ? 'fa-check' : 'fa-copy'}`}></i>
-                    Copy ảnh
-                  </button>
-                  {previewImage.price && (
-                    <button 
-                      className={copiedId === 'preview-price' ? 'btn-success text-white' : 'btn-warning'}
-                      onClick={() => copyText(previewImage.price.replace(/[đ\s]/g, ''), 'preview-price')}
-                    >
-                      <i className={`fas ${copiedId === 'preview-price' ? 'fa-check' : 'fa-tag'}`}></i>
-                      Copy giá
-                    </button>
-                  )}
-                </div>
+                {/* Đã xoá nút Copy ảnh và Copy giá */}
               </div>
             </div>
           )}
