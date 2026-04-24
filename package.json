@@ -1,6 +1,6 @@
 {
   "scripts": {
-      "_dev_disabled": "vercel dev",
+    "_dev_disabled": "vercel dev",
     "_start_disabled": "vercel dev",
     "build:jsx": "node scripts/build-jsx.mjs",
     "build:api": "node scripts/build-api.mjs",
@@ -10,6 +10,7 @@
   "dependencies": {
     "@neondatabase/serverless": "^0.9.5",
     "aos": "^2.3.4",
-    "esbuild": "^0.24.2"
+    "esbuild": "^0.24.2",
+    "html2canvas": "^1.4.1"
   }
 }
